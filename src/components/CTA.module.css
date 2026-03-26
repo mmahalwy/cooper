@@ -1,0 +1,84 @@
+.section {
+  padding: 160px 0 120px;
+  text-align: center;
+  position: relative;
+}
+
+.section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(
+    ellipse at center,
+    var(--glow) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.title {
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  margin-bottom: 16px;
+  line-height: 1.1;
+}
+
+.gradient {
+  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  max-width: 400px;
+  margin: 0 auto 48px;
+  line-height: 1.7;
+}
+
+.form {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.inputGroup {
+  gap: 8px;
+  flex-wrap: nowrap;
+
+  @media (max-width: 36em) {
+    flex-direction: column;
+  }
+}
+
+.inputRoot {
+  flex: 1;
+}
+
+.input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  color: #fff;
+  font-size: 0.875rem;
+
+  &::placeholder {
+    color: var(--text-secondary);
+  }
+
+  &:focus {
+    border-color: rgba(124, 127, 255, 0.3);
+  }
+}
+
+.note {
+  margin-top: 16px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}

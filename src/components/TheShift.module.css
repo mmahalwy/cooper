@@ -1,0 +1,111 @@
+.section {
+  padding: 140px 0;
+  position: relative;
+}
+
+.label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--gradient-start);
+  margin-bottom: 16px;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.title {
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-align: center;
+  margin-bottom: 16px;
+  line-height: 1.15;
+}
+
+.subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  max-width: 480px;
+  margin: 0 auto 72px;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  max-width: 760px;
+  margin: 0 auto;
+
+  @media (max-width: 48em) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  border-radius: 12px;
+  padding: 28px;
+  border: 1px solid var(--border-subtle);
+}
+
+.oldWay {
+  background: transparent;
+}
+
+.newWay {
+  background: var(--bg-card);
+  border-color: rgba(124, 127, 255, 0.1);
+}
+
+.cardLabel {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.oldLabel {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.newLabel {
+  color: var(--gradient-start);
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.item:last-child {
+  margin-bottom: 0;
+}
+
+.itemIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.oldIcon {
+  color: rgba(255, 255, 255, 0.12);
+}
+
+.newIcon {
+  color: var(--gradient-start);
+}
+
+.itemText {
+  color: var(--text-secondary);
+}
+
+.newWay .itemText {
+  color: rgba(255, 255, 255, 0.7);
+}
