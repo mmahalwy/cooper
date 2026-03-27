@@ -31,8 +31,6 @@ export function Navbar() {
         <Group className={classes.cta}>
           <Button
             size="xs"
-            variant="white"
-            color="dark"
             component="a"
             href="#waitlist"
             styles={{
@@ -41,6 +39,9 @@ export function Navbar() {
                 fontSize: "0.8125rem",
                 height: 32,
                 paddingInline: 14,
+                background: "var(--accent)",
+                color: "#fff",
+                border: "none",
               },
             }}
           >
@@ -52,7 +53,7 @@ export function Navbar() {
           opened={opened}
           onClick={toggle}
           className={classes.burger}
-          color="white"
+          color="dark"
           size="sm"
         />
 
@@ -76,11 +77,16 @@ export function Navbar() {
               </a>
             ))}
             <Button
-              variant="white"
-              color="dark"
               fullWidth
               component="a"
               href="#waitlist"
+              styles={{
+                root: {
+                  background: "var(--accent)",
+                  color: "#fff",
+                  border: "none",
+                },
+              }}
             >
               Join Waitlist
             </Button>

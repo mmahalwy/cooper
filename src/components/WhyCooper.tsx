@@ -23,15 +23,15 @@ const differentiators = [
   },
   {
     icon: IconPlugConnected,
-    title: "Native tool access, not copy-paste",
+    title: "Stitches data across every tool",
     description:
-      "Other solutions require you to manually feed data in. Cooper connects directly to 3,000+ tools — Slack, GitHub, HubSpot, Stripe, Linear, Google Ads — and operates inside them natively.",
+      "The best decisions need data from multiple places. Cooper connects to 3,000+ tools and cross-references them — your CRM, analytics, codebase, ad platforms — to surface insights a single tool never could.",
   },
   {
     icon: IconRefresh,
-    title: "Proactive, not reactive",
+    title: "Acts before you ask",
     description:
-      "Cooper doesn't just wait for instructions. It monitors your workflows, flags anomalies, suggests automations, and handles recurring tasks without being asked.",
+      "Cooper doesn't wait for instructions. It monitors your workflows, catches anomalies early, surfaces risks, and handles recurring tasks on its own — like a teammate who's always paying attention.",
   },
   {
     icon: IconShieldCheck,

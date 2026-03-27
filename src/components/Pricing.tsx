@@ -103,23 +103,19 @@ export function Pricing() {
               <Button
                 fullWidth
                 size="md"
-                variant={plan.ctaVariant}
-                gradient={
-                  plan.ctaVariant === "gradient"
-                    ? { from: "blue", to: "violet" }
-                    : undefined
-                }
-                styles={
-                  plan.ctaVariant === "default"
+                styles={{
+                  root: plan.featured
                     ? {
-                        root: {
-                          background: "rgba(255,255,255,0.05)",
-                          border: "1px solid rgba(255,255,255,0.1)",
-                          color: "#fff",
-                        },
+                        background: "var(--accent)",
+                        color: "#fff",
+                        border: "none",
                       }
-                    : undefined
-                }
+                    : {
+                        background: "transparent",
+                        border: "1px solid var(--border-subtle)",
+                        color: "var(--text-primary)",
+                      },
+                }}
               >
                 {plan.cta}
               </Button>

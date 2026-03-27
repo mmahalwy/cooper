@@ -6,16 +6,17 @@
   text-transform: uppercase;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  color: var(--gradient-start);
+  letter-spacing: 0.08em;
+  color: var(--accent);
   margin-bottom: 16px;
   text-align: center;
 }
 
 .title {
+  font-family: var(--font-playfair), Georgia, serif;
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-weight: 500;
+  letter-spacing: -0.02em;
   text-align: center;
   margin-bottom: 16px;
 }
@@ -41,7 +42,7 @@
   padding: 8px 20px;
   border-radius: 100px;
   border: 1px solid var(--border-subtle);
-  background: transparent;
+  background: var(--bg-white);
   color: var(--text-secondary);
   cursor: pointer;
   font-size: 0.875rem;
@@ -50,13 +51,13 @@
 }
 
 .tab:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  border-color: rgba(0, 0, 0, 0.2);
+  color: var(--text-primary);
 }
 
 .tabActive {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-  border-color: transparent;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
 }
 
@@ -76,16 +77,16 @@
   border-radius: 16px;
   padding: 28px;
   border: 1px solid var(--border-subtle);
-  background: var(--bg-card);
+  background: var(--bg-white);
   transition: border-color 0.3s;
 }
 
 .card:hover {
-  border-color: rgba(9, 105, 255, 0.2);
+  border-color: rgba(30, 58, 95, 0.2);
 }
 
 .cardIcon {
-  color: var(--gradient-start);
+  color: var(--accent);
   margin-bottom: 16px;
 }
 

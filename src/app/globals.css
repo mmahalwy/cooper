@@ -1,14 +1,14 @@
 @import "@mantine/core/styles.css";
 
 :root {
-  --gradient-start: #7c7fff;
-  --gradient-end: #a78bfa;
-  --bg-dark: #09090b;
-  --bg-card: rgba(255, 255, 255, 0.025);
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --text-primary: #fafafa;
-  --text-secondary: rgba(255, 255, 255, 0.45);
-  --glow: rgba(124, 127, 255, 0.08);
+  --bg-cream: #f5f2ed;
+  --bg-white: #ffffff;
+  --accent: #1e3a5f;
+  --accent-light: #2b5a8f;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b6b6b;
+  --text-muted: #999;
 }
 
 * {
@@ -19,11 +19,11 @@
 
 html {
   scroll-behavior: smooth;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
-  background: var(--bg-dark);
+  background: var(--bg-cream);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -36,5 +36,5 @@ a {
 }
 
 ::selection {
-  background: rgba(124, 127, 255, 0.25);
+  background: rgba(30, 58, 95, 0.15);
 }

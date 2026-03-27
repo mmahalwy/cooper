@@ -6,16 +6,17 @@
   text-transform: uppercase;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  color: var(--gradient-start);
+  letter-spacing: 0.08em;
+  color: var(--accent);
   margin-bottom: 16px;
   text-align: center;
 }
 
 .title {
+  font-family: var(--font-playfair), Georgia, serif;
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-weight: 500;
+  letter-spacing: -0.02em;
   text-align: center;
   margin-bottom: 16px;
 }
@@ -46,19 +47,15 @@
   border-radius: 16px;
   padding: 36px;
   border: 1px solid var(--border-subtle);
-  background: var(--bg-card);
+  background: var(--bg-white);
   display: flex;
   flex-direction: column;
 }
 
 .featured {
-  border-color: rgba(9, 105, 255, 0.4);
-  background: linear-gradient(
-    135deg,
-    rgba(9, 105, 255, 0.06),
-    rgba(124, 58, 237, 0.06)
-  );
+  border-color: var(--accent);
   position: relative;
+  box-shadow: 0 4px 40px rgba(30, 58, 95, 0.08);
 }
 
 .featuredBadge {
@@ -66,7 +63,7 @@
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  background: var(--accent);
   color: white;
   font-size: 0.75rem;
   font-weight: 600;
@@ -75,8 +72,9 @@
 }
 
 .planName {
-  font-size: 1.125rem;
-  font-weight: 700;
+  font-family: var(--font-playfair), Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
   margin-bottom: 4px;
 }
 
@@ -87,21 +85,23 @@
 }
 
 .price {
+  font-family: var(--font-playfair), Georgia, serif;
   font-size: 3rem;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.03em;
   margin-bottom: 4px;
 }
 
 .priceUnit {
+  font-family: var(--font-inter), sans-serif;
   font-size: 1rem;
   font-weight: 400;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .priceNote {
   font-size: 0.8125rem;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   margin-bottom: 32px;
 }
 
@@ -118,11 +118,11 @@
   gap: 10px;
   margin-bottom: 12px;
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
 }
 
 .featureIcon {
-  color: #22c55e;
+  color: var(--accent);
   flex-shrink: 0;
   margin-top: 1px;
 }

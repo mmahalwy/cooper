@@ -3,21 +3,23 @@
 }
 
 .label {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--gradient-start);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
   margin-bottom: 16px;
   text-align: center;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .title {
-  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
-  font-weight: 600;
-  letter-spacing: -0.035em;
+  font-family: var(--font-playfair), Georgia, serif;
+  font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
   text-align: center;
   margin-bottom: 16px;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .subtitle {
@@ -42,27 +44,12 @@
 }
 
 .card {
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 32px;
   border: 1px solid var(--border-subtle);
-  background: var(--bg-card);
+  background: var(--bg-white);
   position: relative;
   overflow: hidden;
-}
-
-.card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(124, 127, 255, 0.2),
-    transparent
-  );
 }
 
 .cardFull {
@@ -70,7 +57,7 @@
 }
 
 .cardIcon {
-  color: var(--gradient-start);
+  color: var(--accent);
   opacity: 0.6;
   margin-bottom: 20px;
 }
@@ -96,8 +83,9 @@
 }
 
 .compTitle {
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-family: var(--font-playfair), Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 500;
   letter-spacing: -0.02em;
   text-align: center;
   margin-bottom: 32px;
@@ -107,31 +95,32 @@
   width: 100%;
   border-collapse: collapse;
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
+  background: var(--bg-white);
 }
 
 .tableHead {
-  background: var(--bg-card);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .tableHead th {
   padding: 14px 20px;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   text-align: left;
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .tableHead th:first-child {
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .tableHead th:last-child {
-  color: var(--gradient-start);
+  color: var(--accent);
 }
 
 .table td {
@@ -146,14 +135,15 @@
 }
 
 .table td:first-child {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-primary);
   font-weight: 500;
 }
 
 .dimmed {
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--text-muted);
 }
 
 .bright {
-  color: var(--gradient-start);
+  color: var(--accent);
+  font-weight: 600;
 }

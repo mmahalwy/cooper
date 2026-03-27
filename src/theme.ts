@@ -1,16 +1,16 @@
 import { createTheme, MantineColorsTuple } from "@mantine/core";
 
 const brand: MantineColorsTuple = [
-  "#f0f0ff",
-  "#dddeff",
-  "#b8b9ff",
-  "#9092ff",
-  "#7c7fff",
-  "#6e6eff",
-  "#6564ff",
-  "#5453e4",
-  "#4a49cc",
-  "#3d3db5",
+  "#f0f4f8",
+  "#dce6f0",
+  "#b4cde0",
+  "#89b0cd",
+  "#6497bb",
+  "#4a84ad",
+  "#1e3a5f",
+  "#1a3354",
+  "#162c49",
+  "#12243e",
 ];
 
 export const theme = createTheme({
@@ -22,9 +22,9 @@ export const theme = createTheme({
     "var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   headings: {
     fontFamily:
-      "var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      "var(--font-playfair), Georgia, 'Times New Roman', serif",
     fontWeight: "600",
   },
   defaultRadius: "md",
-  black: "#09090b",
+  black: "#1a1a1a",
 });

@@ -25,9 +25,9 @@ export function TheShift() {
           AI that gives advice vs. AI that does the work
         </h2>
         <p className={classes.subtitle}>
-          Most AI tools generate text. Cooper generates outcomes. It connects to
-          your stack, executes multi-step workflows, and delivers real
-          results.
+          Most AI tools generate text. Cooper generates outcomes. It pulls data
+          from across your stack, connects the dots, and delivers real
+          results — without waiting to be asked.
         </p>
 
         <div className={classes.comparison}>

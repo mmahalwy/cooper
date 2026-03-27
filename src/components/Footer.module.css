@@ -4,7 +4,8 @@
 }
 
 .logo {
-  font-size: 0.875rem;
+  font-family: var(--font-playfair), Georgia, serif;
+  font-size: 1rem;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -16,10 +17,11 @@
   width: 20px;
   height: 20px;
   border-radius: 4px;
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+  background: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: var(--font-playfair), Georgia, serif;
   font-size: 10px;
   font-weight: 700;
   color: white;
@@ -30,7 +32,7 @@
   align-items: center;
   justify-content: space-between;
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   flex-wrap: wrap;
   gap: 16px;
 }

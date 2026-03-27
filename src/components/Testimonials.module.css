@@ -6,16 +6,17 @@
   text-transform: uppercase;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  color: var(--gradient-start);
+  letter-spacing: 0.08em;
+  color: var(--accent);
   margin-bottom: 16px;
   text-align: center;
 }
 
 .title {
+  font-family: var(--font-playfair), Georgia, serif;
   font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-weight: 500;
+  letter-spacing: -0.02em;
   text-align: center;
   margin-bottom: 64px;
 }
@@ -38,13 +39,13 @@
   border-radius: 16px;
   padding: 28px;
   border: 1px solid var(--border-subtle);
-  background: var(--bg-card);
+  background: var(--bg-white);
 }
 
 .quote {
   font-size: 0.9375rem;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
   margin-bottom: 20px;
 }
 
@@ -74,9 +75,10 @@
 .authorName {
   font-size: 0.875rem;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .authorRole {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
