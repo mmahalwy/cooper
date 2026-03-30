@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { WrenchIcon } from 'lucide-react';
+import { WrenchIcon, BotIcon, UserIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type ToolState =
@@ -54,42 +54,65 @@ export function MessageBubble({ role, parts }: MessageBubbleProps) {
   const isUser = role === 'user';
 
   return (
-    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
-      <div
-        className={cn(
-          'max-w-[70%] rounded-2xl px-4 py-2',
-          isUser
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted'
+    <div className={cn('flex gap-3 py-4', isUser && 'flex-row-reverse')}>
+      <div className={cn(
+        'flex size-8 shrink-0 items-center justify-center rounded-full',
+        isUser ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+      )}>
+        {isUser ? (
+          <UserIcon className="size-4" />
+        ) : (
+          <BotIcon className="size-4" />
         )}
-      >
-        {parts.map((part, i) => {
-          if (part.type === 'text') {
-            const textPart = part as TextPart;
-            if (!textPart.text) return null;
-            return (
-              <p key={i} className="text-sm whitespace-pre-wrap">
-                {textPart.text}
-              </p>
-            );
-          }
+      </div>
+      <div className={cn(
+        'max-w-[75%] rounded-lg px-4 py-2.5',
+        isUser ? 'bg-muted' : ''
+      )}>
+        <div className="text-sm">
+          {parts.map((part, i) => {
+            if (part.type === 'text') {
+              const textPart = part as TextPart;
+              if (!textPart.text) return null;
+              return (
+                <p key={i} className="whitespace-pre-wrap text-left">
+                  {textPart.text}
+                </p>
+              );
+            }
 
-          if (isToolPart(part)) {
-            const toolPart = part as ToolPart;
-            return (
-              <ToolCallDisplay
-                key={i}
-                toolName={extractToolName(toolPart)}
-                state={toolPart.state}
-                input={toolPart.input}
-                output={toolPart.output}
-                errorText={toolPart.errorText}
-              />
-            );
-          }
+            if (isToolPart(part)) {
+              const toolPart = part as ToolPart;
+              return (
+                <ToolCallDisplay
+                  key={i}
+                  toolName={extractToolName(toolPart)}
+                  state={toolPart.state}
+                  input={toolPart.input}
+                  output={toolPart.output}
+                  errorText={toolPart.errorText}
+                />
+              );
+            }
 
-          return null;
-        })}
+            return null;
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function StreamingIndicator() {
+  return (
+    <div className="flex gap-3 py-4">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <BotIcon className="size-4" />
+      </div>
+      <div className="flex items-center gap-1 pt-2">
+        <span className="size-2 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:0ms]" />
+        <span className="size-2 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:150ms]" />
+        <span className="size-2 animate-bounce rounded-full bg-muted-foreground/50 [animation-delay:300ms]" />
       </div>
     </div>
   );
@@ -123,7 +146,7 @@ function ToolCallDisplay({
         : 'Running...';
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="my-1">
+    <Collapsible open={open} onOpenChange={setOpen} className="my-2 text-left">
       <CollapsibleTrigger className="flex items-center gap-1.5 cursor-pointer">
         <WrenchIcon className="size-3.5" />
         <span className="text-xs font-medium">{toolName}</span>

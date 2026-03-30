@@ -48,6 +48,17 @@
 }
 
 :root {
+    /* Cooper brand custom properties (used by marketing CSS modules) */
+    --bg-cream: #f5f2ed;
+    --bg-white: #ffffff;
+    --accent: #1e3a5f;
+    --accent-light: #2b5a8f;
+    --border-subtle: rgba(0, 0, 0, 0.08);
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b6b6b;
+    --text-muted: #999;
+
+    /* shadcn tokens */
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);

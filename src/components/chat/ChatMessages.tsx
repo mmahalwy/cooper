@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageBubble } from './MessageBubble';
+import { MessageBubble, StreamingIndicator } from './MessageBubble';
 
 interface ChatMessagesProps {
   messages: Array<{
@@ -10,18 +10,19 @@ interface ChatMessagesProps {
     role: string;
     parts: Array<{ type: string; text?: string; [key: string]: unknown }>;
   }>;
+  isStreaming?: boolean;
 }
 
-export function ChatMessages({ messages }: ChatMessagesProps) {
+export function ChatMessages({ messages, isStreaming }: ChatMessagesProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isStreaming]);
 
   return (
     <ScrollArea className="flex-1">
-      <div className="flex flex-col gap-3 p-4">
+      <div className="mx-auto flex w-full max-w-3xl flex-col px-4">
         {messages.map((message) => (
           <MessageBubble
             key={message.id}
@@ -29,6 +30,7 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
             parts={message.parts}
           />
         ))}
+        {isStreaming && <StreamingIndicator />}
         <div ref={bottomRef} />
       </div>
     </ScrollArea>
