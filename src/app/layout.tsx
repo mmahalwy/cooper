@@ -2,9 +2,12 @@ import "@mantine/core/styles.css";
 import "./globals.css";
 
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter, Playfair_Display, Geist } from "next/font/google";
 import { MantineProvider, ColorSchemeScript } from "@mantine/core";
 import { theme } from "@/theme";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-mantine-color-scheme="light" className={`${inter.variable} ${playfair.variable}`}>
+    <html lang="en" data-mantine-color-scheme="light" className={cn(inter.variable, playfair.variable, "font-sans", geist.variable)}>
       <head>
         <ColorSchemeScript forceColorScheme="light" />
       </head>

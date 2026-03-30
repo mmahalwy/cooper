@@ -10,11 +10,15 @@ import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Message } from '@/lib/types';
 
+type LoadedMessage = {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  parts: Array<{ type: 'text'; text: string }>;
+};
+
 export default function ChatThreadPage() {
   const { threadId } = useParams<{ threadId: string }>();
-  const [initialMessages, setInitialMessages] = useState<
-    Array<{ id: string; role: 'user' | 'assistant' | 'system'; parts: Array<{ type: 'text'; text: string }> }> | null
-  >(null);
+  const [initialMessages, setInitialMessages] = useState<LoadedMessage[] | null>(null);
 
   useEffect(() => {
     async function loadMessages() {
@@ -41,14 +45,7 @@ export default function ChatThreadPage() {
     loadMessages();
   }, [threadId]);
 
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({
-      api: '/api/chat',
-      body: { threadId },
-    }),
-    messages: initialMessages || undefined,
-  });
-
+  // Don't render the chat until messages are loaded
   if (initialMessages === null) {
     return (
       <Center h="100vh">
@@ -56,6 +53,30 @@ export default function ChatThreadPage() {
       </Center>
     );
   }
+
+  return (
+    <ChatThread
+      key={threadId}
+      threadId={threadId}
+      initialMessages={initialMessages}
+    />
+  );
+}
+
+function ChatThread({
+  threadId,
+  initialMessages,
+}: {
+  threadId: string;
+  initialMessages: LoadedMessage[];
+}) {
+  const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({
+      api: '/api/chat',
+      body: { threadId },
+    }),
+    messages: initialMessages,
+  });
 
   const isStreaming = status === 'streaming' || status === 'submitted';
 
