@@ -9,6 +9,9 @@ class GoogleEmbeddingProvider implements EmbeddingProvider {
     const result = await embed({
       model: this.model,
       value: text,
+      providerOptions: {
+        google: { outputDimensionality: 768 },
+      },
     });
     return result.embedding;
   }
@@ -17,6 +20,9 @@ class GoogleEmbeddingProvider implements EmbeddingProvider {
     const result = await embedMany({
       model: this.model,
       values: texts,
+      providerOptions: {
+        google: { outputDimensionality: 768 },
+      },
     });
     return result.embeddings;
   }
