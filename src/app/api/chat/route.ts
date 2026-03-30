@@ -101,7 +101,7 @@ export async function POST(req: Request) {
 
   const memoryContext = await retrieveContext(supabase, dbUser.org_id, userText);
 
-  const result = createAgentStream({
+  const result = await createAgentStream({
     ...agentInput,
     tools,
     memoryContext,

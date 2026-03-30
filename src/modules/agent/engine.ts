@@ -19,11 +19,11 @@ When you have tools available, use them proactively to get information or take a
 You have web search built in — use it when the user asks about current events, recent information, or anything that benefits from live data.
 Always explain what you did after using a tool. Show your reasoning when tackling complex tasks.`;
 
-function buildSystemPrompt(memoryContext?: MemoryContext): string {
+async function buildSystemPrompt(memoryContext?: MemoryContext): Promise<string> {
   let prompt = SYSTEM_PROMPT;
 
   // List available skills (names + descriptions only — loaded on demand via tool)
-  prompt += buildSkillsPrompt();
+  prompt += await buildSkillsPrompt();
 
   if (memoryContext?.knowledge.length) {
     prompt += `\n\n## Things you know about this organization:\n`;
@@ -60,7 +60,7 @@ function toModelMessages(messages: AgentMessage[]): ModelMessage[] {
   });
 }
 
-export function createAgentStream(input: AgentInput) {
+export async function createAgentStream(input: AgentInput) {
   const modelId = input.modelOverride || DEFAULT_MODEL;
   const modelName = MODELS[modelId] || MODELS[DEFAULT_MODEL];
 
@@ -74,9 +74,11 @@ export function createAgentStream(input: AgentInput) {
     ...(input.tools || {}),
   };
 
+  const systemPrompt = await buildSystemPrompt(input.memoryContext);
+
   const result = streamText({
     model: google(modelName),
-    system: buildSystemPrompt(input.memoryContext),
+    system: systemPrompt,
     messages: toModelMessages(input.messages),
     tools: allTools,
     stopWhen: stepCountIs(10),
