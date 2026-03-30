@@ -26,7 +26,26 @@ export function IntegrationsCatalog() {
     setLoading(false);
   }
 
-  useEffect(() => { loadConnections(); }, []);
+  useEffect(() => {
+    loadConnections();
+
+    // Check if user just returned from OAuth
+    const pending = sessionStorage.getItem('pending_connection');
+    if (pending) {
+      sessionStorage.removeItem('pending_connection');
+      const { name, provider, connectedAccountId } = JSON.parse(pending);
+      fetch('/api/connections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          provider,
+          type: 'platform',
+          config: { apps: [provider], connectedAccountId },
+        }),
+      }).then(() => loadConnections());
+    }
+  }, []);
 
   const connectedIds = useMemo(() => {
     const ids = new Set<string>();
@@ -78,26 +97,15 @@ export function IntegrationsCatalog() {
       return;
     }
 
-    // OAuth — save connection and redirect
-    await fetch('/api/connections', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    // OAuth — open auth page, store pending info for when user returns
+    if (data.redirectUrl) {
+      sessionStorage.setItem('pending_connection', JSON.stringify({
         name: integration.name,
         provider: integration.composioApp,
-        type: 'platform',
-        config: {
-          apps: [integration.composioApp],
-          connectedAccountId: data.connectedAccountId,
-        },
-      }),
-    });
-
-    if (data.redirectUrl) {
+        connectedAccountId: data.connectedAccountId,
+      }));
       window.open(data.redirectUrl, '_blank');
     }
-
-    await loadConnections();
   };
 
   const handleApiKeySubmit = async () => {
