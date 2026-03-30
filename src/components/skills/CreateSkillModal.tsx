@@ -1,10 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { EyeIcon, PenIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CreateSkillModalProps {
   opened: boolean;
@@ -17,6 +21,7 @@ export function CreateSkillModal({ opened, onClose, onCreated }: CreateSkillModa
   const [loading, setLoading] = useState(false);
   const [parsed, setParsed] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
 
   const handleParse = async () => {
     if (!description.trim()) return;
@@ -59,20 +64,60 @@ export function CreateSkillModal({ opened, onClose, onCreated }: CreateSkillModa
   };
 
   return (
-    <Dialog open={opened} onOpenChange={(open) => { if (!open) { onClose(); setParsed(null); setError(null); } }}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={opened} onOpenChange={(open) => { if (!open) { onClose(); setParsed(null); setError(null); setPreview(false); } }}>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Create Skill</DialogTitle>
         </DialogHeader>
 
         {!parsed ? (
           <div className="flex flex-col gap-4">
-            <Textarea
-              placeholder='e.g., "When I ask for a sprint summary, pull tickets from Linear, group by assignee, include story points, and format as a markdown table"'
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-            />
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Describe the workflow in plain English or markdown.
+              </p>
+              <div className="flex items-center gap-1 rounded-md border p-0.5">
+                <button
+                  onClick={() => setPreview(false)}
+                  className={cn(
+                    'rounded px-2 py-1 text-xs',
+                    !preview ? 'bg-muted font-medium' : 'text-muted-foreground'
+                  )}
+                >
+                  <PenIcon className="inline-block size-3 mr-1" />
+                  Write
+                </button>
+                <button
+                  onClick={() => setPreview(true)}
+                  className={cn(
+                    'rounded px-2 py-1 text-xs',
+                    preview ? 'bg-muted font-medium' : 'text-muted-foreground'
+                  )}
+                >
+                  <EyeIcon className="inline-block size-3 mr-1" />
+                  Preview
+                </button>
+              </div>
+            </div>
+
+            {preview ? (
+              <div className="min-h-[160px] rounded-md border p-3 prose prose-sm max-w-none">
+                {description ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
+                ) : (
+                  <p className="text-muted-foreground italic">Nothing to preview</p>
+                )}
+              </div>
+            ) : (
+              <Textarea
+                placeholder={`e.g.,\n\n## Sprint Summary\n\nWhen I ask for a sprint summary:\n1. Pull tickets from Linear\n2. Group by assignee\n3. Include story points\n4. Format as a markdown table`}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={8}
+                className="font-mono text-sm"
+              />
+            )}
+
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button onClick={handleParse} disabled={loading || !description.trim()}>
               {loading ? 'Parsing...' : 'Parse into skill'}
@@ -92,10 +137,19 @@ export function CreateSkillModal({ opened, onClose, onCreated }: CreateSkillModa
               <p className="text-xs font-medium mb-1">Steps</p>
               <ol className="text-xs text-muted-foreground list-decimal list-inside">
                 {parsed.steps?.map((s: any, i: number) => (
-                  <li key={i}>{s.action}{s.toolName && <Badge variant="outline" className="ml-1 text-[10px]">{s.toolName}</Badge>}</li>
+                  <li key={i}>
+                    {s.action}
+                    {s.toolName && <Badge variant="outline" className="ml-1 text-[10px]">{s.toolName}</Badge>}
+                  </li>
                 ))}
               </ol>
             </div>
+            {parsed.outputFormat && (
+              <div>
+                <p className="text-xs font-medium mb-1">Output format</p>
+                <p className="text-xs text-muted-foreground">{parsed.outputFormat}</p>
+              </div>
+            )}
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setParsed(null)}>
