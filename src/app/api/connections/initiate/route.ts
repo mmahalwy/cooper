@@ -11,7 +11,20 @@ export async function POST(req: Request) {
   const apiKey = process.env.COMPOSIO_API_KEY;
   if (!apiKey) return new Response('Composio not configured', { status: 500 });
 
-  // Use Composio raw API to initiate OAuth connection
+  // Step 1: Find the integration ID for this app
+  const integrationsResp = await fetch('https://backend.composio.dev/api/v1/integrations', {
+    headers: { 'x-api-key': apiKey },
+  });
+  const integrationsData = await integrationsResp.json();
+  const integration = (integrationsData.items || []).find(
+    (i: any) => i.appName === appName
+  );
+
+  if (!integration) {
+    return new Response(`Integration not found for app: ${appName}. Set it up in Composio dashboard first.`, { status: 404 });
+  }
+
+  // Step 2: Initiate connection with the correct integration UUID
   const resp = await fetch('https://backend.composio.dev/api/v2/connectedAccounts/initiateConnection', {
     method: 'POST',
     headers: {
@@ -19,8 +32,8 @@ export async function POST(req: Request) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      integrationId: appName,
-      entityId: user.id, // Use the actual user ID as the Composio entity
+      integrationId: integration.id,
+      entityId: user.id,
       redirectUri: `${req.headers.get('origin') || 'http://localhost:3000'}/connections`,
     }),
   });
