@@ -1,5 +1,5 @@
-import { ConnectionList } from '@/components/connections/ConnectionList';
+import { IntegrationsCatalog } from '@/components/connections/IntegrationsCatalog';
 
 export default function ConnectionsPage() {
-  return <ConnectionList />;
+  return <IntegrationsCatalog />;
 }
