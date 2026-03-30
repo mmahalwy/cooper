@@ -4,6 +4,7 @@ import type { ModelMessage } from 'ai';
 import type { AgentInput, AgentMessage } from './types';
 import type { MemoryContext } from '@/modules/memory/retriever';
 import { buildSkillsPrompt, createLoadSkillTool } from '@/modules/skills/system';
+import { createSaveKnowledgeTool } from '@/modules/memory/tools';
 
 const MODELS: Record<string, string> = {
   'gemini-flash': 'gemini-2.5-flash',
@@ -17,7 +18,13 @@ You help users with their work by connecting to their tools and completing tasks
 Be direct and professional. Use markdown formatting when it helps readability.
 When you have tools available, use them proactively to get information or take actions.
 You have web search built in — use it when the user asks about current events, recent information, or anything that benefits from live data.
-Always explain what you did after using a tool. Show your reasoning when tackling complex tasks.`;
+Always explain what you did after using a tool. Show your reasoning when tackling complex tasks.
+
+## Learning & Memory
+You can learn and remember facts about the user and their organization using the save_knowledge tool.
+When you notice important information during a conversation — like team processes, preferences, tool configurations, project details, or how they like things done — proactively offer to remember it.
+Say something like: "I noticed you mentioned [fact]. Want me to remember that for future conversations?"
+If they confirm, use save_knowledge to save it. Don't save trivial or ephemeral information — focus on durable facts that will be useful across many conversations.`;
 
 async function buildSystemPrompt(memoryContext?: MemoryContext): Promise<string> {
   let prompt = SYSTEM_PROMPT;
@@ -65,10 +72,15 @@ export async function createAgentStream(input: AgentInput) {
   const modelName = MODELS[modelId] || MODELS[DEFAULT_MODEL];
 
   // Merge user-connected tools with built-in tools
-  const builtInTools = {
+  const builtInTools: Record<string, any> = {
     google_search: google.tools.googleSearch({}),
     load_skill: createLoadSkillTool(),
   };
+
+  // Add memory tools if supabase client is available
+  if (input.supabase) {
+    builtInTools.save_knowledge = createSaveKnowledgeTool(input.supabase, input.orgId);
+  }
   const allTools = {
     ...builtInTools,
     ...(input.tools || {}),

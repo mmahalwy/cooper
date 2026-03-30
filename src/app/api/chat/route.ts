@@ -105,6 +105,7 @@ export async function POST(req: Request) {
     ...agentInput,
     tools,
     memoryContext,
+    supabase,
   });
 
   // Save the assistant response after streaming completes

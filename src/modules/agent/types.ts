@@ -1,4 +1,5 @@
 import type { MemoryContext } from '@/modules/memory/retriever';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface AgentInput {
   threadId: string;
@@ -8,6 +9,7 @@ export interface AgentInput {
   modelOverride?: string;
   tools?: Record<string, any>;
   memoryContext?: MemoryContext;
+  supabase?: SupabaseClient;
 }
 
 export interface AgentMessage {
