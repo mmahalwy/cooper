@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Stack, Button, Text, NavLink } from '@mantine/core';
-import { IconPlus, IconMessage } from '@tabler/icons-react';
+import { IconPlus, IconMessage, IconLogout } from '@tabler/icons-react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Thread } from '@/lib/types';
@@ -70,6 +70,20 @@ export function ChatSidebar() {
           />
         ))}
       </Stack>
+
+      <Button
+        variant="subtle"
+        color="gray"
+        leftSection={<IconLogout size={16} />}
+        fullWidth
+        onClick={() => {
+          fetch('/auth/signout', { method: 'POST' }).then(() => {
+            window.location.href = '/auth/login';
+          });
+        }}
+      >
+        Sign out
+      </Button>
     </Stack>
   );
 }
