@@ -80,7 +80,7 @@ function ChatThread({
 
   return (
     <div className="flex h-screen flex-col">
-      <ChatMessages messages={messages} isStreaming={isStreaming} />
+      <ChatMessages messages={messages} isStreaming={isStreaming} status={status} />
       <ChatInput
         onSend={(text) => sendMessage({ text })}
         disabled={isStreaming}

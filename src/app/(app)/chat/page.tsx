@@ -37,7 +37,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen flex-col">
       {hasMessages ? (
-        <ChatMessages messages={messages} isStreaming={isStreaming} />
+        <ChatMessages messages={messages} isStreaming={isStreaming} status={status} />
       ) : (
         <EmptyState />
       )}
