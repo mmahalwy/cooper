@@ -3,7 +3,7 @@ import { google } from '@ai-sdk/google';
 import type { EmbeddingProvider } from './types';
 
 class GoogleEmbeddingProvider implements EmbeddingProvider {
-  private model = google.embeddingModel('text-embedding-004');
+  private model = google.embeddingModel('gemini-embedding-001');
 
   async embed(text: string): Promise<number[]> {
     const result = await embed({
