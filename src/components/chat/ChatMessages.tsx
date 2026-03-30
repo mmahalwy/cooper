@@ -25,7 +25,7 @@ import {
   Sources,
   SourcesTrigger,
   SourcesContent,
-  SourceItem,
+  Source,
 } from '@/components/ai-elements/sources';
 import { BotIcon, UserIcon } from 'lucide-react';
 import { Shimmer } from '@/components/ai-elements/shimmer';
@@ -82,9 +82,9 @@ export function ChatMessages({ messages, isStreaming, status }: ChatMessagesProp
                       <Sources key={i}>
                         <SourcesTrigger count={part.source?.sourceType ? 1 : 0} />
                         <SourcesContent>
-                          <SourceItem
+                          <Source
                             title={part.source?.title || 'Source'}
-                            url={part.source?.url || '#'}
+                            href={part.source?.url || '#'}
                           />
                         </SourcesContent>
                       </Sources>
