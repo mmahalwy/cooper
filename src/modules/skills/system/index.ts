@@ -1,9 +1,14 @@
 /**
  * System Skills — always available to Cooper across all users.
  *
- * Each skill is a markdown string that gets injected into the system prompt.
- * These are curated skills that make Cooper better at its core job.
+ * Skills use lazy loading per the AI SDK pattern:
+ * - Only name + description go in the system prompt (small footprint)
+ * - A `load_skill` tool lets Cooper activate the full skill on demand
+ * - This keeps the context window lean even with many skills
  */
+
+import { tool } from 'ai';
+import { z } from 'zod';
 
 export interface SystemSkill {
   name: string;
@@ -14,7 +19,7 @@ export interface SystemSkill {
 export const SYSTEM_SKILLS: SystemSkill[] = [
   {
     name: 'brainstorming',
-    description: 'Structured approach to exploring ideas before jumping to solutions',
+    description: 'Use when exploring ideas, designing features, or planning. Structured approach with clarifying questions, 2-3 alternatives, and incremental validation.',
     content: `## Brainstorming Skill
 
 When the user asks you to brainstorm, design, or plan something:
@@ -29,7 +34,7 @@ Never jump straight to implementation. The design conversation is the most valua
   },
   {
     name: 'systematic-debugging',
-    description: 'Methodical approach to diagnosing and fixing issues',
+    description: 'Use when diagnosing bugs, errors, or unexpected behavior. Methodical reproduce-hypothesize-isolate-fix approach.',
     content: `## Systematic Debugging Skill
 
 When the user reports a bug or something isn't working:
@@ -45,7 +50,7 @@ Never suggest a fix without understanding the root cause first.`,
   },
   {
     name: 'task-execution',
-    description: 'How to approach and complete work tasks effectively',
+    description: 'Use when completing work tasks. Covers scoping, breaking down, using tools proactively, and delivering complete results.',
     content: `## Task Execution Skill
 
 When the user asks you to complete a task:
@@ -61,7 +66,7 @@ Always aim to deliver a finished result, not a draft the user has to complete.`,
   },
   {
     name: 'data-analysis',
-    description: 'How to analyze data and present insights clearly',
+    description: 'Use when analyzing data, pulling reports, or presenting metrics. Covers gathering, summarizing, comparing trends, and recommending actions.',
     content: `## Data Analysis Skill
 
 When the user asks you to analyze data or pull reports:
@@ -77,7 +82,7 @@ Format results as tables or structured lists when dealing with multiple data poi
   },
   {
     name: 'writing-and-communication',
-    description: 'How to draft professional communications',
+    description: 'Use when drafting emails, messages, reports, or documentation. Covers tone matching, structure, and clarity.',
     content: `## Writing & Communication Skill
 
 When the user asks you to write emails, messages, reports, or documentation:
@@ -93,7 +98,7 @@ When drafting on behalf of the user, match their voice and style from previous m
   },
   {
     name: 'scheduled-task-awareness',
-    description: 'Context for executing scheduled/automated tasks',
+    description: 'Use when executing scheduled/automated tasks (cron jobs). Covers thoroughness, timestamps, comparisons, and error handling.',
     content: `## Scheduled Task Awareness Skill
 
 When executing a scheduled task (cron job):
@@ -110,17 +115,46 @@ Remember: the user will read this output later, not in real-time. Make it self-c
 ];
 
 /**
- * Format system skills for injection into the system prompt.
+ * Build skills prompt — only names + descriptions (lightweight).
+ * The agent uses the load_skill tool to get full content on demand.
  */
-export function formatSystemSkills(): string {
+export function buildSkillsPrompt(): string {
   if (SYSTEM_SKILLS.length === 0) return '';
 
-  let formatted = '\n\n## Your Core Skills\n';
-  formatted += 'You have the following built-in capabilities. Apply them automatically when relevant:\n';
+  let prompt = '\n\n## Available Skills\n';
+  prompt += 'You have the following skills available. Use the `load_skill` tool to activate one when the user\'s request matches:\n\n';
 
   for (const skill of SYSTEM_SKILLS) {
-    formatted += `\n${skill.content}\n`;
+    prompt += `- **${skill.name}**: ${skill.description}\n`;
   }
 
-  return formatted;
+  return prompt;
+}
+
+/**
+ * Create the load_skill tool that lets the agent activate skills on demand.
+ */
+export function createLoadSkillTool() {
+  return tool({
+    description: 'Load a skill to get detailed instructions for how to handle the current task. Use this when the user\'s request matches one of your available skills.',
+    inputSchema: z.object({
+      skillName: z.string().describe('The name of the skill to load'),
+    }),
+    execute: async ({ skillName }) => {
+      const skill = SYSTEM_SKILLS.find(
+        (s) => s.name === skillName || s.name.replace(/-/g, ' ') === skillName.replace(/-/g, ' ')
+      );
+
+      if (!skill) {
+        return { error: `Skill "${skillName}" not found. Available skills: ${SYSTEM_SKILLS.map((s) => s.name).join(', ')}` };
+      }
+
+      return { skill: skill.name, instructions: skill.content };
+    },
+  });
+}
+
+// Keep backward compat for the UI
+export function formatSystemSkills(): string {
+  return buildSkillsPrompt();
 }

@@ -3,7 +3,7 @@ import { google } from '@ai-sdk/google';
 import type { ModelMessage } from 'ai';
 import type { AgentInput, AgentMessage } from './types';
 import type { MemoryContext } from '@/modules/memory/retriever';
-import { formatSystemSkills } from '@/modules/skills/system';
+import { buildSkillsPrompt, createLoadSkillTool } from '@/modules/skills/system';
 
 const MODELS: Record<string, string> = {
   'gemini-flash': 'gemini-2.5-flash',
@@ -22,8 +22,8 @@ Always explain what you did after using a tool. Show your reasoning when tacklin
 function buildSystemPrompt(memoryContext?: MemoryContext): string {
   let prompt = SYSTEM_PROMPT;
 
-  // Always include system skills
-  prompt += formatSystemSkills();
+  // List available skills (names + descriptions only — loaded on demand via tool)
+  prompt += buildSkillsPrompt();
 
   if (memoryContext?.knowledge.length) {
     prompt += `\n\n## Things you know about this organization:\n`;
@@ -67,6 +67,7 @@ export function createAgentStream(input: AgentInput) {
   // Merge user-connected tools with built-in tools
   const builtInTools = {
     google_search: google.tools.googleSearch({}),
+    load_skill: createLoadSkillTool(),
   };
   const allTools = {
     ...builtInTools,
