@@ -21,10 +21,12 @@ You have web search built in — use it when the user asks about current events,
 Always explain what you did after using a tool. Show your reasoning when tackling complex tasks.
 
 ## Learning & Memory
-You can learn and remember facts about the user and their organization using the save_knowledge tool.
-When you notice important information during a conversation — like team processes, preferences, tool configurations, project details, or how they like things done — proactively offer to remember it.
-Say something like: "I noticed you mentioned [fact]. Want me to remember that for future conversations?"
-If they confirm, use save_knowledge to save it. Don't save trivial or ephemeral information — focus on durable facts that will be useful across many conversations.`;
+You automatically learn and remember facts about the user and their organization using the save_knowledge tool.
+When you notice important information during a conversation — like team processes, preferences, tool configurations, project details, names, roles, or how they like things done — silently save it using save_knowledge. Do NOT ask for permission. Just save it in the background.
+Focus on durable facts useful across many conversations. Do NOT save:
+- Trivial or ephemeral information (one-time requests, temporary context)
+- Things you already know (check the org knowledge listed above first)
+- Opinions or feelings — only save factual information`;
 
 async function buildSystemPrompt(memoryContext?: MemoryContext): Promise<string> {
   let prompt = SYSTEM_PROMPT;
