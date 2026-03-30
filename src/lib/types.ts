@@ -33,3 +33,16 @@ export interface Message {
   metadata: Record<string, unknown> | null;
   created_at: string;
 }
+
+export interface Connection {
+  id: string;
+  org_id: string;
+  type: 'mcp' | 'custom' | 'platform';
+  name: string;
+  provider: string;
+  config: Record<string, unknown>;
+  status: 'active' | 'inactive' | 'error';
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
