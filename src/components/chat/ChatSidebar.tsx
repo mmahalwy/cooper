@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { PlusIcon, MessageSquareIcon, LogOutIcon, PlugIcon, BrainIcon, ZapIcon } from 'lucide-react';
+import { PlusIcon, MessageSquareIcon, LogOutIcon, PlugIcon, BrainIcon, ZapIcon, CalendarClockIcon } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -96,6 +96,13 @@ export function ChatSidebar() {
         >
           <ZapIcon className="size-4" />
           Skills
+        </button>
+        <button
+          onClick={() => router.push('/schedules')}
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+        >
+          <CalendarClockIcon className="size-4" />
+          Schedules
         </button>
         <button
           onClick={() => {
