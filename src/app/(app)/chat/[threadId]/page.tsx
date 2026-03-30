@@ -68,7 +68,7 @@ function ChatThread({
   threadId: string;
   initialMessages: LoadedMessage[];
 }) {
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, stop, status } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
       body: { threadId },
@@ -83,7 +83,9 @@ function ChatThread({
       <ChatMessages messages={messages} isStreaming={isStreaming} status={status} />
       <ChatInput
         onSend={(text) => sendMessage({ text })}
+        onStop={stop}
         disabled={isStreaming}
+        isStreaming={isStreaming}
       />
     </div>
   );

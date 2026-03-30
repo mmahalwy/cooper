@@ -1,51 +1,44 @@
 'use client';
 
-import { useState } from 'react';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { SendIcon } from 'lucide-react';
+import {
+  PromptInput,
+  PromptInputTextarea,
+  PromptInputButton,
+} from '@/components/ai-elements/prompt-input';
+import { ArrowUpIcon, SquareIcon } from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  onStop?: () => void;
   disabled?: boolean;
+  isStreaming?: boolean;
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
-  const [value, setValue] = useState('');
-
-  const handleSend = () => {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-    onSend(trimmed);
-    setValue('');
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
+export function ChatInput({ onSend, onStop, disabled, isStreaming }: ChatInputProps) {
   return (
-    <div className="border-t p-4">
-      <div className="flex items-end gap-2">
-        <Textarea
-          placeholder="Message Cooper..."
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          className="min-h-[40px] max-h-[120px] flex-1 resize-none"
-          disabled={disabled}
-        />
-        <Button
-          size="icon"
-          onClick={handleSend}
-          disabled={disabled || !value.trim()}
+    <div className="border-t bg-background p-4">
+      <div className="mx-auto max-w-3xl">
+        <PromptInput
+          onSubmit={(message) => {
+            if (message.text.trim()) {
+              onSend(message.text.trim());
+            }
+          }}
         >
-          <SendIcon data-icon="inline-start" />
-        </Button>
+          <PromptInputTextarea
+            placeholder="Message Cooper..."
+            disabled={disabled && !isStreaming}
+          />
+          {isStreaming ? (
+            <PromptInputButton type="button" onClick={onStop} tooltip="Stop">
+              <SquareIcon />
+            </PromptInputButton>
+          ) : (
+            <PromptInputButton type="submit" tooltip="Send" disabled={disabled}>
+              <ArrowUpIcon />
+            </PromptInputButton>
+          )}
+        </PromptInput>
       </div>
     </div>
   );

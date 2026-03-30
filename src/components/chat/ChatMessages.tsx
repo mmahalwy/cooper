@@ -72,19 +72,19 @@ export function ChatMessages({ messages, isStreaming, status }: ChatMessagesProp
                         isStreaming={isStreaming && i === message.parts.length - 1}
                       >
                         <ReasoningTrigger />
-                        <ReasoningContent>{part.reasoning}</ReasoningContent>
+                        <ReasoningContent>{part.text}</ReasoningContent>
                       </Reasoning>
                     );
                   }
 
-                  if (part.type === 'source') {
+                  if (part.type === 'source-url') {
                     return (
                       <Sources key={i}>
-                        <SourcesTrigger count={part.source?.sourceType ? 1 : 0} />
+                        <SourcesTrigger count={1} />
                         <SourcesContent>
                           <Source
-                            title={part.source?.title || 'Source'}
-                            href={part.source?.url || '#'}
+                            title={(part as any).title || 'Source'}
+                            href={(part as any).url || '#'}
                           />
                         </SourcesContent>
                       </Sources>

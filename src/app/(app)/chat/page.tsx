@@ -12,7 +12,7 @@ export default function ChatPage() {
   const router = useRouter();
   const threadIdRef = useRef<string | null>(null);
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, stop, status } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
       fetch: async (url, options) => {
@@ -43,7 +43,9 @@ export default function ChatPage() {
       )}
       <ChatInput
         onSend={(text) => sendMessage({ text })}
+        onStop={stop}
         disabled={isStreaming}
+        isStreaming={isStreaming}
       />
     </div>
   );
