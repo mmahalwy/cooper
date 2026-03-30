@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { TextInput, Button, Stack, Text, Paper, Title, Alert } from '@mantine/core';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { createClient } from '@/lib/supabase/client';
 
 export function LoginForm() {
@@ -34,39 +37,50 @@ export function LoginForm() {
 
   if (sent) {
     return (
-      <Paper p="xl" radius="md" withBorder maw={400} mx="auto" mt={100}>
-        <Stack>
-          <Title order={3}>Check your email</Title>
-          <Text c="dimmed">
+      <Card className="mx-auto mt-24 max-w-sm">
+        <CardHeader>
+          <CardTitle>Check your email</CardTitle>
+          <CardDescription>
             We sent a magic link to <strong>{email}</strong>. Click the link to sign in.
-          </Text>
-        </Stack>
-      </Paper>
+          </CardDescription>
+        </CardHeader>
+      </Card>
     );
   }
 
   return (
-    <Paper p="xl" radius="md" withBorder maw={400} mx="auto" mt={100}>
-      <form onSubmit={handleSubmit}>
-        <Stack>
-          <Title order={3}>Sign in to Cooper</Title>
-          <Text c="dimmed" size="sm">
-            Enter your email and we&apos;ll send you a magic link.
-          </Text>
-          {error && <Alert color="red">{error}</Alert>}
-          <TextInput
-            label="Email"
-            placeholder="you@company.com"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.currentTarget.value)}
-          />
-          <Button type="submit" loading={loading} fullWidth>
-            Send magic link
+    <Card className="mx-auto mt-24 max-w-sm">
+      <CardHeader>
+        <CardTitle>Sign in to Cooper</CardTitle>
+        <CardDescription>
+          Enter your email and we&apos;ll send you a magic link.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <div className="flex flex-col gap-2">
+            <label htmlFor="email" className="text-sm font-medium">
+              Email
+            </label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@company.com"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? 'Sending...' : 'Send magic link'}
           </Button>
-        </Stack>
-      </form>
-    </Paper>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

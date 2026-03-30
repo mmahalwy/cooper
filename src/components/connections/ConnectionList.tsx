@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Stack, Button, Title, Text, Group } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { Button } from '@/components/ui/button';
+import { PlusIcon } from 'lucide-react';
 import { ConnectionCard } from './ConnectionCard';
 import { AddConnectionModal } from './AddConnectionModal';
 import type { Connection } from '@/lib/types';
@@ -50,36 +50,36 @@ export function ConnectionList() {
 
   return (
     <>
-      <Stack gap="md">
-        <Group justify="space-between">
+      <div className="flex flex-col gap-6 p-6">
+        <div className="flex items-center justify-between">
           <div>
-            <Title order={2}>Connections</Title>
-            <Text c="dimmed" size="sm">Connect MCP servers to give Cooper access to tools.</Text>
+            <h2 className="text-2xl font-semibold tracking-tight">Connections</h2>
+            <p className="text-sm text-muted-foreground">Connect MCP servers to give Cooper access to tools.</p>
           </div>
-          <Button
-            leftSection={<IconPlus size={16} />}
-            onClick={() => setModalOpened(true)}
-          >
+          <Button onClick={() => setModalOpened(true)}>
+            <PlusIcon data-icon="inline-start" />
             Add connection
           </Button>
-        </Group>
+        </div>
 
-        {loading && <Text c="dimmed">Loading...</Text>}
+        {loading && <p className="text-muted-foreground">Loading...</p>}
 
         {!loading && connections.length === 0 && (
-          <Text c="dimmed" ta="center" mt="xl">
+          <p className="text-center text-muted-foreground mt-8">
             No connections yet. Add an MCP server to get started.
-          </Text>
+          </p>
         )}
 
-        {connections.map((conn) => (
-          <ConnectionCard
-            key={conn.id}
-            connection={conn}
-            onDelete={handleDelete}
-          />
-        ))}
-      </Stack>
+        <div className="flex flex-col gap-3">
+          {connections.map((conn) => (
+            <ConnectionCard
+              key={conn.id}
+              connection={conn}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      </div>
 
       <AddConnectionModal
         opened={modalOpened}

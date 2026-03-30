@@ -1,7 +1,9 @@
 'use client';
 
-import { Card, Group, Text, Badge, ActionIcon, Stack } from '@mantine/core';
-import { IconTrash, IconPlug } from '@tabler/icons-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { PlugIcon, TrashIcon } from 'lucide-react';
 import type { Connection } from '@/lib/types';
 
 interface ConnectionCardProps {
@@ -10,38 +12,38 @@ interface ConnectionCardProps {
 }
 
 export function ConnectionCard({ connection, onDelete }: ConnectionCardProps) {
-  const statusColor = {
-    active: 'green',
-    inactive: 'gray',
-    error: 'red',
+  const badgeVariant = {
+    active: 'default' as const,
+    inactive: 'secondary' as const,
+    error: 'destructive' as const,
   }[connection.status];
 
   return (
-    <Card withBorder radius="md" p="md">
-      <Group justify="space-between">
-        <Group gap="sm">
-          <IconPlug size={20} />
-          <Stack gap={2}>
-            <Text fw={500} size="sm">{connection.name}</Text>
-            <Text size="xs" c="dimmed">{connection.provider}</Text>
-          </Stack>
-        </Group>
-        <Group gap="xs">
-          <Badge color={statusColor} variant="light" size="sm">
-            {connection.status}
-          </Badge>
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            size="sm"
+    <Card>
+      <CardContent className="flex items-center justify-between p-4">
+        <div className="flex items-center gap-3">
+          <PlugIcon className="size-5 text-muted-foreground" />
+          <div>
+            <p className="text-sm font-medium">{connection.name}</p>
+            <p className="text-xs text-muted-foreground">{connection.provider}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant={badgeVariant}>{connection.status}</Badge>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-destructive"
             onClick={() => onDelete(connection.id)}
           >
-            <IconTrash size={14} />
-          </ActionIcon>
-        </Group>
-      </Group>
+            <TrashIcon />
+          </Button>
+        </div>
+      </CardContent>
       {connection.error_message && (
-        <Text size="xs" c="red" mt="xs">{connection.error_message}</Text>
+        <div className="px-4 pb-3">
+          <p className="text-xs text-destructive">{connection.error_message}</p>
+        </div>
       )}
     </Card>
   );
