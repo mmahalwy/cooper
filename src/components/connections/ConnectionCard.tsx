@@ -25,7 +25,10 @@ export function ConnectionCard({ connection, onDelete }: ConnectionCardProps) {
           <PlugIcon className="size-5 text-muted-foreground" />
           <div>
             <p className="text-sm font-medium">{connection.name}</p>
-            <p className="text-xs text-muted-foreground">{connection.provider}</p>
+            <p className="text-xs text-muted-foreground">
+              {connection.provider}
+              <Badge variant="outline" className="ml-2 text-[10px]">{connection.type}</Badge>
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">

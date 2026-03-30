@@ -27,8 +27,8 @@ export function ConnectionList() {
   const handleAdd = async (connection: {
     name: string;
     provider: string;
-    type: 'mcp';
-    config: { url: string; transport: 'sse' };
+    type: 'mcp' | 'platform';
+    config: Record<string, unknown>;
   }) => {
     const res = await fetch('/api/connections', {
       method: 'POST',
