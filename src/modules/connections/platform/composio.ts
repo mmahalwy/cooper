@@ -20,9 +20,14 @@ export async function getComposioTools(
       entityId: config.entityId || 'default',
     });
 
-    // getTools returns { [key: string]: CoreTool } per composio-core typings,
-    // cast to Record<string, unknown> to stay compatible with ai v6
-    const tools = await toolset.getTools({ apps: config.apps }) as Record<string, unknown>;
+    // Fetch important tools first (curated subset), fall back to all if none
+    let tools = await toolset.getTools({ apps: config.apps, tags: ['important'] }) as Record<string, unknown>;
+    if (Object.keys(tools).length === 0) {
+      // No important-tagged tools — get all but limit to avoid context overflow
+      const allTools = await toolset.getTools({ apps: config.apps }) as Record<string, unknown>;
+      const entries = Object.entries(allTools).slice(0, 30);
+      tools = Object.fromEntries(entries);
+    }
 
     cache.set(connectionId, { tools, createdAt: Date.now() });
     return tools;
