@@ -11,30 +11,53 @@ export async function POST(req: Request) {
   const apiKey = process.env.COMPOSIO_API_KEY;
   if (!apiKey) return new Response('Composio not configured', { status: 500 });
 
-  // Step 1: Find the integration for this app
-  const integrationsResp = await fetch('https://backend.composio.dev/api/v1/integrations', {
-    headers: { 'x-api-key': apiKey },
-  });
-  const integrationsData = await integrationsResp.json();
-  const integration = (integrationsData.items || []).find(
-    (i: any) => i.appName === appName
-  );
+  try {
+    // Step 1: Find the integration for this app
+    const integrationsResp = await fetch('https://backend.composio.dev/api/v1/integrations', {
+      headers: { 'x-api-key': apiKey },
+    });
+    const integrationsData = await integrationsResp.json();
+    const integration = (integrationsData.items || []).find(
+      (i: any) => i.appName === appName
+    );
 
-  if (!integration) {
-    return new Response(`Integration not found for app: ${appName}. Set it up in Composio dashboard first.`, { status: 404 });
+    if (!integration) {
+      // Integration doesn't exist yet — create one first
+      const createResp = await fetch('https://backend.composio.dev/api/v1/integrations', {
+        method: 'POST',
+        headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appId: appName, name: appName }),
+      });
+      const created = await createResp.json();
+      if (!created.id) {
+        return Response.json({ error: `Could not create integration for ${appName}`, details: created }, { status: 400 });
+      }
+      return await initiateConnection(apiKey, created.id, created.authScheme, user.id, req, authConfig);
+    }
+
+    return await initiateConnection(apiKey, integration.id, integration.authScheme, user.id, req, authConfig);
+  } catch (error) {
+    console.error('[connections/initiate] Error:', error);
+    return Response.json({ error: String(error) }, { status: 500 });
   }
+}
 
-  // Step 2: Initiate connection — handle both OAuth and API_KEY auth
+async function initiateConnection(
+  apiKey: string,
+  integrationId: string,
+  authScheme: string,
+  userId: string,
+  req: Request,
+  authConfig?: Record<string, string>
+) {
   const body: Record<string, unknown> = {
-    integrationId: integration.id,
-    entityId: user.id,
+    integrationId,
+    entityId: userId,
   };
 
-  if (integration.authScheme === 'API_KEY' && authConfig) {
-    // API key auth — pass the credentials directly
+  if (authScheme === 'API_KEY' && authConfig) {
     body.data = authConfig;
   } else {
-    // OAuth — include redirect URI
     body.redirectUri = `${req.headers.get('origin') || 'http://localhost:3000'}/connections`;
   }
 
@@ -50,7 +73,7 @@ export async function POST(req: Request) {
   const data = await resp.json();
 
   return Response.json({
-    authScheme: integration.authScheme,
+    authScheme,
     redirectUrl: data.connectionResponse?.redirectUrl || null,
     connectionStatus: data.connectionResponse?.connectionStatus || data.status,
     connectedAccountId: data.connectionResponse?.connectedAccountId || data.id,
