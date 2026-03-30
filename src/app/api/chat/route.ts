@@ -1,6 +1,7 @@
 import { UIMessage } from 'ai';
 import { createClient } from '@/lib/supabase/server';
 import { createAgentStream } from '@/modules/agent/engine';
+import { getToolsForOrg } from '@/modules/connections/registry';
 
 export const maxDuration = 60;
 
@@ -87,7 +88,13 @@ export async function POST(req: Request) {
     })),
   };
 
-  const result = createAgentStream(agentInput);
+  // Load tools for this org's connections
+  const tools = await getToolsForOrg(supabase, dbUser.org_id);
+
+  const result = createAgentStream({
+    ...agentInput,
+    tools,
+  });
 
   // Save the assistant response after streaming completes
   const modelUsed = 'gemini-flash';

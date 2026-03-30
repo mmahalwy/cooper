@@ -4,6 +4,7 @@ export interface AgentInput {
   userId: string;
   messages: AgentMessage[];
   modelOverride?: string;
+  tools?: Record<string, any>;
 }
 
 export interface AgentMessage {
