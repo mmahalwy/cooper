@@ -4,8 +4,8 @@ import type { ModelMessage } from 'ai';
 import type { AgentInput, AgentMessage } from './types';
 
 const MODELS: Record<string, string> = {
-  'gemini-flash': 'gemini-2.0-flash',
-  'gemini-pro': 'gemini-2.5-pro-preview-06-05',
+  'gemini-flash': 'gemini-2.5-flash',
+  'gemini-pro': 'gemini-2.5-pro',
 };
 
 const DEFAULT_MODEL = 'gemini-flash';

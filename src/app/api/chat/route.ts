@@ -15,13 +15,14 @@ export async function POST(req: Request) {
   }
 
   // Get the user's org
-  const { data: dbUser } = await supabase
+  const { data: dbUser, error: dbError } = await supabase
     .from('users')
     .select('org_id')
     .eq('id', user.id)
     .single();
 
   if (!dbUser) {
+    console.error('[chat] User not found in DB:', { userId: user.id, error: dbError });
     return new Response('User not found', { status: 404 });
   }
 

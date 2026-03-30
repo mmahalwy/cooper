@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
-import { AppShell } from '@mantine/core';
 import { createClient } from '@/lib/supabase/server';
-import { ChatSidebar } from '@/components/chat/ChatSidebar';
+import { AppShellLayout } from '@/components/chat/AppShellLayout';
 
 export default async function AppLayout({
   children,
@@ -16,16 +15,8 @@ export default async function AppLayout({
   }
 
   return (
-    <AppShell
-      navbar={{ width: 280, breakpoint: 'sm' }}
-      padding="md"
-    >
-      <AppShell.Navbar p="md">
-        <ChatSidebar />
-      </AppShell.Navbar>
-      <AppShell.Main>
-        {children}
-      </AppShell.Main>
-    </AppShell>
+    <AppShellLayout>
+      {children}
+    </AppShellLayout>
   );
 }

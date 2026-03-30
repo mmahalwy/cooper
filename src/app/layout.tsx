@@ -36,10 +36,10 @@ export default function RootLayout({
   return (
     <html lang="en" data-mantine-color-scheme="light" className={`${inter.variable} ${playfair.variable}`}>
       <head>
-        <ColorSchemeScript defaultColorScheme="light" />
+        <ColorSchemeScript forceColorScheme="light" />
       </head>
       <body>
-        <MantineProvider theme={theme} defaultColorScheme="light">
+        <MantineProvider theme={theme} forceColorScheme="light">
           {children}
         </MantineProvider>
       </body>
