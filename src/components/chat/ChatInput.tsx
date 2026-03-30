@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Textarea, ActionIcon, Group, Box } from '@mantine/core';
-import { IconSend } from '@tabler/icons-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { SendIcon } from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -27,28 +28,25 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   };
 
   return (
-    <Box p="md" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
-      <Group gap="sm" align="flex-end">
+    <div className="border-t p-4">
+      <div className="flex items-end gap-2">
         <Textarea
           placeholder="Message Cooper..."
           value={value}
-          onChange={(e) => setValue(e.currentTarget.value)}
+          onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          autosize
-          minRows={1}
-          maxRows={5}
-          style={{ flex: 1 }}
+          rows={1}
+          className="min-h-[40px] max-h-[120px] flex-1 resize-none"
           disabled={disabled}
         />
-        <ActionIcon
-          size="lg"
-          variant="filled"
+        <Button
+          size="icon"
           onClick={handleSend}
           disabled={disabled || !value.trim()}
         >
-          <IconSend size={18} />
-        </ActionIcon>
-      </Group>
-    </Box>
+          <SendIcon data-icon="inline-start" />
+        </Button>
+      </div>
+    </div>
   );
 }

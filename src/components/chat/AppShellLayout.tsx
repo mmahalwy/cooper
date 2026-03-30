@@ -1,20 +1,16 @@
 'use client';
 
-import { AppShell } from '@mantine/core';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 
 export function AppShellLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AppShell
-      navbar={{ width: 280, breakpoint: 'sm' }}
-      padding="md"
-    >
-      <AppShell.Navbar p="md">
+    <div className="flex h-screen">
+      <aside className="w-[280px] border-r p-4 flex-shrink-0">
         <ChatSidebar />
-      </AppShell.Navbar>
-      <AppShell.Main>
+      </aside>
+      <main className="flex-1 flex flex-col">
         {children}
-      </AppShell.Main>
-    </AppShell>
+      </main>
+    </div>
   );
 }

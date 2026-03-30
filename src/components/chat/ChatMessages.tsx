@@ -1,32 +1,27 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ScrollArea, Stack } from '@mantine/core';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageBubble } from './MessageBubble';
 
 interface ChatMessagesProps {
   messages: Array<{
     id: string;
     role: string;
-    parts: Array<{ type: string; text?: string }>;
+    parts: Array<{ type: string; text?: string; [key: string]: unknown }>;
   }>;
 }
 
 export function ChatMessages({ messages }: ChatMessagesProps) {
-  const viewportRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (viewportRef.current) {
-      viewportRef.current.scrollTo({
-        top: viewportRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   return (
-    <ScrollArea h="calc(100vh - 180px)" viewportRef={viewportRef}>
-      <Stack gap={0} p="md">
+    <ScrollArea className="flex-1">
+      <div className="flex flex-col gap-3 p-4">
         {messages.map((message) => (
           <MessageBubble
             key={message.id}
@@ -34,7 +29,8 @@ export function ChatMessages({ messages }: ChatMessagesProps) {
             parts={message.parts}
           />
         ))}
-      </Stack>
+        <div ref={bottomRef} />
+      </div>
     </ScrollArea>
   );
 }

@@ -1,10 +1,11 @@
 'use client';
 
-import { Paper, Text, Box, Code, Collapse, Group, Badge } from '@mantine/core';
-import { IconTool } from '@tabler/icons-react';
 import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { WrenchIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-// UIToolInvocation states from AI SDK v6
 type ToolState =
   | 'input-streaming'
   | 'input-available'
@@ -15,8 +16,8 @@ type ToolState =
   | 'output-denied';
 
 interface ToolPart {
-  type: string; // 'tool-{name}' or 'dynamic-tool'
-  toolName?: string; // present on DynamicToolUIPart
+  type: string;
+  toolName?: string;
   toolCallId: string;
   state: ToolState;
   input?: unknown;
@@ -45,7 +46,6 @@ function isToolPart(part: MessagePart): part is ToolPart {
 
 function extractToolName(part: ToolPart): string {
   if (part.toolName) return part.toolName;
-  // Static tool parts have type 'tool-{toolName}'
   if (part.type.startsWith('tool-')) return part.type.slice(5);
   return 'unknown';
 }
@@ -54,34 +54,23 @@ export function MessageBubble({ role, parts }: MessageBubbleProps) {
   const isUser = role === 'user';
 
   return (
-    <Box
-      style={{
-        display: 'flex',
-        justifyContent: isUser ? 'flex-end' : 'flex-start',
-        marginBottom: 12,
-      }}
-    >
-      <Paper
-        p="sm"
-        radius="lg"
-        maw="70%"
-        style={{
-          backgroundColor: isUser ? 'var(--mantine-color-brand-6)' : 'var(--mantine-color-gray-0)',
-        }}
+    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
+      <div
+        className={cn(
+          'max-w-[70%] rounded-2xl px-4 py-2',
+          isUser
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted'
+        )}
       >
         {parts.map((part, i) => {
           if (part.type === 'text') {
             const textPart = part as TextPart;
             if (!textPart.text) return null;
             return (
-              <Text
-                key={i}
-                size="sm"
-                c={isUser ? 'white' : undefined}
-                style={{ whiteSpace: 'pre-wrap' }}
-              >
+              <p key={i} className="text-sm whitespace-pre-wrap">
                 {textPart.text}
-              </Text>
+              </p>
             );
           }
 
@@ -101,8 +90,8 @@ export function MessageBubble({ role, parts }: MessageBubbleProps) {
 
           return null;
         })}
-      </Paper>
-    </Box>
+      </div>
+    </div>
   );
 }
 
@@ -119,11 +108,12 @@ function ToolCallDisplay({
   output?: unknown;
   errorText?: string;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const isDone = state === 'output-available';
   const isError = state === 'output-error' || state === 'output-denied';
-  const stateColor = isDone ? 'green' : isError ? 'red' : 'blue';
+
+  const badgeVariant = isDone ? 'default' : isError ? 'destructive' : 'secondary';
   const stateLabel = isDone
     ? 'Done'
     : isError
@@ -133,21 +123,19 @@ function ToolCallDisplay({
         : 'Running...';
 
   return (
-    <Box my={4}>
-      <Group
-        gap="xs"
-        style={{ cursor: 'pointer' }}
-        onClick={() => setExpanded(!expanded)}
-      >
-        <IconTool size={14} />
-        <Text size="xs" fw={500}>{toolName}</Text>
-        <Badge size="xs" color={stateColor} variant="light">{stateLabel}</Badge>
-      </Group>
-      <Collapse in={expanded}>
-        <Code block mt={4} style={{ fontSize: 11 }}>
+    <Collapsible open={open} onOpenChange={setOpen} className="my-1">
+      <CollapsibleTrigger className="flex items-center gap-1.5 cursor-pointer">
+        <WrenchIcon className="size-3.5" />
+        <span className="text-xs font-medium">{toolName}</span>
+        <Badge variant={badgeVariant} className="text-[10px] px-1.5 py-0">
+          {stateLabel}
+        </Badge>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <pre className="mt-2 rounded bg-muted p-2 text-[11px] overflow-auto">
           {JSON.stringify({ input, output: output ?? errorText }, null, 2)}
-        </Code>
-      </Collapse>
-    </Box>
+        </pre>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

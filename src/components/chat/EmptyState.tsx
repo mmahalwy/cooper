@@ -1,10 +1,8 @@
-import { Stack, Title, Text } from '@mantine/core';
-
 export function EmptyState() {
   return (
-    <Stack align="center" justify="center" h="100%" gap="md">
-      <Title order={2}>Welcome to Cooper</Title>
-      <Text c="dimmed">Start a new conversation to get going.</Text>
-    </Stack>
+    <div className="flex flex-1 flex-col items-center justify-center gap-2">
+      <h2 className="text-2xl font-semibold tracking-tight">Welcome to Cooper</h2>
+      <p className="text-muted-foreground">Start a new conversation to get going.</p>
+    </div>
   );
 }
