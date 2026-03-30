@@ -3,6 +3,7 @@ import { google } from '@ai-sdk/google';
 import type { ModelMessage } from 'ai';
 import type { AgentInput, AgentMessage } from './types';
 import type { MemoryContext } from '@/modules/memory/retriever';
+import { formatSystemSkills } from '@/modules/skills/system';
 
 const MODELS: Record<string, string> = {
   'gemini-flash': 'gemini-2.5-flash',
@@ -20,6 +21,9 @@ Always explain what you did after using a tool. Show your reasoning when tacklin
 
 function buildSystemPrompt(memoryContext?: MemoryContext): string {
   let prompt = SYSTEM_PROMPT;
+
+  // Always include system skills
+  prompt += formatSystemSkills();
 
   if (memoryContext?.knowledge.length) {
     prompt += `\n\n## Things you know about this organization:\n`;

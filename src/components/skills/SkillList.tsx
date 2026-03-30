@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlusIcon } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { PlusIcon, ShieldIcon, ZapIcon } from 'lucide-react';
 import { SkillCard } from './SkillCard';
 import { CreateSkillModal } from './CreateSkillModal';
+import { SYSTEM_SKILLS } from '@/modules/skills/system';
 import type { Skill } from '@/lib/types';
 
 export function SkillList() {
@@ -32,7 +36,7 @@ export function SkillList() {
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">Skills</h2>
             <p className="text-sm text-muted-foreground">
-              Teach Cooper how to do things your way. Describe a workflow in plain English.
+              Cooper&apos;s built-in capabilities and your custom workflows.
             </p>
           </div>
           <Button onClick={() => setModalOpened(true)}>
@@ -41,18 +45,54 @@ export function SkillList() {
           </Button>
         </div>
 
-        {loading && <p className="text-muted-foreground">Loading...</p>}
+        {/* System Skills */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldIcon className="size-4 text-muted-foreground" />
+            <h3 className="text-sm font-medium">System Skills</h3>
+            <Badge variant="secondary" className="text-xs">{SYSTEM_SKILLS.length}</Badge>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {SYSTEM_SKILLS.map((skill) => (
+              <Card key={skill.name}>
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <ZapIcon className="size-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium">{skill.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{skill.description}</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="mt-2 text-[10px]">system</Badge>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
 
-        {!loading && skills.length === 0 && (
-          <p className="text-center text-muted-foreground mt-8">
-            No skills yet. Create one to teach Cooper a workflow.
-          </p>
-        )}
+        <Separator />
 
-        <div className="flex flex-col gap-3">
-          {skills.map((skill) => (
-            <SkillCard key={skill.id} skill={skill} onDelete={handleDelete} />
-          ))}
+        {/* User Skills */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <ZapIcon className="size-4 text-muted-foreground" />
+            <h3 className="text-sm font-medium">Your Skills</h3>
+            <Badge variant="secondary" className="text-xs">{skills.length}</Badge>
+          </div>
+
+          {loading && <p className="text-muted-foreground">Loading...</p>}
+
+          {!loading && skills.length === 0 && (
+            <p className="text-center text-muted-foreground py-6">
+              No custom skills yet. Create one to teach Cooper a workflow specific to your team.
+            </p>
+          )}
+
+          <div className="flex flex-col gap-3">
+            {skills.map((skill) => (
+              <SkillCard key={skill.id} skill={skill} onDelete={handleDelete} />
+            ))}
+          </div>
         </div>
       </div>
 
