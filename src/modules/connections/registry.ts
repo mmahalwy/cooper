@@ -2,6 +2,8 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { getConnectionsForOrg } from './db';
 import { getMcpTools } from './mcp/client';
 import type { McpServerConfig } from './mcp/types';
+import { getComposioTools } from './platform/composio';
+import type { ComposioConnectionConfig } from './platform/types';
 import type { Connection } from '@/lib/types';
 
 export async function getToolsForOrg(
@@ -38,8 +40,7 @@ async function getToolsForConnection(conn: Connection): Promise<Record<string, a
       // Phase 2b: custom connectors
       return {};
     case 'platform':
-      // Phase 2b: unified API platform
-      return {};
+      return getComposioTools(conn.id, conn.config as unknown as ComposioConnectionConfig);
     default:
       return {};
   }
