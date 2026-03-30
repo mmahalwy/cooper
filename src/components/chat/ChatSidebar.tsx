@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Stack, Button, Text, NavLink } from '@mantine/core';
-import { IconPlus, IconMessage, IconLogout } from '@tabler/icons-react';
+import { IconPlus, IconMessage, IconLogout, IconPlugConnected } from '@tabler/icons-react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Thread } from '@/lib/types';
@@ -70,6 +70,14 @@ export function ChatSidebar() {
           />
         ))}
       </Stack>
+
+      <NavLink
+        label="Connections"
+        leftSection={<IconPlugConnected size={16} />}
+        onClick={() => router.push('/connections')}
+        active={false}
+        style={{ borderRadius: 'var(--mantine-radius-md)' }}
+      />
 
       <Button
         variant="subtle"
