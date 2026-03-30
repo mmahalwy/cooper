@@ -74,7 +74,7 @@ export function IntegrationsCatalog() {
       const bPopular = b.popular ? 0 : 1;
       return aPopular - bPopular;
     });
-  }, [search, category]);
+  }, [search, category, connectedIds]);
 
   const handleConnect = async (integration: Integration) => {
     // Step 1: Check auth scheme
