@@ -20,6 +20,7 @@ Vendor-agnostic interfaces wrap every external dependency (AI SDK, Vercel Workfl
 | Orchestration | Vercel Workflow | Behind `WorkflowRuntime` interface |
 | Database | Supabase (Postgres + pgvector) | Auth, data, memory, realtime |
 | Auth | Supabase Auth (magic link only) | Passwordless email |
+| Vector Store | Supabase pgvector | Behind `VectorStore` interface; evolve to Pinecone/Turbopuffer at scale |
 | Embeddings | OpenAI text-embedding-3-small | Behind `EmbeddingProvider` interface |
 | Sandbox | None (MVP), E2B later | Behind `Sandbox` interface |
 
@@ -107,6 +108,45 @@ interface EmbeddingProvider {
 }
 ```
 
+### Vector Store
+```typescript
+interface VectorEntry {
+  id: string
+  embedding: number[]
+  metadata: Record<string, unknown>  // orgId, type, source, etc.
+  content: string                     // Original text for display
+}
+
+interface SearchOpts {
+  topK: number
+  filter?: Record<string, unknown>   // e.g., { orgId: '...', type: 'knowledge' }
+  minScore?: number                  // Similarity threshold
+}
+
+interface VectorStore {
+  upsert(entries: VectorEntry[]): Promise<void>
+  search(query: number[], opts: SearchOpts): Promise<VectorResult[]>
+  delete(ids: string[]): Promise<void>
+}
+```
+Supabase pgvector is the implementation today. Pinecone or Turbopuffer become alternatives when scaling beyond ~1M vectors or when query latency at scale becomes a bottleneck.
+
+**Migration strategy:** The `VectorStore` interface ensures all memory operations (conversation recall, knowledge retrieval, skill matching) go through one abstraction. Swapping to Pinecone/Turbopuffer means:
+1. Write a new adapter implementing `VectorStore`
+2. Run a one-time migration to backfill vectors from Supabase into the new store
+3. Switch the provider config — no changes to the memory module or agent engine
+
+**Why pgvector for MVP:**
+- Zero new infra — vectors live in the same Supabase Postgres instance as all other data
+- Hybrid search — combine vector similarity with SQL filters (org scoping, type filtering, date ranges) in a single query
+- Good performance up to ~1M vectors, which covers single-user/small-team usage comfortably
+- Full-text search + vector search in one query for better recall
+
+**When to evolve:**
+- Query latency degrades under load (many concurrent orgs searching)
+- Vector count exceeds ~1M and index rebuild times become problematic
+- Need for advanced features like namespaces (Turbopuffer) or sparse-dense hybrid (Pinecone)
+
 ## Agent Engine
 
 ### Request Flow
@@ -138,7 +178,7 @@ For sensitive actions, the engine pauses the workflow and asks for user confirma
 
 ## Memory System
 
-Three layers, all backed by Supabase with pgvector:
+Three layers. All memory storage and retrieval goes through the `VectorStore` and `EmbeddingProvider` interfaces. Backed by Supabase pgvector today, swappable to Pinecone/Turbopuffer via adapter:
 
 ### Layer 1: Conversation Memory
 - Full message history per thread (messages, tool calls, results)
@@ -158,10 +198,12 @@ Three layers, all backed by Supabase with pgvector:
 
 ### Memory Retriever
 Before every agent call, assembles context:
-1. Current thread messages (always)
-2. Top-K relevant knowledge facts (semantic search)
-3. Matching skills (if request matches a known skill)
-4. Relevant past threads (if user references prior work)
+1. Current thread messages (always — fetched from Supabase directly, not vector search)
+2. Top-K relevant knowledge facts (via `VectorStore.search` with `{ type: 'knowledge' }` filter)
+3. Matching skills (via `VectorStore.search` with `{ type: 'skill' }` filter)
+4. Relevant past threads (via `VectorStore.search` with `{ type: 'conversation' }` filter, only when user references prior work)
+
+All vector searches are scoped by `orgId` in the filter to enforce data isolation.
 
 ## Connections & Tool System
 
