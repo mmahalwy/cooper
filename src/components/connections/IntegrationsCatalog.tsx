@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PlusIcon, SearchIcon } from 'lucide-react';
 import { IntegrationCard } from './IntegrationCard';
 import { AddConnectionModal } from './AddConnectionModal';
@@ -13,6 +14,8 @@ import { cn } from '@/lib/utils';
 export function IntegrationsCatalog() {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [search, setSearch] = useState('');
+  const [apiKeyModal, setApiKeyModal] = useState<{ open: boolean; integration: Integration | null; loading: boolean }>({ open: false, integration: null, loading: false });
+  const [apiKeyValue, setApiKeyValue] = useState('');
   const [category, setCategory] = useState<string>('All');
   const [mcpModalOpened, setMcpModalOpened] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -46,7 +49,7 @@ export function IntegrationsCatalog() {
   }, [search, category]);
 
   const handleConnect = async (integration: Integration) => {
-    // Step 1: Initiate OAuth via Composio
+    // Step 1: Check auth scheme
     const initiateRes = await fetch('/api/connections/initiate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -58,9 +61,15 @@ export function IntegrationsCatalog() {
       return;
     }
 
-    const { redirectUrl, connectedAccountId } = await initiateRes.json();
+    const data = await initiateRes.json();
 
-    // Step 2: Save the connection record (pending auth)
+    if (data.authScheme === 'API_KEY') {
+      // API key auth — show modal to collect the key
+      setApiKeyModal({ open: true, integration, loading: false });
+      return;
+    }
+
+    // OAuth — save connection and redirect
     await fetch('/api/connections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -70,16 +79,54 @@ export function IntegrationsCatalog() {
         type: 'platform',
         config: {
           apps: [integration.composioApp],
-          connectedAccountId,
+          connectedAccountId: data.connectedAccountId,
         },
       }),
     });
 
-    // Step 3: Redirect to Composio OAuth
-    if (redirectUrl) {
-      window.open(redirectUrl, '_blank');
+    if (data.redirectUrl) {
+      window.open(data.redirectUrl, '_blank');
     }
 
+    await loadConnections();
+  };
+
+  const handleApiKeySubmit = async () => {
+    if (!apiKeyModal.integration || !apiKeyValue.trim()) return;
+    setApiKeyModal((prev) => ({ ...prev, loading: true }));
+
+    const integration = apiKeyModal.integration;
+
+    // Re-initiate with the API key
+    const initiateRes = await fetch('/api/connections/initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        appName: integration.composioApp,
+        authConfig: { api_key: apiKeyValue.trim() },
+      }),
+    });
+
+    if (initiateRes.ok) {
+      const data = await initiateRes.json();
+
+      await fetch('/api/connections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: integration.name,
+          provider: integration.composioApp,
+          type: 'platform',
+          config: {
+            apps: [integration.composioApp],
+            connectedAccountId: data.connectedAccountId,
+          },
+        }),
+      });
+    }
+
+    setApiKeyModal({ open: false, integration: null, loading: false });
+    setApiKeyValue('');
     await loadConnections();
   };
 
@@ -176,6 +223,31 @@ export function IntegrationsCatalog() {
         onClose={() => setMcpModalOpened(false)}
         onAdd={handleMcpAdd}
       />
+
+      <Dialog open={apiKeyModal.open} onOpenChange={(open) => { if (!open) { setApiKeyModal({ open: false, integration: null, loading: false }); setApiKeyValue(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Connect {apiKeyModal.integration?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">
+              {apiKeyModal.integration?.name} uses API key authentication. Enter your API key below.
+            </p>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">API Key</label>
+              <Input
+                type="password"
+                placeholder="Enter your API key"
+                value={apiKeyValue}
+                onChange={(e) => setApiKeyValue(e.target.value)}
+              />
+            </div>
+            <Button onClick={handleApiKeySubmit} disabled={apiKeyModal.loading || !apiKeyValue.trim()}>
+              {apiKeyModal.loading ? 'Connecting...' : 'Connect'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
