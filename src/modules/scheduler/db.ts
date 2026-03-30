@@ -47,6 +47,28 @@ export async function createScheduledTask(
   return data as ScheduledTask;
 }
 
+export async function updateScheduledTask(
+  supabase: SupabaseClient,
+  taskId: string,
+  updates: Partial<Pick<ScheduledTask, 'name' | 'cron' | 'prompt' | 'status' | 'next_run_at'>>
+): Promise<ScheduledTask | null> {
+  const { data, error } = await supabase
+    .from('scheduled_tasks')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', taskId)
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('[scheduler] Failed to update task:', error);
+    return null;
+  }
+  return data as ScheduledTask;
+}
+
 export async function updateScheduledTaskStatus(
   supabase: SupabaseClient,
   taskId: string,
