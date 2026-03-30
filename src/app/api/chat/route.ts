@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAgentStream } from '@/modules/agent/engine';
 import { getToolsForOrg } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
+import { extractAndSaveMemories } from '@/modules/memory/extractor';
 
 export const maxDuration = 60;
 
@@ -126,6 +127,17 @@ export async function POST(req: Request) {
         .from('threads')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', activeThreadId);
+
+      // Background: extract and save memories from this exchange
+      extractAndSaveMemories(
+        sb,
+        dbUser.org_id,
+        userText,
+        text,
+        memoryContext.knowledge
+      ).catch((err) => {
+        console.error('[chat] Memory extraction failed:', err);
+      });
     }
   }).catch((err) => {
     console.error('[chat] Failed to persist assistant response:', err);
