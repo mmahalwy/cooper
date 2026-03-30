@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { PlusIcon, MessageSquareIcon, LogOutIcon, PlugIcon } from 'lucide-react';
+import { PlusIcon, MessageSquareIcon, LogOutIcon, PlugIcon, BrainIcon } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -82,6 +82,13 @@ export function ChatSidebar() {
         >
           <PlugIcon className="size-4" />
           Connections
+        </button>
+        <button
+          onClick={() => router.push('/knowledge')}
+          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+        >
+          <BrainIcon className="size-4" />
+          Knowledge
         </button>
         <button
           onClick={() => {
