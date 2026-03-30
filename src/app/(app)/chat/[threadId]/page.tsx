@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { Stack, Loader, Center } from '@mantine/core';
 import { ChatMessages } from '@/components/chat/ChatMessages';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { useParams } from 'next/navigation';
@@ -45,12 +44,11 @@ export default function ChatThreadPage() {
     loadMessages();
   }, [threadId]);
 
-  // Don't render the chat until messages are loaded
   if (initialMessages === null) {
     return (
-      <Center h="100vh">
-        <Loader />
-      </Center>
+      <div className="flex h-screen items-center justify-center">
+        <div className="size-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+      </div>
     );
   }
 
@@ -81,12 +79,12 @@ function ChatThread({
   const isStreaming = status === 'streaming' || status === 'submitted';
 
   return (
-    <Stack h="100vh" gap={0} justify="space-between">
+    <div className="flex h-screen flex-col">
       <ChatMessages messages={messages} />
       <ChatInput
         onSend={(text) => sendMessage({ text })}
         disabled={isStreaming}
       />
-    </Stack>
+    </div>
   );
 }

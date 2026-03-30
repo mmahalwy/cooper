@@ -1,34 +1,16 @@
-import "@mantine/core/styles.css";
 import "./globals.css";
 
 import type { Metadata } from "next";
-import { Inter, Playfair_Display, Geist } from "next/font/google";
-import { MantineProvider, ColorSchemeScript } from "@mantine/core";
-import { theme } from "@/theme";
+import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-playfair",
-});
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "Cooper — The AI Teammate That Actually Does the Work",
   description:
-    "Cooper is an AI teammate that truly works like an embedded person on your team. Not a chatbot. Not an assistant. A real teammate that connects to your tools and delivers results.",
-  openGraph: {
-    title: "Cooper — The AI Teammate That Actually Does the Work",
-    description:
-      "An AI teammate that truly works like an embedded person on your team.",
-    type: "website",
-  },
+    "Cooper is an AI teammate that truly works like an embedded person on your team.",
 };
 
 export default function RootLayout({
@@ -37,14 +19,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-mantine-color-scheme="light" className={cn(inter.variable, playfair.variable, "font-sans", geist.variable)}>
-      <head>
-        <ColorSchemeScript forceColorScheme="light" />
-      </head>
+    <html lang="en" className={cn("font-sans", geist.variable)}>
       <body>
-        <MantineProvider theme={theme} forceColorScheme="light">
-          {children}
-        </MantineProvider>
+        <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>
   );

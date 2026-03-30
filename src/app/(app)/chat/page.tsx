@@ -2,7 +2,6 @@
 
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { Stack } from '@mantine/core';
 import { ChatMessages } from '@/components/chat/ChatMessages';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { EmptyState } from '@/components/chat/EmptyState';
@@ -36,7 +35,7 @@ export default function ChatPage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <Stack h="100vh" gap={0} justify="space-between">
+    <div className="flex h-screen flex-col">
       {hasMessages ? (
         <ChatMessages messages={messages} />
       ) : (
@@ -46,6 +45,6 @@ export default function ChatPage() {
         onSend={(text) => sendMessage({ text })}
         disabled={isStreaming}
       />
-    </Stack>
+    </div>
   );
 }
