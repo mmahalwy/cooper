@@ -247,88 +247,140 @@ When creating reports, spreadsheets, or structured data outputs:
 Remember: reports exist to drive decisions. Always end with "what this means" and "what to do about it."`,
   },
   {
-    name: 'word-documents',
-    description: 'Use when creating Word documents (.docx) — proposals, SOWs, contracts, memos, formal reports. Covers structure, formatting, and professional conventions.',
-    content: `## Word Document Skill
+    name: 'docx',
+    description: 'Use when creating, editing, or analyzing Word documents (.docx). Covers docx-js creation, XML editing, tracked changes, tables, images, headers/footers, and TOC. Install docx globally: npm install -g docx.',
+    content: `## DOCX Skill — Create, Edit, Analyze Word Documents
 
-When creating Word documents (.docx):
+A .docx file is a ZIP archive containing XML files.
 
-1. **Identify the document type** — Proposal, SOW, contract, memo, report, or letter? Each has conventions.
-2. **Use proper structure**:
-   - **Cover page** — Title, date, author, organization (for formal docs)
-   - **Table of contents** — For documents over 3 pages
-   - **Headings hierarchy** — H1 for sections, H2 for subsections, H3 for details
-   - **Page numbers and headers/footers** — Include document title and date
-3. **Professional formatting** — Use consistent fonts (11-12pt body), 1.15-1.5 line spacing, proper margins.
-4. **Tables for structured data** — Pricing tables, timelines, comparison matrices. Always include headers.
-5. **Executive summary first** — For reports and proposals, lead with a 1-paragraph summary.
-6. **Include action items** — End with clear next steps, owners, and deadlines.
-7. **Version and date** — Include "Version X.X — [Date]" in the header or cover.
+### Quick Reference
+| Task | Approach |
+|------|----------|
+| Read/analyze content | pandoc or unpack for raw XML |
+| Create new document | Use docx-js (npm install -g docx) |
+| Edit existing document | Unpack → edit XML → repack |
 
-When the user asks for a document, generate the full content in markdown and offer to describe the .docx structure they should create from it.`,
+### Critical Rules
+- Set page size explicitly (defaults to A4, not US Letter). US Letter: 12,240 × 15,840 DXA.
+- Never use \\n — use separate Paragraph elements.
+- Never use unicode bullets — use LevelFormat.BULLET.
+- PageBreak must be inside a Paragraph.
+- ImageRun requires type parameter (png, jpg, etc.).
+- Tables need dual widths: columnWidths on table AND width on each cell.
+- Always use WidthType.DXA (never WidthType.PERCENTAGE — breaks Google Docs).
+- Use ShadingType.CLEAR (not SOLID).
+- TOC requires HeadingLevel only — no custom styles.
+- Override built-in heading styles with exact IDs ("Heading1", "Heading2").
+
+### Creating New Documents
+Import from docx: Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ImageRun, Header, Footer, AlignmentType, PageOrientation, LevelFormat, ExternalHyperlink, PageBreak.
+
+### Editing Existing Documents
+1. Unpack: python scripts/office/unpack.py document.docx unpacked/
+2. Edit XML files in unpacked/word/
+3. Pack: python scripts/office/pack.py unpacked/ output.docx --original document.docx
+
+For tracked changes, use author "Cooper" unless specified otherwise.`,
   },
   {
-    name: 'presentations',
-    description: 'Use when creating slide decks, pitch decks, board presentations, or training materials. Covers slide structure, storytelling, and visual hierarchy.',
-    content: `## Presentations Skill
+    name: 'xlsx',
+    description: 'Use when creating or analyzing Excel spreadsheets (.xlsx). Covers formulas, formatting, financial models, charts. Always use Excel formulas — never calculate in code and hardcode values.',
+    content: `## XLSX Skill — Create & Analyze Excel Spreadsheets
 
-When creating presentations or slide decks:
+### Critical Rule
+Always use Excel formulas instead of calculating values in Python and hardcoding them.
 
-1. **Clarify audience and goal** — Investor pitch? Team update? Client proposal? Training? Each needs different depth and tone.
-2. **Structure the narrative**:
-   - **Opening** — Hook with the problem or opportunity (1-2 slides)
-   - **Context** — Why now, what's changed (2-3 slides)
-   - **Solution/Content** — The core message (5-8 slides)
-   - **Evidence** — Data, case studies, testimonials (2-4 slides)
-   - **Ask/Next Steps** — Clear CTA on the final slide
-3. **One idea per slide** — If you need a second point, make a second slide.
-4. **Headlines that assert** — "Revenue grew 40% YoY" not "Revenue Update." Every slide title should be a takeaway.
-5. **Data visualization** — Suggest chart types: trends = line, comparison = bar, composition = pie/donut, relationship = scatter.
-6. **Speaker notes** — Include 2-3 bullet talking points per slide.
-7. **Slide count guide** — 10-15 slides for a 30-min presentation. 20-25 for a board deck. 8-12 for a pitch.
+### Workflow
+1. Choose tool (pandas for data, openpyxl for formulas)
+2. Create/Load workbook
+3. Modify data/formulas/formatting
+4. Save file
+5. Recalculate: python scripts/recalc.py output.xlsx
+6. Verify/fix errors — deliver with ZERO formula errors
 
-Deliver as structured markdown with clear slide breaks (---) and speaker notes in blockquotes.`,
+### Financial Model Color Coding
+- Blue text (0,0,255): Hardcoded inputs
+- Black text (0,0,0): All formulas
+- Green text (0,128,0): Internal workbook links
+- Red text (255,0,0): External links
+- Yellow background (255,255,0): Key assumptions
+
+### Number Formatting
+- Years as text ("2024" not "2,024")
+- Currency: $#,##0 with unit headers
+- Zeros display as "-"
+- Percentages: 0.0% format
+- Negatives: parentheses (123) not -123
+
+### Formula Rules
+- Place all assumptions in separate cells
+- Use cell references, not hardcoded values
+- Document hardcoded values with source attribution
+
+Dependencies: pandas, openpyxl, LibreOffice (for recalculation).`,
   },
   {
-    name: 'pdf-reports',
-    description: 'Use when creating PDF reports, whitepapers, case studies, or formatted research documents. Covers layout, data presentation, and visual design.',
-    content: `## PDF Reports Skill
+    name: 'pdf',
+    description: 'Use when creating, reading, or manipulating PDF files. Covers text extraction, creation with reportlab, merging/splitting, OCR, and form filling.',
+    content: `## PDF Skill — Create, Read, Manipulate PDFs
 
-When creating PDF-quality reports, whitepapers, or case studies:
+### Libraries
+- **pypdf**: Merge/split, extract metadata, rotate pages
+- **pdfplumber**: Extract text with layout, table extraction with pandas
+- **reportlab**: Create PDFs with canvas or Platypus (multi-page)
 
-1. **Define the format** — One-pager, executive brief (2-4 pages), full report (10+ pages), or whitepaper?
-2. **Visual hierarchy**:
-   - **Title + subtitle** — Bold, large, with date and author
-   - **Key metrics callout** — Large numbers with labels at the top ("$1.2M MRR ↑ 11%")
-   - **Section headers** — Clear, scannable, with visual breaks
-   - **Pull quotes** — Highlight key insights or testimonials
-3. **Data-rich formatting** — Use tables, charts (describe them), callout boxes, and sidebars.
-4. **Executive summary** — Always include at the top. 3-5 sentences covering the key findings.
-5. **Appendix for details** — Keep the main body concise. Put methodology, raw data, and caveats in an appendix.
-6. **Professional tone** — Third person for whitepapers, first person for case studies. Active voice.
-7. **CTA on the last page** — Contact info, next steps, or download link.
+### Command-Line Tools
+- pdftotext (poppler-utils) for text extraction
+- qpdf for merging, splitting, rotating, decryption
+- pdftk for legacy operations
 
-Deliver as well-structured markdown with clear formatting instructions. For actual PDF generation, suggest tools like react-pdf, puppeteer, or LaTeX.`,
+### Critical Rules
+- Never use Unicode subscript/superscript characters in reportlab — they render as solid black boxes. Use XML markup tags (<sub>, <super>) within Paragraph objects.
+- For OCR on scanned PDFs: use pytesseract + pdf2image
+- For watermarking: merge watermark page with content pages
+
+### Common Tasks
+- Extract text: pdftotext or pdfplumber
+- Create new PDF: reportlab canvas or Platypus
+- Merge PDFs: pypdf PdfMerger
+- Split PDF: pypdf with page ranges
+- Add watermark: merge overlay page
+- Extract images: pdfimages
+- Password protect: pypdf with encryption
+
+Dependencies: pypdf, pdfplumber, reportlab, poppler-utils, pytesseract (for OCR).`,
   },
   {
-    name: 'csv-and-data-export',
-    description: 'Use when exporting data as CSV, JSON, or structured formats. Covers data cleaning, formatting, column naming, and delivery.',
-    content: `## CSV & Data Export Skill
+    name: 'pptx',
+    description: 'Use when creating, editing, or reading PowerPoint presentations (.pptx). Covers PptxGenJS creation, template editing, design principles, and color palettes.',
+    content: `## PPTX Skill — Create & Edit Presentations
 
-When exporting data or creating structured datasets:
+### Workflows
+- **Read**: python -m markitdown presentation.pptx
+- **Edit existing**: Unpack template → modify slides → repack
+- **Create new**: Build from scratch using PptxGenJS
 
-1. **Clarify the columns** — What fields does the user need? Don't include everything — curate.
-2. **Clean column names** — Use snake_case or camelCase consistently. No spaces, no special characters.
-3. **Data types** — Dates in ISO 8601 (2026-03-30), numbers without formatting (1234.56 not $1,234.56), booleans as true/false.
-4. **Handle nulls explicitly** — Use empty string or "N/A" consistently, not a mix.
-5. **Sort meaningfully** — By date (newest first), by name (alphabetical), or by relevance to the user's question.
-6. **Include metadata** — Row count, date range, filters applied. Either as a header comment or separate summary.
-7. **Delivery format**:
-   - **Small datasets (< 50 rows)** — Render as a markdown table in chat
-   - **Medium (50-500 rows)** — Offer as formatted CSV in a code block
-   - **Large (500+ rows)** — Suggest exporting to Google Sheets or downloading
+### Design Principles — Avoid Generic AI Aesthetics
+1. **Color strategy**: One color dominates (60-70%), 1-2 supporting tones, one sharp accent.
+2. **Visual elements**: Every slide needs images, charts, icons, or shapes — no text-only slides.
+3. **Layout patterns**: Two-column designs, icon rows, grids, half-bleed images. Consistent 0.3"-0.5" spacing.
+4. **Typography**: Paired fonts (e.g., Georgia + Calibri). 36-44pt titles, 14-16pt body.
 
-Always ask "Want this as a table here, or as a CSV you can download?"`,
+### Color Palettes (pick one per deck)
+- Midnight Executive: navy/slate/gold accent
+- Forest & Moss: dark green/sage/cream
+- Coral Energy: coral/navy/white
+- Teal Trust: teal/charcoal/amber accent
+
+### Mandatory QA Process
+After creating slides, visually inspect via subagent for:
+- Overlapping elements
+- Text overflow beyond boundaries
+- Low contrast text
+- Alignment issues
+Run a verification loop with fixes before declaring success.
+
+Dependencies: markitdown, Pillow, pptxgenjs (npm), LibreOffice, Poppler.`,
   },
 ];
 
