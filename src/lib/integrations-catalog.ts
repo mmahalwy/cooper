@@ -42,4 +42,5 @@ export const INTEGRATIONS: Integration[] = [
   { id: 'twilio', name: 'Twilio', description: 'SMS, voice, and messaging APIs', category: 'Communication', composioApp: 'twilio', toolCount: 14 },
   { id: 'zendesk', name: 'Zendesk', description: 'Customer service and support platform', category: 'CRM', composioApp: 'zendesk', toolCount: 20 },
   { id: 'airtable', name: 'Airtable', description: 'Spreadsheet-database hybrid for teams', category: 'Productivity', composioApp: 'airtable', toolCount: 16 },
+  { id: 'granola', name: 'Granola', description: 'AI meeting notes — automatic transcription, summaries, and action items', category: 'Productivity', composioApp: 'granola', toolCount: 10 },
 ];
