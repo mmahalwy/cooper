@@ -1,3 +1,9 @@
+.container {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
 .section {
   padding: 160px 0 120px;
   text-align: center;
@@ -31,6 +37,7 @@
 }
 
 .inputGroup {
+  display: flex;
   gap: 8px;
   flex-wrap: nowrap;
 
@@ -39,8 +46,38 @@
   }
 }
 
+.submitButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0 20px;
+  height: 42px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+
+  &:hover:not(:disabled) {
+    opacity: 0.88;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
 .inputRoot {
   flex: 1;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 8px;
+  outline: none;
 }
 
 .input {

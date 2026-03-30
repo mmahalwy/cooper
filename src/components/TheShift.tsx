@@ -1,5 +1,4 @@
-import { Container } from "@mantine/core";
-import { IconX, IconCheck } from "@tabler/icons-react";
+import { XIcon, CheckIcon } from "lucide-react";
 import classes from "./TheShift.module.css";
 
 const oldWay = [
@@ -19,7 +18,7 @@ const newWay = [
 export function TheShift() {
   return (
     <section className={classes.section} id="product">
-      <Container size="lg">
+      <div className={classes.container}>
         <div className={classes.label}>The Shift</div>
         <h2 className={classes.title}>
           AI that gives advice vs. AI that does the work
@@ -37,7 +36,7 @@ export function TheShift() {
             </div>
             {oldWay.map((item) => (
               <div className={classes.item} key={item}>
-                <IconX
+                <XIcon
                   size={18}
                   className={`${classes.itemIcon} ${classes.oldIcon}`}
                 />
@@ -52,7 +51,7 @@ export function TheShift() {
             </div>
             {newWay.map((item) => (
               <div className={classes.item} key={item}>
-                <IconCheck
+                <CheckIcon
                   size={18}
                   className={`${classes.itemIcon} ${classes.newIcon}`}
                 />
@@ -61,7 +60,7 @@ export function TheShift() {
             ))}
           </div>
         </div>
-      </Container>
+      </div>
     </section>
   );
 }

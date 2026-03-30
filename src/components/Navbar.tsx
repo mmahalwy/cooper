@@ -1,7 +1,6 @@
 "use client";
 
-import { Container, Group, Button, Burger, Drawer, Stack } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useState } from "react";
 import classes from "./Navbar.module.css";
 
 const links = [
@@ -10,89 +9,74 @@ const links = [
 ];
 
 export function Navbar() {
-  const [opened, { toggle, close }] = useDisclosure(false);
+  const [opened, setOpened] = useState(false);
 
   return (
     <header className={classes.header}>
-      <Container size="lg" className={classes.inner}>
-        <div className={classes.logo}>
-          <div className={classes.logoIcon}>C</div>
-          Cooper
-        </div>
+      <div className={classes.container}>
+        <div className={classes.inner}>
+          <div className={classes.logo}>
+            <div className={classes.logoIcon}>C</div>
+            Cooper
+          </div>
 
-        <nav className={classes.links}>
-          {links.map((link) => (
-            <a key={link.label} href={link.href} className={classes.link}>
-              {link.label}
+          <nav className={classes.links}>
+            {links.map((link) => (
+              <a key={link.label} href={link.href} className={classes.link}>
+                {link.label}
+              </a>
+            ))}
+          </nav>
+
+          <div className={classes.cta}>
+            <a href="#waitlist" className={classes.ctaButton}>
+              Join Waitlist
             </a>
-          ))}
-        </nav>
+          </div>
 
-        <Group className={classes.cta}>
-          <Button
-            size="xs"
-            component="a"
-            href="#waitlist"
-            styles={{
-              root: {
-                fontWeight: 500,
-                fontSize: "0.8125rem",
-                height: 32,
-                paddingInline: 14,
-                background: "var(--accent)",
-                color: "#fff",
-                border: "none",
-              },
-            }}
+          <button
+            className={classes.burger}
+            onClick={() => setOpened((o) => !o)}
+            aria-label="Toggle menu"
           >
-            Join Waitlist
-          </Button>
-        </Group>
+            ☰
+          </button>
+        </div>
+      </div>
 
-        <Burger
-          opened={opened}
-          onClick={toggle}
-          className={classes.burger}
-          color="dark"
-          size="sm"
-        />
-
-        <Drawer
-          opened={opened}
-          onClose={close}
-          size="100%"
-          padding="md"
-          title="Cooper"
-          zIndex={200}
-        >
-          <Stack>
+      {opened && (
+        <div className={classes.mobileMenu}>
+          <div className={classes.mobileMenuHeader}>
+            <span className={classes.mobileMenuTitle}>Cooper</span>
+            <button
+              className={classes.mobileMenuClose}
+              onClick={() => setOpened(false)}
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
+          </div>
+          <div className={classes.mobileMenuLinks}>
             {links.map((link) => (
               <a
                 key={link.label}
                 href={link.href}
                 className={classes.link}
-                onClick={close}
+                onClick={() => setOpened(false)}
               >
                 {link.label}
               </a>
             ))}
-            <Button
-              fullWidth
-              component="a"
+            <a
               href="#waitlist"
-              styles={{
-                root: {
-                  background: "var(--accent)",
-                  color: "#fff",
-                  border: "none",
-                },
-              }}
+              className={classes.ctaButtonFull}
+              onClick={() => setOpened(false)}
             >
               Join Waitlist
-            </Button>
-          </Stack>
-        </Drawer>
-      </Container>
+            </a>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Container, Button } from "@mantine/core";
-import { IconArrowRight } from "@tabler/icons-react";
+import { ArrowRightIcon } from "lucide-react";
 import classes from "./Hero.module.css";
 
 const examples = [
@@ -169,7 +168,7 @@ export function Hero() {
 
   return (
     <section className={classes.hero}>
-      <Container size="md">
+      <div className={classes.container}>
         <div className={classes.badge}>
           <span className={classes.badgeDot} />
           Coming Soon
@@ -193,23 +192,10 @@ export function Hero() {
         </div>
 
         <div className={classes.ctas}>
-          <Button
-            size="md"
-            rightSection={<IconArrowRight size={16} />}
-            component="a"
-            href="#waitlist"
-            styles={{
-              root: {
-                fontWeight: 500,
-                fontSize: "0.875rem",
-                background: "var(--accent)",
-                color: "#fff",
-                border: "none",
-              },
-            }}
-          >
+          <a href="#waitlist" className={classes.button}>
             Join the Waitlist
-          </Button>
+            <ArrowRightIcon size={16} />
+          </a>
         </div>
 
         <div className={classes.social}>
@@ -267,7 +253,7 @@ export function Hero() {
             ))}
           </div>
         </div>
-      </Container>
+      </div>
     </section>
   );
 }

@@ -1,8 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Container, Button, TextInput, Group } from "@mantine/core";
-import { IconArrowRight, IconCheck } from "@tabler/icons-react";
+import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import { joinWaitlist } from "@/app/actions";
 import classes from "./CTA.module.css";
 
@@ -16,7 +15,7 @@ export function CTA() {
 
   return (
     <section className={classes.section} id="waitlist">
-      <Container size="md">
+      <div className={classes.container}>
         <h2 className={classes.title}>
           Get early access to{" "}
           <span className={classes.gradient}>Cooper.</span>
@@ -27,41 +26,28 @@ export function CTA() {
 
         {state?.success ? (
           <div className={classes.success}>
-            <IconCheck size={20} />
+            <CheckIcon size={20} />
             <span>You&apos;re on the list. We&apos;ll be in touch.</span>
           </div>
         ) : (
           <form className={classes.form} action={formAction}>
-            <Group className={classes.inputGroup}>
-              <TextInput
+            <div className={classes.inputGroup}>
+              <input
                 name="email"
                 placeholder="you@company.com"
-                size="md"
                 type="email"
                 required
-                classNames={{
-                  input: classes.input,
-                  root: classes.inputRoot,
-                }}
+                className={`${classes.input} ${classes.inputRoot}`}
               />
-              <Button
-                size="md"
-                rightSection={<IconArrowRight size={14} />}
+              <button
                 type="submit"
-                loading={pending}
-                styles={{
-                  root: {
-                    fontWeight: 500,
-                    fontSize: "0.875rem",
-                    background: "var(--accent)",
-                    color: "#fff",
-                    border: "none",
-                  },
-                }}
+                disabled={pending}
+                className={classes.submitButton}
               >
-                Join Waitlist
-              </Button>
-            </Group>
+                {pending ? "Joining…" : "Join Waitlist"}
+                {!pending && <ArrowRightIcon size={14} />}
+              </button>
+            </div>
             {state?.error && (
               <p className={classes.error}>{state.error}</p>
             )}
@@ -69,7 +55,7 @@ export function CTA() {
         )}
 
         <p className={classes.note}>No spam, ever.</p>
-      </Container>
+      </div>
     </section>
   );
 }

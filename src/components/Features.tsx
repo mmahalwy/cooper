@@ -1,47 +1,46 @@
-import { Container } from "@mantine/core";
 import {
-  IconPlug,
-  IconBrain,
-  IconFileText,
-  IconRefresh,
-  IconShieldCheck,
-  IconRocket,
-} from "@tabler/icons-react";
+  PlugIcon,
+  BrainIcon,
+  FileTextIcon,
+  RefreshCwIcon,
+  ShieldCheckIcon,
+  RocketIcon,
+} from "lucide-react";
 import classes from "./Features.module.css";
 
 const features = [
   {
-    icon: IconPlug,
+    icon: PlugIcon,
     title: "3,000+ Integrations",
     description:
       "Connects to Slack, GitHub, Linear, HubSpot, Stripe, Google Ads, Meta, Notion, and thousands more — out of the box.",
   },
   {
-    icon: IconFileText,
+    icon: FileTextIcon,
     title: "Real Deliverables",
     description:
       "Not just text. Cooper produces reports, spreadsheets, decks, dashboards, code, and deployed apps.",
   },
   {
-    icon: IconBrain,
+    icon: BrainIcon,
     title: "Deep Memory",
     description:
       "Cooper learns your preferences, processes, and context over time. Never repeat yourself — it remembers what works.",
   },
   {
-    icon: IconRefresh,
+    icon: RefreshCwIcon,
     title: "Proactive Automation",
     description:
       "Cooper doesn't wait to be asked. It identifies repetitive workflows and suggests automations to save your team hours.",
   },
   {
-    icon: IconShieldCheck,
+    icon: ShieldCheckIcon,
     title: "Enterprise-Grade Security",
     description:
       "SOC2 compliant, end-to-end encryption, role-based access controls, and complete audit trails for every action.",
   },
   {
-    icon: IconRocket,
+    icon: RocketIcon,
     title: "Minutes to Deploy",
     description:
       "Add Cooper to Slack or Teams, connect your tools, and start delegating. No engineering tickets, no setup sprints.",
@@ -51,7 +50,7 @@ const features = [
 export function Features() {
   return (
     <section className={classes.section} id="features">
-      <Container size="lg">
+      <div className={classes.container}>
         <div className={classes.label}>Capabilities</div>
         <h2 className={classes.title}>Everything a great teammate does</h2>
         <p className={classes.subtitle}>
@@ -70,7 +69,7 @@ export function Features() {
             </div>
           ))}
         </div>
-      </Container>
+      </div>
     </section>
   );
 }
