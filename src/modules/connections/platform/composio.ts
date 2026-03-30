@@ -16,8 +16,8 @@ export async function getComposioTools(
 
   try {
     const toolset = new VercelAIToolSet({
-      apiKey: config.apiKey,
-      entityId: config.entityId,
+      apiKey: config.apiKey || process.env.COMPOSIO_API_KEY || '',
+      entityId: config.entityId || 'default',
     });
 
     // getTools returns { [key: string]: CoreTool } per composio-core typings,

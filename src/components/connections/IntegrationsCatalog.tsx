@@ -54,7 +54,6 @@ export function IntegrationsCatalog() {
         provider: integration.composioApp,
         type: 'platform',
         config: {
-          apiKey: '', // User needs to configure via Composio
           entityId: 'default',
           apps: [integration.composioApp],
         },
