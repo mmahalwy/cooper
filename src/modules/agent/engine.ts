@@ -15,7 +15,8 @@ const SYSTEM_PROMPT = `You are Cooper, an AI teammate. You are helpful, concise,
 You help users with their work by connecting to their tools and completing tasks.
 Be direct and professional. Use markdown formatting when it helps readability.
 When you have tools available, use them proactively to get information or take actions.
-Always explain what you did after using a tool.`;
+You have web search built in — use it when the user asks about current events, recent information, or anything that benefits from live data.
+Always explain what you did after using a tool. Show your reasoning when tackling complex tasks.`;
 
 function buildSystemPrompt(memoryContext?: MemoryContext): string {
   let prompt = SYSTEM_PROMPT;
@@ -59,16 +60,21 @@ export function createAgentStream(input: AgentInput) {
   const modelId = input.modelOverride || DEFAULT_MODEL;
   const modelName = MODELS[modelId] || MODELS[DEFAULT_MODEL];
 
-  const hasTools = input.tools && Object.keys(input.tools).length > 0;
+  // Merge user-connected tools with built-in tools
+  const builtInTools = {
+    google_search: google.tools.googleSearch({}),
+  };
+  const allTools = {
+    ...builtInTools,
+    ...(input.tools || {}),
+  };
 
   const result = streamText({
     model: google(modelName),
     system: buildSystemPrompt(input.memoryContext),
     messages: toModelMessages(input.messages),
-    ...(hasTools ? {
-      tools: input.tools,
-      stopWhen: stepCountIs(10),
-    } : {}),
+    tools: allTools,
+    stopWhen: stepCountIs(10),
     onError: ({ error }) => {
       console.error('[agent] Stream error:', error);
     },

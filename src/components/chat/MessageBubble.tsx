@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { WrenchIcon, BotIcon, UserIcon } from 'lucide-react';
+import { WrenchIcon, BotIcon, UserIcon, LightbulbIcon, GlobeIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type ToolState =
@@ -78,6 +78,42 @@ export function MessageBubble({ role, parts }: MessageBubbleProps) {
                 <p key={i} className="whitespace-pre-wrap text-left">
                   {textPart.text}
                 </p>
+              );
+            }
+
+            if (part.type === 'reasoning') {
+              const text = (part as any).text || (part as any).reasoning;
+              if (!text) return null;
+              return (
+                <Collapsible key={i} className="my-2">
+                  <CollapsibleTrigger className="flex items-center gap-1.5 cursor-pointer text-muted-foreground">
+                    <LightbulbIcon className="size-3.5" />
+                    <span className="text-xs font-medium">Reasoning</span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <p className="mt-1 text-xs text-muted-foreground italic whitespace-pre-wrap">{text}</p>
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            }
+
+            if (part.type === 'source' || part.type === 'sources') {
+              const sources = (part as any).sources || [(part as any)];
+              return (
+                <div key={i} className="my-2 flex flex-wrap gap-1.5">
+                  {sources.map((s: any, j: number) => (
+                    <a
+                      key={j}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <GlobeIcon className="size-3" />
+                      {s.title || s.url}
+                    </a>
+                  ))}
+                </div>
               );
             }
 

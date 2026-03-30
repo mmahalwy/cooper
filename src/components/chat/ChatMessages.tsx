@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageBubble, StreamingIndicator } from './MessageBubble';
 
 interface ChatMessagesProps {
@@ -21,7 +20,7 @@ export function ChatMessages({ messages, isStreaming }: ChatMessagesProps) {
   }, [messages, isStreaming]);
 
   return (
-    <ScrollArea className="flex-1">
+    <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-3xl flex-col px-4">
         {messages.map((message) => (
           <MessageBubble
@@ -33,6 +32,6 @@ export function ChatMessages({ messages, isStreaming }: ChatMessagesProps) {
         {isStreaming && <StreamingIndicator />}
         <div ref={bottomRef} />
       </div>
-    </ScrollArea>
+    </div>
   );
 }
