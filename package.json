@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.64",
+    "@ai-sdk/google": "^3.0.53",
     "@ai-sdk/react": "^3.0.143",
     "@mantine/carousel": "^8.3.18",
     "@mantine/core": "^8.3.18",
@@ -36,5 +37,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "typescript": "^5"
-  }
+  },
+  "packageManager": "pnpm@10.18.3+sha512.bbd16e6d7286fd7e01f6b3c0b3c932cda2965c06a908328f74663f10a9aea51f1129eea615134bf992831b009eabe167ecb7008b597f40ff9bc75946aadfb08d"
 }

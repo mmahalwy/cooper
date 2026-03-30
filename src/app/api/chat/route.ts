@@ -89,7 +89,7 @@ export async function POST(req: Request) {
   const result = createAgentStream(agentInput);
 
   // Save the assistant response after streaming completes
-  const modelUsed = 'claude-sonnet';
+  const modelUsed = 'gemini-flash';
   Promise.resolve(result.text).then(async (text) => {
     if (text && activeThreadId) {
       const { createClient: createServerClient } = await import(
