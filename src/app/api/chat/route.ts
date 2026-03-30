@@ -30,8 +30,48 @@ export async function POST(req: Request) {
     threadId?: string;
   };
 
+  // Create or reuse thread
+  let activeThreadId = threadId;
+  if (!activeThreadId || activeThreadId === 'new') {
+    const lastUserMessage = messages[messages.length - 1];
+    const title =
+      lastUserMessage?.parts
+        ?.filter((p) => p.type === 'text')
+        .map((p) => (p as { type: 'text'; text: string }).text)
+        .join('')
+        .slice(0, 100) || 'New conversation';
+
+    const { data: thread } = await supabase
+      .from('threads')
+      .insert({
+        org_id: dbUser.org_id,
+        user_id: user.id,
+        title,
+      })
+      .select('id')
+      .single();
+
+    activeThreadId = thread?.id;
+  }
+
+  // Save the latest user message
+  const lastUserMessage = messages[messages.length - 1];
+  if (lastUserMessage && lastUserMessage.role === 'user') {
+    const content =
+      lastUserMessage.parts
+        ?.filter((p) => p.type === 'text')
+        .map((p) => (p as { type: 'text'; text: string }).text)
+        .join('') || '';
+
+    await supabase.from('messages').insert({
+      thread_id: activeThreadId,
+      role: 'user',
+      content,
+    });
+  }
+
   const result = createAgentStream({
-    threadId: threadId || 'new',
+    threadId: activeThreadId || 'new',
     orgId: dbUser.org_id,
     userId: user.id,
     messages: messages.map((m) => ({
@@ -43,5 +83,29 @@ export async function POST(req: Request) {
     })),
   });
 
-  return result.toUIMessageStreamResponse();
+  // Save the assistant response after streaming completes
+  result.text.then(async (text) => {
+    if (text && activeThreadId) {
+      const { createClient: createServerClient } = await import(
+        '@/lib/supabase/server'
+      );
+      const sb = await createServerClient();
+      await sb.from('messages').insert({
+        thread_id: activeThreadId,
+        role: 'assistant',
+        content: text,
+        metadata: { model: 'claude-sonnet' },
+      });
+      await sb
+        .from('threads')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', activeThreadId);
+    }
+  });
+
+  return result.toUIMessageStreamResponse({
+    headers: {
+      'X-Thread-Id': activeThreadId || '',
+    },
+  });
 }
