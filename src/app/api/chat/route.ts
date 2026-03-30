@@ -92,6 +92,7 @@ export async function POST(req: Request) {
 
   // Load tools for this org's connections
   const tools = await getToolsForOrg(supabase, dbUser.org_id, user.id);
+  console.log(`[chat] Loaded ${Object.keys(tools).length} connection tools:`, Object.keys(tools).slice(0, 10));
 
   // Retrieve memory context
   const lastMsg = messages[messages.length - 1];

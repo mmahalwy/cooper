@@ -45,6 +45,15 @@ export function IntegrationsCatalog() {
       const matchesSearch = !search || i.name.toLowerCase().includes(search.toLowerCase()) || i.description.toLowerCase().includes(search.toLowerCase());
       const matchesCategory = category === 'All' || i.category === category;
       return matchesSearch && matchesCategory;
+    }).sort((a, b) => {
+      // Connected apps first
+      const aConnected = connectedIds.has(a.id) ? 0 : 1;
+      const bConnected = connectedIds.has(b.id) ? 0 : 1;
+      if (aConnected !== bConnected) return aConnected - bConnected;
+      // Then popular first
+      const aPopular = a.popular ? 0 : 1;
+      const bPopular = b.popular ? 0 : 1;
+      return aPopular - bPopular;
     });
   }, [search, category]);
 
