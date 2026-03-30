@@ -44,6 +44,7 @@ create table public.messages (
 -- Indexes
 create index idx_threads_org_id on public.threads(org_id);
 create index idx_threads_user_id on public.threads(user_id);
+create index idx_threads_updated_at on public.threads(updated_at desc);
 create index idx_messages_thread_id on public.messages(thread_id);
 create index idx_messages_created_at on public.messages(created_at);
 

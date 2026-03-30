@@ -12,7 +12,9 @@ import type { Message } from '@/lib/types';
 
 export default function ChatThreadPage() {
   const { threadId } = useParams<{ threadId: string }>();
-  const [initialMessages, setInitialMessages] = useState<any[] | null>(null);
+  const [initialMessages, setInitialMessages] = useState<
+    Array<{ id: string; role: 'user' | 'assistant' | 'system'; parts: Array<{ type: 'text'; text: string }> }> | null
+  >(null);
 
   useEffect(() => {
     async function loadMessages() {
@@ -27,7 +29,7 @@ export default function ChatThreadPage() {
         setInitialMessages(
           data.map((m: Message) => ({
             id: m.id,
-            role: m.role,
+            role: m.role as 'user' | 'assistant' | 'system',
             parts: [{ type: 'text' as const, text: m.content }],
           }))
         );

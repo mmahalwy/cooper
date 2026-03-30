@@ -51,7 +51,10 @@ export async function POST(req: Request) {
       .select('id')
       .single();
 
-    activeThreadId = thread?.id;
+    if (!thread) {
+      return new Response('Failed to create thread', { status: 500 });
+    }
+    activeThreadId = thread.id;
   }
 
   // Save the latest user message
@@ -70,8 +73,8 @@ export async function POST(req: Request) {
     });
   }
 
-  const result = createAgentStream({
-    threadId: activeThreadId || 'new',
+  const agentInput = {
+    threadId: activeThreadId!,
     orgId: dbUser.org_id,
     userId: user.id,
     messages: messages.map((m) => ({
@@ -81,10 +84,13 @@ export async function POST(req: Request) {
         .map((p) => (p as { type: 'text'; text: string }).text)
         .join(''),
     })),
-  });
+  };
+
+  const result = createAgentStream(agentInput);
 
   // Save the assistant response after streaming completes
-  result.text.then(async (text) => {
+  const modelUsed = 'claude-sonnet';
+  Promise.resolve(result.text).then(async (text) => {
     if (text && activeThreadId) {
       const { createClient: createServerClient } = await import(
         '@/lib/supabase/server'
@@ -94,13 +100,15 @@ export async function POST(req: Request) {
         thread_id: activeThreadId,
         role: 'assistant',
         content: text,
-        metadata: { model: 'claude-sonnet' },
+        metadata: { model: modelUsed },
       });
       await sb
         .from('threads')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', activeThreadId);
     }
+  }).catch((err) => {
+    console.error('[chat] Failed to persist assistant response:', err);
   });
 
   return result.toUIMessageStreamResponse({
