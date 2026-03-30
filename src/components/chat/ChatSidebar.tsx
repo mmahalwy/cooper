@@ -29,6 +29,7 @@ export function ChatSidebar() {
 
     loadThreads();
 
+    // Realtime subscription
     const channel = supabase
       .channel('threads')
       .on(
@@ -38,8 +39,12 @@ export function ChatSidebar() {
       )
       .subscribe();
 
+    // Polling fallback — realtime can be flaky
+    const interval = setInterval(loadThreads, 5000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, []);
 
