@@ -91,7 +91,7 @@ export async function POST(req: Request) {
   };
 
   // Load tools for this org's connections
-  const tools = await getToolsForOrg(supabase, dbUser.org_id);
+  const tools = await getToolsForOrg(supabase, dbUser.org_id, user.id);
 
   // Retrieve memory context
   const lastMsg = messages[messages.length - 1];

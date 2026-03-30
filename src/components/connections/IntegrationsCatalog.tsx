@@ -46,7 +46,22 @@ export function IntegrationsCatalog() {
   }, [search, category]);
 
   const handleConnect = async (integration: Integration) => {
-    const res = await fetch('/api/connections', {
+    // Step 1: Initiate OAuth via Composio
+    const initiateRes = await fetch('/api/connections/initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appName: integration.composioApp }),
+    });
+
+    if (!initiateRes.ok) {
+      console.error('Failed to initiate connection');
+      return;
+    }
+
+    const { redirectUrl, connectedAccountId } = await initiateRes.json();
+
+    // Step 2: Save the connection record (pending auth)
+    await fetch('/api/connections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -54,12 +69,18 @@ export function IntegrationsCatalog() {
         provider: integration.composioApp,
         type: 'platform',
         config: {
-          entityId: 'default',
           apps: [integration.composioApp],
+          connectedAccountId,
         },
       }),
     });
-    if (res.ok) await loadConnections();
+
+    // Step 3: Redirect to Composio OAuth
+    if (redirectUrl) {
+      window.open(redirectUrl, '_blank');
+    }
+
+    await loadConnections();
   };
 
   const handleDisconnect = async (integrationId: string) => {
