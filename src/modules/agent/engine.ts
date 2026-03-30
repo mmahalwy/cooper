@@ -2,6 +2,7 @@ import { streamText, stepCountIs } from 'ai';
 import { google } from '@ai-sdk/google';
 import type { ModelMessage } from 'ai';
 import type { AgentInput, AgentMessage } from './types';
+import type { MemoryContext } from '@/modules/memory/retriever';
 
 const MODELS: Record<string, string> = {
   'gemini-flash': 'gemini-2.5-flash',
@@ -15,6 +16,35 @@ You help users with their work by connecting to their tools and completing tasks
 Be direct and professional. Use markdown formatting when it helps readability.
 When you have tools available, use them proactively to get information or take actions.
 Always explain what you did after using a tool.`;
+
+function buildSystemPrompt(memoryContext?: MemoryContext): string {
+  let prompt = SYSTEM_PROMPT;
+
+  if (memoryContext?.knowledge.length) {
+    prompt += `\n\n## Things you know about this organization:\n`;
+    prompt += memoryContext.knowledge.map((k) => `- ${k}`).join('\n');
+  }
+
+  if (memoryContext?.matchedSkills.length) {
+    prompt += `\n\n## Relevant skills you've learned:\n`;
+    for (const skill of memoryContext.matchedSkills) {
+      prompt += `\n### ${skill.name}\n${skill.description}\n`;
+      if (skill.steps && Array.isArray(skill.steps)) {
+        prompt += `Steps:\n`;
+        skill.steps.forEach((step: any, i: number) => {
+          prompt += `${i + 1}. ${step.action}`;
+          if (step.toolName) prompt += ` (use tool: ${step.toolName})`;
+          prompt += `\n`;
+        });
+      }
+      if (skill.outputFormat) {
+        prompt += `Output format: ${skill.outputFormat}\n`;
+      }
+    }
+  }
+
+  return prompt;
+}
 
 function toModelMessages(messages: AgentMessage[]): ModelMessage[] {
   return messages.map((msg): ModelMessage => {
@@ -33,7 +63,7 @@ export function createAgentStream(input: AgentInput) {
 
   const result = streamText({
     model: google(modelName),
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(input.memoryContext),
     messages: toModelMessages(input.messages),
     ...(hasTools ? {
       tools: input.tools,

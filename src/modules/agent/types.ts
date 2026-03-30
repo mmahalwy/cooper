@@ -1,3 +1,5 @@
+import type { MemoryContext } from '@/modules/memory/retriever';
+
 export interface AgentInput {
   threadId: string;
   orgId: string;
@@ -5,6 +7,7 @@ export interface AgentInput {
   messages: AgentMessage[];
   modelOverride?: string;
   tools?: Record<string, any>;
+  memoryContext?: MemoryContext;
 }
 
 export interface AgentMessage {

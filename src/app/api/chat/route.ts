@@ -2,6 +2,7 @@ import { UIMessage } from 'ai';
 import { createClient } from '@/lib/supabase/server';
 import { createAgentStream } from '@/modules/agent/engine';
 import { getToolsForOrg } from '@/modules/connections/registry';
+import { retrieveContext } from '@/modules/memory/retriever';
 
 export const maxDuration = 60;
 
@@ -91,9 +92,19 @@ export async function POST(req: Request) {
   // Load tools for this org's connections
   const tools = await getToolsForOrg(supabase, dbUser.org_id);
 
+  // Retrieve memory context
+  const lastMsg = messages[messages.length - 1];
+  const userText = lastMsg?.parts
+    ?.filter((p) => p.type === 'text')
+    .map((p) => (p as { type: 'text'; text: string }).text)
+    .join('') || '';
+
+  const memoryContext = await retrieveContext(supabase, dbUser.org_id, userText);
+
   const result = createAgentStream({
     ...agentInput,
     tools,
+    memoryContext,
   });
 
   // Save the assistant response after streaming completes
