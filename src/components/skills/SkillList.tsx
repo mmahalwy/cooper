@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { PlusIcon, ShieldIcon, ZapIcon } from 'lucide-react';
 import { SkillCard } from './SkillCard';
 import { CreateSkillModal } from './CreateSkillModal';
+import { deleteSkillAction } from '@/app/actions';
 import type { Skill } from '@/lib/types';
 
 interface SystemSkillInfo {
@@ -23,10 +25,16 @@ interface SkillListProps {
 export function SkillList({ initialSkills, systemSkills }: SkillListProps) {
   const [skills, setSkills] = useState(initialSkills);
   const [modalOpened, setModalOpened] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
-  const handleDelete = async (id: string) => {
-    const res = await fetch(`/api/skills?id=${id}`, { method: 'DELETE' });
-    if (res.ok) setSkills((prev) => prev.filter((s) => s.id !== id));
+  const handleDelete = (id: string) => {
+    startTransition(async () => {
+      const result = await deleteSkillAction(id);
+      if (result.success) {
+        setSkills((prev) => prev.filter((s) => s.id !== id));
+      }
+    });
   };
 
   return (
@@ -96,10 +104,7 @@ export function SkillList({ initialSkills, systemSkills }: SkillListProps) {
       <CreateSkillModal
         opened={modalOpened}
         onClose={() => setModalOpened(false)}
-        onCreated={async () => {
-          const res = await fetch('/api/skills');
-          if (res.ok) setSkills(await res.json());
-        }}
+        onCreated={() => router.refresh()}
       />
     </>
   );

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EyeIcon, PenIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { parseSkillAction, createSkillAction } from '@/app/actions';
 
 interface CreateSkillModalProps {
   opened: boolean;
@@ -28,15 +29,10 @@ export function CreateSkillModal({ opened, onClose, onCreated }: CreateSkillModa
     setLoading(true);
     setError(null);
 
-    const res = await fetch('/api/skills/parse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description: description.trim() }),
-    });
-
-    if (res.ok) {
-      setParsed(await res.json());
-    } else {
+    try {
+      const result = await parseSkillAction(description.trim());
+      setParsed(result);
+    } catch {
       setError('Failed to parse skill description');
     }
     setLoading(false);
@@ -46,20 +42,16 @@ export function CreateSkillModal({ opened, onClose, onCreated }: CreateSkillModa
     if (!parsed) return;
     setLoading(true);
 
-    const res = await fetch('/api/skills', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(parsed),
-    });
+    const result = await createSkillAction(parsed);
 
     setLoading(false);
-    if (res.ok) {
+    if (result.success) {
       setDescription('');
       setParsed(null);
       onCreated();
       onClose();
     } else {
-      setError('Failed to save skill');
+      setError(result.error || 'Failed to save skill');
     }
   };
 
@@ -77,40 +69,22 @@ export function CreateSkillModal({ opened, onClose, onCreated }: CreateSkillModa
                 Describe the workflow in plain English or markdown.
               </p>
               <div className="flex items-center gap-1 rounded-md border p-0.5">
-                <button
-                  onClick={() => setPreview(false)}
-                  className={cn(
-                    'rounded px-2 py-1 text-xs',
-                    !preview ? 'bg-muted font-medium' : 'text-muted-foreground'
-                  )}
-                >
-                  <PenIcon className="inline-block size-3 mr-1" />
-                  Write
+                <button onClick={() => setPreview(false)} className={cn('rounded px-2 py-1 text-xs', !preview ? 'bg-muted font-medium' : 'text-muted-foreground')}>
+                  <PenIcon className="inline-block size-3 mr-1" />Write
                 </button>
-                <button
-                  onClick={() => setPreview(true)}
-                  className={cn(
-                    'rounded px-2 py-1 text-xs',
-                    preview ? 'bg-muted font-medium' : 'text-muted-foreground'
-                  )}
-                >
-                  <EyeIcon className="inline-block size-3 mr-1" />
-                  Preview
+                <button onClick={() => setPreview(true)} className={cn('rounded px-2 py-1 text-xs', preview ? 'bg-muted font-medium' : 'text-muted-foreground')}>
+                  <EyeIcon className="inline-block size-3 mr-1" />Preview
                 </button>
               </div>
             </div>
 
             {preview ? (
               <div className="min-h-[160px] rounded-md border p-3 prose prose-sm max-w-none">
-                {description ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown>
-                ) : (
-                  <p className="text-muted-foreground italic">Nothing to preview</p>
-                )}
+                {description ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{description}</ReactMarkdown> : <p className="text-muted-foreground italic">Nothing to preview</p>}
               </div>
             ) : (
               <Textarea
-                placeholder={`e.g.,\n\n## Sprint Summary\n\nWhen I ask for a sprint summary:\n1. Pull tickets from Linear\n2. Group by assignee\n3. Include story points\n4. Format as a markdown table`}
+                placeholder={`e.g.,\n\n## Sprint Summary\n\nWhen I ask for a sprint summary:\n1. Pull tickets from Linear\n2. Group by assignee`}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={8}
@@ -137,10 +111,7 @@ export function CreateSkillModal({ opened, onClose, onCreated }: CreateSkillModa
               <p className="text-xs font-medium mb-1">Steps</p>
               <ol className="text-xs text-muted-foreground list-decimal list-inside">
                 {parsed.steps?.map((s: any, i: number) => (
-                  <li key={i}>
-                    {s.action}
-                    {s.toolName && <Badge variant="outline" className="ml-1 text-[10px]">{s.toolName}</Badge>}
-                  </li>
+                  <li key={i}>{s.action}{s.toolName && <Badge variant="outline" className="ml-1 text-[10px]">{s.toolName}</Badge>}</li>
                 ))}
               </ol>
             </div>
@@ -152,9 +123,7 @@ export function CreateSkillModal({ opened, onClose, onCreated }: CreateSkillModa
             )}
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setParsed(null)}>
-                Edit
-              </Button>
+              <Button variant="outline" className="flex-1" onClick={() => setParsed(null)}>Edit</Button>
               <Button className="flex-1" onClick={handleSave} disabled={loading}>
                 {loading ? 'Saving...' : 'Save skill'}
               </Button>

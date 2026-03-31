@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { parseScheduleAction, createScheduleAction } from '@/app/actions';
 
 interface CreateScheduleModalProps {
   opened: boolean;
@@ -22,15 +23,10 @@ export function CreateScheduleModal({ opened, onClose, onCreated }: CreateSchedu
     setLoading(true);
     setError(null);
 
-    const res = await fetch('/api/schedules/parse', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description: description.trim() }),
-    });
-
-    if (res.ok) {
-      setParsed(await res.json());
-    } else {
+    try {
+      const result = await parseScheduleAction(description.trim());
+      setParsed(result);
+    } catch {
       setError('Failed to parse schedule');
     }
     setLoading(false);
@@ -40,21 +36,20 @@ export function CreateScheduleModal({ opened, onClose, onCreated }: CreateSchedu
     if (!parsed) return;
     setLoading(true);
 
-    const res = await fetch('/api/schedules', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: parsed.name, cron: parsed.cron, prompt: parsed.prompt }),
+    const result = await createScheduleAction({
+      name: parsed.name,
+      cron: parsed.cron,
+      prompt: parsed.prompt,
     });
 
     setLoading(false);
-    if (res.ok) {
+    if (result.success) {
       setDescription('');
       setParsed(null);
       onCreated();
       onClose();
     } else {
-      const data = await res.text();
-      setError(data || 'Failed to create schedule');
+      setError(result.error || 'Failed to create schedule');
     }
   };
 

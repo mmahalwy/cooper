@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { PlusIcon } from 'lucide-react';
 import { ScheduleCard } from './ScheduleCard';
 import { CreateScheduleModal } from './CreateScheduleModal';
+import { deleteScheduleAction, toggleScheduleAction } from '@/app/actions';
 import type { ScheduledTask } from '@/lib/types';
 
 interface ScheduleListProps {
@@ -14,21 +16,25 @@ interface ScheduleListProps {
 export function ScheduleList({ initialTasks }: ScheduleListProps) {
   const [tasks, setTasks] = useState(initialTasks);
   const [modalOpened, setModalOpened] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
-  const handleDelete = async (id: string) => {
-    const res = await fetch(`/api/schedules?id=${id}`, { method: 'DELETE' });
-    if (res.ok) setTasks((prev) => prev.filter((t) => t.id !== id));
+  const handleDelete = (id: string) => {
+    startTransition(async () => {
+      const result = await deleteScheduleAction(id);
+      if (result.success) {
+        setTasks((prev) => prev.filter((t) => t.id !== id));
+      }
+    });
   };
 
-  const handleToggle = async (id: string, status: 'active' | 'paused') => {
-    const res = await fetch('/api/schedules', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status }),
+  const handleToggle = (id: string, status: 'active' | 'paused') => {
+    startTransition(async () => {
+      const result = await toggleScheduleAction(id, status);
+      if (result.success) {
+        setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+      }
     });
-    if (res.ok) {
-      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
-    }
   };
 
   return (
@@ -68,10 +74,7 @@ export function ScheduleList({ initialTasks }: ScheduleListProps) {
       <CreateScheduleModal
         opened={modalOpened}
         onClose={() => setModalOpened(false)}
-        onCreated={async () => {
-          const res = await fetch('/api/schedules');
-          if (res.ok) setTasks(await res.json());
-        }}
+        onCreated={() => router.refresh()}
       />
     </>
   );

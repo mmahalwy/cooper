@@ -1,12 +1,18 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { PlusIcon, SearchIcon } from 'lucide-react';
 import { IntegrationCard } from './IntegrationCard';
 import { AddConnectionModal } from './AddConnectionModal';
 import { INTEGRATIONS, CATEGORIES, type Integration } from '@/lib/integrations-catalog';
+import {
+  deleteConnectionAction,
+  syncConnectionsAction,
+  createConnectionAction,
+} from '@/app/actions';
 import type { Connection } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -20,23 +26,20 @@ export function IntegrationsCatalog({ initialConnections = [] }: IntegrationsCat
   const [category, setCategory] = useState<string>('All');
   const [mcpModalOpened, setMcpModalOpened] = useState(false);
   const [syncing, setSyncing] = useState(false);
-
-  async function loadConnections() {
-    const res = await fetch('/api/connections');
-    if (res.ok) setConnections(await res.json());
-  }
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   useEffect(() => {
     // Auto-sync from Composio on load
-    fetch('/api/connections/sync', { method: 'POST' })
-      .then(() => loadConnections())
-      .catch(() => {});
+    startTransition(async () => {
+      await syncConnectionsAction();
+      router.refresh();
+    });
   }, []);
 
   const connectedIds = useMemo(() => {
     const ids = new Set<string>();
     connections.forEach((c) => {
-      // Match by provider name against integration composioApp or id
       const match = INTEGRATIONS.find(
         (i) => i.composioApp === c.provider || i.id === c.provider || c.name.toLowerCase().includes(i.name.toLowerCase())
       );
@@ -51,11 +54,9 @@ export function IntegrationsCatalog({ initialConnections = [] }: IntegrationsCat
       const matchesCategory = category === 'All' || i.category === category;
       return matchesSearch && matchesCategory;
     }).sort((a, b) => {
-      // Connected apps first
       const aConnected = connectedIds.has(a.id) ? 0 : 1;
       const bConnected = connectedIds.has(b.id) ? 0 : 1;
       if (aConnected !== bConnected) return aConnected - bConnected;
-      // Then popular first
       const aPopular = a.popular ? 0 : 1;
       const bPopular = b.popular ? 0 : 1;
       return aPopular - bPopular;
@@ -69,39 +70,34 @@ export function IntegrationsCatalog({ initialConnections = [] }: IntegrationsCat
       body: JSON.stringify({ appName: integration.composioApp }),
     });
 
-    if (!initiateRes.ok) {
-      console.error('Failed to initiate connection');
-      return;
-    }
-
+    if (!initiateRes.ok) return;
     const data = await initiateRes.json();
 
-    // Open Composio's connect page — handles all auth types
     if (data.redirectUrl) {
       window.open(data.redirectUrl, '_blank');
     }
   };
 
-  const handleRefreshConnections = async () => {
+  const handleRefresh = () => {
     setSyncing(true);
-    const res = await fetch('/api/connections/sync', { method: 'POST' });
-    if (res.ok) {
-      const data = await res.json();
-      console.log('[sync] Result:', data);
-    }
-    await loadConnections();
-    setSyncing(false);
+    startTransition(async () => {
+      await syncConnectionsAction();
+      router.refresh();
+      setSyncing(false);
+    });
   };
 
-  const handleDisconnect = async (integrationId: string) => {
+  const handleDisconnect = (integrationId: string) => {
     const conn = connections.find((c) => {
       const match = INTEGRATIONS.find((i) => i.id === integrationId);
       return match && (c.provider === match.composioApp || c.provider === match.id);
     });
     if (!conn) return;
 
-    const res = await fetch(`/api/connections?id=${conn.id}`, { method: 'DELETE' });
-    if (res.ok) setConnections((prev) => prev.filter((c) => c.id !== conn.id));
+    startTransition(async () => {
+      await deleteConnectionAction(conn.id);
+      setConnections((prev) => prev.filter((c) => c.id !== conn.id));
+    });
   };
 
   const handleMcpAdd = async (connection: {
@@ -110,12 +106,8 @@ export function IntegrationsCatalog({ initialConnections = [] }: IntegrationsCat
     type: 'mcp' | 'platform';
     config: Record<string, unknown>;
   }) => {
-    const res = await fetch('/api/connections', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(connection),
-    });
-    if (res.ok) await loadConnections();
+    const result = await createConnectionAction(connection);
+    if (result.success) router.refresh();
   };
 
   return (
@@ -128,7 +120,7 @@ export function IntegrationsCatalog({ initialConnections = [] }: IntegrationsCat
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefreshConnections} disabled={syncing}>
+          <Button variant="outline" onClick={handleRefresh} disabled={syncing}>
             {syncing ? 'Syncing...' : 'Refresh'}
           </Button>
           <Button variant="outline" onClick={() => setMcpModalOpened(true)}>
@@ -166,28 +158,27 @@ export function IntegrationsCatalog({ initialConnections = [] }: IntegrationsCat
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {filtered.map((integration) => (
-            <IntegrationCard
-              key={integration.id}
-              integration={integration}
-              connected={connectedIds.has(integration.id)}
-              onConnect={handleConnect}
-              onDisconnect={handleDisconnect}
-            />
-          ))}
-          {filtered.length === 0 && (
-            <p className="col-span-2 text-center text-muted-foreground py-8">
-              No integrations found matching your search.
-            </p>
-          )}
-        </div>
+        {filtered.map((integration) => (
+          <IntegrationCard
+            key={integration.id}
+            integration={integration}
+            connected={connectedIds.has(integration.id)}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+          />
+        ))}
+        {filtered.length === 0 && (
+          <p className="col-span-2 text-center text-muted-foreground py-8">
+            No integrations found matching your search.
+          </p>
+        )}
+      </div>
 
       <AddConnectionModal
         opened={mcpModalOpened}
         onClose={() => setMcpModalOpened(false)}
         onAdd={handleMcpAdd}
       />
-
     </div>
   );
 }

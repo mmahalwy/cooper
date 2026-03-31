@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PlusIcon, TrashIcon } from 'lucide-react';
 import { AddKnowledgeModal } from './AddKnowledgeModal';
+import { addKnowledgeAction, deleteKnowledgeAction } from '@/app/actions';
 import type { KnowledgeFact } from '@/modules/memory/knowledge';
 
 interface KnowledgeListProps {
@@ -15,22 +16,22 @@ interface KnowledgeListProps {
 export function KnowledgeList({ initialFacts }: KnowledgeListProps) {
   const [facts, setFacts] = useState(initialFacts);
   const [modalOpened, setModalOpened] = useState(false);
+  const [pending, startTransition] = useTransition();
 
   const handleAdd = async (content: string) => {
-    const res = await fetch('/api/knowledge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
-    });
-    if (res.ok) {
-      const newFact = await res.json();
-      setFacts((prev) => [newFact, ...prev]);
+    const result = await addKnowledgeAction(content);
+    if (result.fact) {
+      setFacts((prev) => [result.fact!, ...prev]);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const res = await fetch(`/api/knowledge?id=${id}`, { method: 'DELETE' });
-    if (res.ok) setFacts((prev) => prev.filter((f) => f.id !== id));
+  const handleDelete = (id: string) => {
+    startTransition(async () => {
+      const result = await deleteKnowledgeAction(id);
+      if (result.success) {
+        setFacts((prev) => prev.filter((f) => f.id !== id));
+      }
+    });
   };
 
   return (
@@ -69,6 +70,7 @@ export function KnowledgeList({ initialFacts }: KnowledgeListProps) {
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" className="size-8 text-destructive shrink-0"
+                  disabled={pending}
                   onClick={() => handleDelete(fact.id)}>
                   <TrashIcon />
                 </Button>
