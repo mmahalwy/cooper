@@ -29,6 +29,7 @@ export async function createScheduledTask(
     skill_id?: string;
     channel_config?: { channel: 'web' | 'slack'; destination?: string };
     next_run_at: string;
+    ends_at?: string;
   }
 ): Promise<ScheduledTask | null> {
   const { data, error } = await supabase

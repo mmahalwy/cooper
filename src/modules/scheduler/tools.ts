@@ -34,8 +34,9 @@ Think of it as writing a detailed runbook that someone could follow with zero co
         cron: z.string().describe('Cron expression (5 fields: minute hour day-of-month month day-of-week, UTC)'),
         prompt: z.string().describe('Comprehensive, self-contained runbook for the AI agent. 200-500 words minimum.'),
         humanReadable: z.string().describe('Human-readable schedule, e.g., "Every Tuesday at 12:00 PM UTC"'),
+        endsAt: z.string().optional().describe('ISO 8601 datetime when this schedule should stop running. Omit for indefinite schedules. Example: "2026-03-31T01:00:00Z" for 15 minutes from now.'),
       }),
-      execute: async ({ name, cron, prompt, humanReadable }) => {
+      execute: async ({ name, cron, prompt, humanReadable, endsAt }) => {
         try {
           const nextRunAt = getNextRunTime(cron).toISOString();
           const task = await createScheduledTask(supabase, {
@@ -45,6 +46,7 @@ Think of it as writing a detailed runbook that someone could follow with zero co
             cron,
             prompt,
             next_run_at: nextRunAt,
+            ends_at: endsAt,
           });
 
           if (!task) return { created: false, error: 'Failed to create scheduled task' };

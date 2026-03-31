@@ -10,6 +10,7 @@ export interface ScheduledTask {
   status: 'active' | 'paused';
   last_run_at: string | null;
   next_run_at: string | null;
+  ends_at: string | null;
   created_at: string;
   updated_at: string;
 }

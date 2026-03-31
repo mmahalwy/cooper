@@ -3,7 +3,7 @@ import { google } from '@ai-sdk/google';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { getToolsForOrg } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
-import { updateTaskAfterRun, createExecutionLog } from './db';
+import { updateTaskAfterRun, createExecutionLog, updateScheduledTaskStatus } from './db';
 import { getNextRunTime } from './matcher';
 import type { ScheduledTask } from '@/lib/types';
 
@@ -15,6 +15,13 @@ export async function executeScheduledTask(
   supabase: SupabaseClient,
   task: ScheduledTask
 ): Promise<void> {
+  // Check if schedule has expired
+  if (task.ends_at && new Date(task.ends_at) <= new Date()) {
+    console.log(`[scheduler] Task ${task.id} expired (ends_at: ${task.ends_at}), pausing`);
+    await updateScheduledTaskStatus(supabase, task.id, 'paused');
+    return;
+  }
+
   const startTime = Date.now();
 
   const log = await createExecutionLog(supabase, {
