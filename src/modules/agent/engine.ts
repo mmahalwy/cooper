@@ -155,6 +155,11 @@ export async function createAgentStream(input: AgentInput) {
     messages: toModelMessages(input.messages),
     tools: allTools,
     stopWhen: stepCountIs(10),
+    providerOptions: {
+      google: {
+        thinkingConfig: { thinkingBudget: 1024 },
+      },
+    },
     onError: ({ error }) => {
       console.error('[agent] Stream error:', error);
     },

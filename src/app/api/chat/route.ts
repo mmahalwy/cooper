@@ -154,6 +154,7 @@ export async function POST(req: Request) {
   });
 
   return result.toUIMessageStreamResponse({
+    sendReasoning: true,
     headers: {
       'X-Thread-Id': activeThreadId || '',
     },
