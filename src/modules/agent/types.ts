@@ -10,6 +10,7 @@ export interface AgentInput {
   tools?: Record<string, any>;
   memoryContext?: MemoryContext;
   supabase?: SupabaseClient;
+  connectedServices?: string[];
 }
 
 export interface AgentMessage {

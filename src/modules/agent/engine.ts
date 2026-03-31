@@ -138,16 +138,10 @@ export async function createAgentStream(input: AgentInput) {
     ...(input.tools || {}),
   };
 
-  // Extract connected service names from tool prefixes for the system prompt
-  const connectionToolNames = Object.keys(allTools)
-    .filter((name) => name.includes('_') && !['google_search', 'load_skill', 'save_knowledge', 'create_schedule', 'list_schedules', 'update_schedule', 'delete_schedule'].includes(name))
-    .map((name) => name.split('_')[0])
-    .filter((v, i, a) => a.indexOf(v) === i); // unique
-
   let systemPrompt = await buildSystemPrompt(input.memoryContext);
 
-  if (connectionToolNames.length > 0) {
-    systemPrompt += `\n\n## Connected Integrations\nYou are currently connected to: ${connectionToolNames.join(', ')}. You can use these services to get data and take actions. When the user asks what you're connected to, mention these by name.`;
+  if (input.connectedServices && input.connectedServices.length > 0) {
+    systemPrompt += `\n\n## Connected Integrations\nYou are currently connected to: ${input.connectedServices.join(', ')}. You can use these services to get data and take actions. When the user asks what you're connected to, list these service names. Do NOT mention "Composio" — that is an internal system, not a user-facing service.`;
   }
 
   const result = streamText({

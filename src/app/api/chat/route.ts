@@ -90,9 +90,17 @@ export async function POST(req: Request) {
     })),
   };
 
-  // Load tools for this org's connections
+  // Load tools and connection names
   const tools = await getToolsForOrg(supabase, dbUser.org_id, user.id);
   console.log(`[chat] Loaded ${Object.keys(tools).length} connection tools:`, Object.keys(tools).slice(0, 10));
+
+  // Get connected service names for the system prompt
+  const { data: activeConnections } = await supabase
+    .from('connections')
+    .select('name')
+    .eq('org_id', dbUser.org_id)
+    .eq('status', 'active');
+  const connectedServices = (activeConnections || []).map((c: any) => c.name);
 
   // Retrieve memory context
   const lastMsg = messages[messages.length - 1];
@@ -108,6 +116,7 @@ export async function POST(req: Request) {
     tools,
     memoryContext,
     supabase,
+    connectedServices,
   });
 
   // Save the assistant response after streaming completes
