@@ -30,6 +30,30 @@ import {
 import { BotIcon, UserIcon } from 'lucide-react';
 import { Shimmer } from '@/components/ai-elements/shimmer';
 
+function formatToolName(raw: string): string {
+  // Map internal tool names to friendly labels
+  const map: Record<string, string> = {
+    'COMPOSIO_SEARCH_TOOLS': 'Searching for tools',
+    'COMPOSIO_MULTI_EXECUTE_TOOL': 'Running action',
+    'COMPOSIO_GET_TOOL_SCHEMAS': 'Getting tool details',
+    'COMPOSIO_MANAGE_CONNECTIONS': 'Managing connections',
+    'COMPOSIO_REMOTE_BASH_TOOL': 'Running command',
+    'COMPOSIO_REMOTE_WORKBENCH': 'Using workbench',
+    'save_knowledge': 'Saving to memory',
+    'load_skill': 'Loading skill',
+    'create_schedule': 'Creating schedule',
+    'list_schedules': 'Listing schedules',
+    'update_schedule': 'Updating schedule',
+    'delete_schedule': 'Deleting schedule',
+  };
+  if (map[raw]) return map[raw];
+  // Clean up tool names: METABASE_POST_API_DATASET → "Metabase: Post API Dataset"
+  return raw
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 interface ChatMessagesProps {
   messages: UIMessage[];
   isStreaming?: boolean;
@@ -94,16 +118,22 @@ export function ChatMessages({ messages, isStreaming, status }: ChatMessagesProp
                   // Tool parts: type is 'tool-{name}' or 'dynamic-tool'
                   if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
                     const toolPart = part as any;
+                    const rawName = toolPart.type === 'dynamic-tool'
+                      ? toolPart.toolName
+                      : toolPart.type.replace('tool-', '');
+                    const friendlyName = formatToolName(rawName);
+
                     return (
-                      <Tool key={i}>
+                      <Tool key={i} defaultOpen={false}>
                         <ToolHeader
                           type={toolPart.type}
                           state={toolPart.state}
-                          {...(toolPart.type === 'dynamic-tool' ? { toolName: toolPart.toolName } : {})}
+                          title={friendlyName}
+                          {...(toolPart.type === 'dynamic-tool' ? { toolName: friendlyName } : {})}
                         />
                         {(toolPart.state === 'output-available' || toolPart.state === 'output-error') && (
                           <ToolContent>
-                            <pre className="text-xs overflow-auto">
+                            <pre className="text-xs overflow-auto max-h-48">
                               {JSON.stringify(toolPart.output ?? toolPart.errorText, null, 2)}
                             </pre>
                           </ToolContent>

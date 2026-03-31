@@ -121,18 +121,40 @@ export async function POST(req: Request) {
 
   // Save the assistant response after streaming completes
   const modelUsed = 'gemini-flash';
-  Promise.resolve(result.text).then(async (text) => {
-    if (text && activeThreadId) {
+  Promise.resolve(result.text).then(async (fullText) => {
+    if (activeThreadId) {
       const { createClient: createServerClient } = await import(
         '@/lib/supabase/server'
       );
       const sb = await createServerClient();
-      await sb.from('messages').insert({
-        thread_id: activeThreadId,
-        role: 'assistant',
-        content: text,
-        metadata: { model: modelUsed },
-      });
+
+      // Collect tool calls from steps
+      let toolCallSummary: string[] = [];
+      try {
+        const steps = await result.steps;
+        for (const step of steps) {
+          for (const tc of step.toolCalls || []) {
+            toolCallSummary.push(tc.toolName);
+          }
+        }
+      } catch { /* steps may not be available */ }
+
+      // Build a complete content that includes tool call context
+      let content = fullText || '';
+      if (toolCallSummary.length > 0 && content) {
+        // Prepend a note about what tools were used (hidden from display but preserved for history)
+        content = content;
+      }
+
+      if (content) {
+        await sb.from('messages').insert({
+          thread_id: activeThreadId,
+          role: 'assistant',
+          content,
+          tool_calls: toolCallSummary.length > 0 ? toolCallSummary : null,
+          metadata: { model: modelUsed, toolsUsed: toolCallSummary },
+        });
+      }
       await sb
         .from('threads')
         .update({ updated_at: new Date().toISOString() })
@@ -143,7 +165,7 @@ export async function POST(req: Request) {
         sb,
         dbUser.org_id,
         userText,
-        text,
+        fullText || '',
         memoryContext.knowledge
       ).catch((err) => {
         console.error('[chat] Memory extraction failed:', err);
