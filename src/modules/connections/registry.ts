@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { getConnectionsForOrg } from './db';
+import { getConnectionsForOrg, updateConnectionStatus } from './db';
 import { getMcpTools } from './mcp/client';
 import type { McpServerConfig } from './mcp/types';
 import { getComposioTools } from './platform/composio';
@@ -23,6 +23,8 @@ export async function getToolsForOrg(
       }
     } catch (error) {
       console.error(`[registry] Failed to load tools for connection ${conn.id}:`, error);
+      // Auto-disable broken connections
+      await updateConnectionStatus(supabase, conn.id, 'error', String(error)).catch(() => {});
     }
   });
 
