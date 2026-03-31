@@ -139,9 +139,26 @@ export async function createAgentStream(input: AgentInput) {
     const scheduleTools = createScheduleTools(input.supabase, input.orgId, input.userId);
     Object.assign(builtInTools, scheduleTools);
   }
+  // Mark action-executing tools as needing approval
+  const connectionTools = { ...(input.tools || {}) };
+  if (connectionTools['COMPOSIO_MULTI_EXECUTE_TOOL']) {
+    const original = connectionTools['COMPOSIO_MULTI_EXECUTE_TOOL'];
+    connectionTools['COMPOSIO_MULTI_EXECUTE_TOOL'] = {
+      ...original,
+      needsApproval: true,
+    };
+  }
+  if (connectionTools['COMPOSIO_MANAGE_CONNECTIONS']) {
+    const original = connectionTools['COMPOSIO_MANAGE_CONNECTIONS'];
+    connectionTools['COMPOSIO_MANAGE_CONNECTIONS'] = {
+      ...original,
+      needsApproval: true,
+    };
+  }
+
   const allTools = {
     ...builtInTools,
-    ...(input.tools || {}),
+    ...connectionTools,
   };
 
   let systemPrompt = await buildSystemPrompt(input.memoryContext);
