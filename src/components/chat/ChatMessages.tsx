@@ -27,8 +27,16 @@ import {
   SourcesContent,
   Source,
 } from '@/components/ai-elements/sources';
-import { BotIcon, UserIcon, CheckIcon, XIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { BotIcon, UserIcon } from 'lucide-react';
+import {
+  Confirmation,
+  ConfirmationTitle,
+  ConfirmationRequest,
+  ConfirmationAccepted,
+  ConfirmationRejected,
+  ConfirmationActions,
+  ConfirmationAction,
+} from '@/components/ai-elements/confirmation';
 import { Shimmer } from '@/components/ai-elements/shimmer';
 
 function formatToolName(raw: string): string {
@@ -125,43 +133,46 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
                       : toolPart.type.replace('tool-', '');
                     const friendlyName = formatToolName(rawName);
 
+                    // Show confirmation component for approval-requested tools
+                    if (toolPart.state === 'approval-requested' && addToolApprovalResponse) {
+                      return (
+                        <Confirmation key={i} state={toolPart.state} approval={toolPart.approval}>
+                          <ConfirmationTitle>
+                            Cooper wants to <strong>{friendlyName.toLowerCase()}</strong>
+                          </ConfirmationTitle>
+                          <ConfirmationRequest>
+                            <ConfirmationActions>
+                              <ConfirmationAction
+                                variant="outline"
+                                onClick={() => addToolApprovalResponse({ id: toolPart.toolCallId, approved: false })}
+                              >
+                                Deny
+                              </ConfirmationAction>
+                              <ConfirmationAction
+                                onClick={() => addToolApprovalResponse({ id: toolPart.toolCallId, approved: true })}
+                              >
+                                Approve
+                              </ConfirmationAction>
+                            </ConfirmationActions>
+                          </ConfirmationRequest>
+                          <ConfirmationAccepted>
+                            <p className="text-sm text-muted-foreground">Approved — running action...</p>
+                          </ConfirmationAccepted>
+                          <ConfirmationRejected>
+                            <p className="text-sm text-muted-foreground">Denied — action cancelled.</p>
+                          </ConfirmationRejected>
+                        </Confirmation>
+                      );
+                    }
+
                     return (
-                      <Tool key={i} defaultOpen={toolPart.state === 'approval-requested'}>
+                      <Tool key={i} defaultOpen={false}>
                         <ToolHeader
                           type={toolPart.type}
                           state={toolPart.state}
                           title={friendlyName}
                           {...(toolPart.type === 'dynamic-tool' ? { toolName: friendlyName } : {})}
                         />
-                        {toolPart.state === 'approval-requested' && addToolApprovalResponse && (
-                          <ToolContent>
-                            <div className="flex flex-col gap-2 p-2">
-                              <p className="text-sm">Cooper wants to run this action. Allow?</p>
-                              {toolPart.input && (
-                                <pre className="text-xs overflow-auto max-h-32 bg-muted rounded p-2">
-                                  {JSON.stringify(toolPart.input, null, 2)}
-                                </pre>
-                              )}
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => addToolApprovalResponse({ id: toolPart.toolCallId, approved: true })}
-                                >
-                                  <CheckIcon className="size-3 mr-1" />
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => addToolApprovalResponse({ id: toolPart.toolCallId, approved: false })}
-                                >
-                                  <XIcon className="size-3 mr-1" />
-                                  Deny
-                                </Button>
-                              </div>
-                            </div>
-                          </ToolContent>
-                        )}
                         {(toolPart.state === 'output-available' || toolPart.state === 'output-error') && (
                           <ToolContent>
                             <pre className="text-xs overflow-auto max-h-48">
