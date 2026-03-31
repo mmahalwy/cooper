@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "cron": "while true; do curl -s -H \"Authorization: Bearer $CRON_SECRET\" http://localhost:3000/api/cron/dispatch && echo ''; sleep 60; done"
+    "cron": "bash -c 'set -a; source .env.local; set +a; while true; do curl -s -H \"Authorization: Bearer $CRON_SECRET\" http://localhost:3000/api/cron/dispatch; echo; sleep 60; done'"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.64",
