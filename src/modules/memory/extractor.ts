@@ -31,22 +31,32 @@ export async function extractAndSaveMemories(
     const result = await generateObject({
       model: google('gemini-2.5-flash'),
       schema: extractionSchema,
-      prompt: `You are a memory extraction system. Analyze this conversation exchange and extract any durable facts worth remembering for future conversations.
+      prompt: `You are a highly selective memory system for an AI teammate. Extract ONLY organizational facts that would help the AI work better with this user in FUTURE conversations.
 
-## Already known facts:
+## Already known:
 ${existingKnowledge.length > 0 ? existingKnowledge.map((k) => `- ${k}`).join('\n') : '(none yet)'}
 
 ## Conversation:
 User: ${userMessage}
 Assistant: ${assistantResponse}
 
-## Rules:
-- Only extract DURABLE facts useful across many future conversations
-- Do NOT extract: trivial info, one-time requests, greetings, opinions, things already known
-- Focus on: team processes, tool preferences, project details, names/roles, organizational context, workflow patterns, technical stack details
-- Write each fact as a clear standalone statement (e.g., "The team uses Linear for issue tracking" not "They use Linear")
-- If nothing new is worth remembering, return an empty array
-- Be selective — quality over quantity. 0-3 facts per exchange is typical.`,
+## ONLY extract facts about:
+- Organization structure (team names, roles, who reports to whom)
+- Processes and workflows ("deploys require 2 PR approvals", "sprint is 2 weeks")
+- Tool preferences ("we use Linear for issues", "main repo is acme/core")
+- Naming conventions, technical stack, infrastructure details
+- User preferences for how they like work delivered
+
+## NEVER extract:
+- What the user asked or what the assistant responded (that's conversation history, not knowledge)
+- Meeting contents, summaries, or notes from tools like Granola
+- Data retrieved from connected tools (PostHog metrics, Sentry errors, etc.)
+- One-time requests or questions
+- Things already known (check the list above)
+- Anything about the assistant's capabilities or connections
+- Vague or obvious facts ("the user uses Cooper")
+
+## Return an empty array for most conversations. Only 1 in 5 exchanges should yield a fact.`,
     });
 
     if (result.object.facts.length === 0) return;
