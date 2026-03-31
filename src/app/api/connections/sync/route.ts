@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server';
-import { Composio } from '@composio/core';
 
 export async function POST() {
   const supabase = await createClient();
@@ -14,9 +13,15 @@ export async function POST() {
   if (!apiKey) return new Response('Composio not configured', { status: 500 });
 
   try {
-    const composio = new Composio({ apiKey });
-    const session = await composio.create(user.id);
-    const toolkits = await session.toolkits();
+    // Fetch all active connected accounts from Composio
+    const resp = await fetch('https://backend.composio.dev/api/v1/connectedAccounts?showActiveOnly=true', {
+      headers: { 'x-api-key': apiKey },
+    });
+    const data = await resp.json();
+    const connectedApps = (data.items || []) as Array<{ appName: string; status: string; id: string }>;
+
+    // Get unique app names that are active
+    const activeApps = [...new Set(connectedApps.filter(c => c.status === 'ACTIVE').map(c => c.appName))];
 
     // Get existing connections from our DB
     const { data: existingConnections } = await supabase
@@ -28,27 +33,21 @@ export async function POST() {
     const existingProviders = new Set((existingConnections || []).map((c: any) => c.provider));
 
     let synced = 0;
+    for (const appName of activeApps) {
+      if (existingProviders.has(appName)) continue;
 
-    // Add any new Composio connections to our DB
-    for (const toolkit of (toolkits as any)?.items || []) {
-      const appName = toolkit.slug || toolkit.name;
-      if (!appName || existingProviders.has(appName)) continue;
-
-      // Only add if it has an active connection
-      if (toolkit.connection?.connectedAccount) {
-        await supabase.from('connections').insert({
-          org_id: dbUser.org_id,
-          type: 'platform',
-          name: toolkit.displayName || appName,
-          provider: appName,
-          config: { apps: [appName] },
-          status: 'active',
-        });
-        synced++;
-      }
+      await supabase.from('connections').insert({
+        org_id: dbUser.org_id,
+        type: 'platform',
+        name: appName,
+        provider: appName,
+        config: { apps: [appName] },
+        status: 'active',
+      });
+      synced++;
     }
 
-    return Response.json({ synced, total: (toolkits as any)?.items?.length || 0 });
+    return Response.json({ synced, activeApps, total: connectedApps.length });
   } catch (error) {
     console.error('[connections/sync] Error:', error);
     return Response.json({ error: String(error) }, { status: 500 });

@@ -34,7 +34,7 @@ export async function getComposioTools(
 
   try {
     const composio = getComposioClient();
-    const session = await composio.create(entityId);
+    const session = await composio.create('default');
     const tools = await session.tools();
 
     const result = (typeof tools === 'object' && tools !== null) ? tools as Record<string, any> : {};

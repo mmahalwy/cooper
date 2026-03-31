@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
   try {
     const composio = new Composio({ apiKey });
-    const session = await composio.create(user.id);
+    const session = await composio.create('default');
 
     const origin = req.headers.get('origin') || 'http://localhost:3000';
 
