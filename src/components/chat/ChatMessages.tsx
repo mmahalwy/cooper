@@ -63,6 +63,36 @@ function formatToolName(raw: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function extractActionDetails(input: any): { description: string; details: Array<{ label: string; value: string }> } {
+  if (!input) return { description: 'Cooper wants to perform an action', details: [] };
+
+  // COMPOSIO_MULTI_EXECUTE_TOOL has tools[].tool_slug and tools[].arguments
+  const tools = input?.tools || [];
+  if (tools.length > 0) {
+    const firstTool = tools[0];
+    const slug = firstTool?.tool_slug || '';
+    const args = firstTool?.arguments || {};
+
+    // Make slug human-readable: SLACK_SEND_MESSAGE → "Send message on Slack"
+    const parts = slug.split('_');
+    const service = parts[0] || '';
+    const action = parts.slice(1).join(' ').toLowerCase();
+    const description = `Cooper wants to ${action || 'perform an action'} on ${service.charAt(0) + service.slice(1).toLowerCase()}`;
+
+    // Extract key arguments as details
+    const details: Array<{ label: string; value: string }> = [];
+    for (const [key, value] of Object.entries(args)) {
+      if (typeof value === 'string' && value.length < 200) {
+        details.push({ label: key.replace(/_/g, ' '), value: value as string });
+      }
+    }
+
+    return { description, details };
+  }
+
+  return { description: 'Cooper wants to perform an action', details: [] };
+}
+
 interface ChatMessagesProps {
   messages: UIMessage[];
   isStreaming?: boolean;
@@ -135,12 +165,24 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
 
                     // Show confirmation component for approval-requested tools
                     if (toolPart.state === 'approval-requested' && addToolApprovalResponse) {
+                      const actionDetails = extractActionDetails(toolPart.input);
+
                       return (
                         <Confirmation key={i} state={toolPart.state} approval={toolPart.approval}>
                           <ConfirmationTitle>
-                            Cooper wants to <strong>{friendlyName.toLowerCase()}</strong>
+                            {actionDetails.description}
                           </ConfirmationTitle>
                           <ConfirmationRequest>
+                            {actionDetails.details.length > 0 && (
+                              <div className="mt-2 rounded bg-muted p-3 text-xs space-y-1">
+                                {actionDetails.details.map((d, j) => (
+                                  <div key={j} className="flex gap-2">
+                                    <span className="text-muted-foreground shrink-0">{d.label}:</span>
+                                    <span className="font-medium">{d.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                             <ConfirmationActions>
                               <ConfirmationAction
                                 variant="outline"
@@ -156,7 +198,7 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
                             </ConfirmationActions>
                           </ConfirmationRequest>
                           <ConfirmationAccepted>
-                            <p className="text-sm text-muted-foreground">Approved — running action...</p>
+                            <p className="text-sm text-muted-foreground">Approved — running...</p>
                           </ConfirmationAccepted>
                           <ConfirmationRejected>
                             <p className="text-sm text-muted-foreground">Denied — action cancelled.</p>
