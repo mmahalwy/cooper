@@ -186,12 +186,12 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
                             <ConfirmationActions>
                               <ConfirmationAction
                                 variant="outline"
-                                onClick={() => addToolApprovalResponse({ id: toolPart.toolCallId, approved: false })}
+                                onClick={() => addToolApprovalResponse({ id: toolPart.approval?.id || toolPart.toolCallId, approved: false })}
                               >
                                 Deny
                               </ConfirmationAction>
                               <ConfirmationAction
-                                onClick={() => addToolApprovalResponse({ id: toolPart.toolCallId, approved: true })}
+                                onClick={() => addToolApprovalResponse({ id: toolPart.approval?.id || toolPart.toolCallId, approved: true })}
                               >
                                 Approve
                               </ConfirmationAction>
