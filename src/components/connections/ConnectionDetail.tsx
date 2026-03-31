@@ -7,9 +7,17 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ArrowLeftIcon, UnplugIcon, SearchIcon } from 'lucide-react';
-import { deleteConnectionAction } from '@/app/actions';
 import type { ConnectionTool } from '@/app/actions';
+
+type ToolPermission = 'auto' | 'confirm' | 'disabled';
 
 interface ConnectionDetailProps {
   appName: string;
@@ -22,6 +30,21 @@ export function ConnectionDetail({ appName, displayName, description, tools }: C
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [enabled, setEnabled] = useState(true);
+
+  // Initialize permissions: reads = auto, writes = confirm
+  const [permissions, setPermissions] = useState<Record<string, ToolPermission>>(() => {
+    const initial: Record<string, ToolPermission> = {};
+    for (const tool of tools) {
+      const isRead = tool.name.includes('GET') || tool.name.includes('LIST') || tool.name.includes('SEARCH') || tool.name.includes('QUERY') || tool.name.includes('RETRIEVE') || tool.name.includes('FETCH');
+      initial[tool.name] = isRead ? 'auto' : 'confirm';
+    }
+    return initial;
+  });
+
+  const setPermission = (toolName: string, permission: ToolPermission) => {
+    setPermissions((prev) => ({ ...prev, [toolName]: permission }));
+    // TODO: persist to Supabase
+  };
 
   const filtered = tools.filter((t) =>
     !search ||
@@ -36,7 +59,6 @@ export function ConnectionDetail({ appName, displayName, description, tools }: C
 
   return (
     <div className="mx-auto max-w-3xl p-6">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Button variant="outline" size="icon" className="size-9" onClick={() => router.push('/connections')}>
           <ArrowLeftIcon className="size-4" />
@@ -47,12 +69,10 @@ export function ConnectionDetail({ appName, displayName, description, tools }: C
         <h1 className="text-2xl font-semibold">{displayName}</h1>
       </div>
 
-      {/* Description */}
       <p className="text-muted-foreground text-sm leading-relaxed mb-6">
         {description || `With ${displayName}, Cooper can access and interact with your ${displayName} data and workflows.`}
       </p>
 
-      {/* Disconnect */}
       <div className="flex justify-end mb-6">
         <Button variant="outline" size="sm" className="text-destructive">
           <UnplugIcon className="size-4 mr-2" />
@@ -62,7 +82,6 @@ export function ConnectionDetail({ appName, displayName, description, tools }: C
 
       <Separator className="mb-6" />
 
-      {/* Enable toggle */}
       <div className="flex items-center justify-between mb-2">
         <div>
           <p className="font-medium text-sm">Enable integration</p>
@@ -74,7 +93,6 @@ export function ConnectionDetail({ appName, displayName, description, tools }: C
 
       <Separator className="mb-6" />
 
-      {/* Tools section */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold">Tools</h2>
         <Badge variant="secondary">{tools.length} total</Badge>
@@ -90,25 +108,33 @@ export function ConnectionDetail({ appName, displayName, description, tools }: C
         />
       </div>
 
-      {/* Read tools */}
       {readTools.length > 0 && (
         <div className="mb-6">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Read-only ({readTools.length})</p>
           <div className="flex flex-col divide-y rounded-lg border">
             {readTools.map((tool) => (
-              <ToolRow key={tool.name} tool={tool} mode="auto" />
+              <ToolRow
+                key={tool.name}
+                tool={tool}
+                permission={permissions[tool.name] || 'auto'}
+                onPermissionChange={(p) => setPermission(tool.name, p)}
+              />
             ))}
           </div>
         </div>
       )}
 
-      {/* Write tools */}
       {writeTools.length > 0 && (
         <div>
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Actions ({writeTools.length})</p>
           <div className="flex flex-col divide-y rounded-lg border">
             {writeTools.map((tool) => (
-              <ToolRow key={tool.name} tool={tool} mode="confirm" />
+              <ToolRow
+                key={tool.name}
+                tool={tool}
+                permission={permissions[tool.name] || 'confirm'}
+                onPermissionChange={(p) => setPermission(tool.name, p)}
+              />
             ))}
           </div>
         </div>
@@ -121,16 +147,27 @@ export function ConnectionDetail({ appName, displayName, description, tools }: C
   );
 }
 
-function ToolRow({ tool, mode }: { tool: ConnectionTool; mode: 'auto' | 'confirm' }) {
+function ToolRow({ tool, permission, onPermissionChange }: {
+  tool: ConnectionTool;
+  permission: ToolPermission;
+  onPermissionChange: (p: ToolPermission) => void;
+}) {
   return (
     <div className="flex items-start justify-between gap-4 p-4">
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm">{tool.displayName}</p>
         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{tool.description}</p>
       </div>
-      <Badge variant={mode === 'auto' ? 'secondary' : 'outline'} className="shrink-0 text-xs">
-        {mode === 'auto' ? 'Run automatically' : 'Ask for confirmation'}
-      </Badge>
+      <Select value={permission} onValueChange={(v) => onPermissionChange(v as ToolPermission)}>
+        <SelectTrigger className="w-[180px] shrink-0 text-xs h-8">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="disabled">Off</SelectItem>
+          <SelectItem value="auto">Run automatically</SelectItem>
+          <SelectItem value="confirm">Ask for confirmation</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   );
 }
