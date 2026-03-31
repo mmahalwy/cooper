@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { getDueTasksForDispatch } from '@/modules/scheduler/db';
 import { executeScheduledTask } from '@/modules/scheduler/executor';
 
@@ -10,8 +10,10 @@ export async function GET(request: Request) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const dueTasks = await getDueTasksForDispatch(supabase);
+
+  console.log(`[cron] Found ${dueTasks.length} due tasks`);
 
   if (dueTasks.length === 0) {
     return Response.json({ executed: 0 });
@@ -22,6 +24,7 @@ export async function GET(request: Request) {
 
   for (const task of dueTasks) {
     try {
+      console.log(`[cron] Executing task: ${task.name} (${task.id.slice(0, 8)})`);
       await executeScheduledTask(supabase, task);
       executed++;
     } catch (error) {
