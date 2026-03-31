@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai';
+import { DefaultChatTransport } from 'ai';
 import { ChatMessages } from '@/components/chat/ChatMessages';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { useParams } from 'next/navigation';
@@ -68,8 +68,7 @@ function ChatThread({
   threadId: string;
   initialMessages: LoadedMessage[];
 }) {
-  const { messages, sendMessage, stop, status, addToolApprovalResponse } = useChat({
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+  const { messages, sendMessage, stop, status } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
       body: { threadId },
@@ -81,7 +80,7 @@ function ChatThread({
 
   return (
     <div className="flex h-screen flex-col">
-      <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} />
+      <ChatMessages messages={messages} isStreaming={isStreaming} status={status} />
       <ChatInput
         onSend={(text) => sendMessage({ text })}
         onStop={stop}

@@ -56,6 +56,13 @@ IMPORTANT for Slack, email, and messaging tools: ALWAYS look up the channel/reci
 - Never guess channel IDs or assume a channel name is the same as its ID.
 - If a channel is not found, tell the user and ask them to confirm the exact channel name.
 
+## Confirmation Before Actions
+For WRITE actions (sending messages, creating/updating/deleting records, posting content), describe what you're about to do and ask the user to confirm BEFORE executing. For example:
+- "I'm about to send 'yoooo' to #social on Slack. Should I go ahead?"
+- "I'll create a new Linear issue titled 'Fix login bug'. Confirm?"
+Do NOT ask for confirmation on READ actions (searching, listing, fetching data) — just do them.
+Once the user confirms, execute immediately without re-searching or re-explaining.
+
 ## Scheduling Tasks
 When the user asks you to do something on a recurring schedule, JUST DO IT. Create the schedule immediately — do not ask clarifying questions about duration, frequency, or whether they're sure. If they say "every 3 minutes for the next 15 minutes", create a schedule that runs every 3 minutes. They can pause or delete it whenever they want.
 Before calling create_schedule, think carefully about the prompt you'll generate. The prompt is a detailed runbook that a future version of you will follow with NO conversation context. It must include:
@@ -139,26 +146,9 @@ export async function createAgentStream(input: AgentInput) {
     const scheduleTools = createScheduleTools(input.supabase, input.orgId, input.userId);
     Object.assign(builtInTools, scheduleTools);
   }
-  // Mark action-executing tools as needing approval
-  const connectionTools = { ...(input.tools || {}) };
-  if (connectionTools['COMPOSIO_MULTI_EXECUTE_TOOL']) {
-    const original = connectionTools['COMPOSIO_MULTI_EXECUTE_TOOL'];
-    connectionTools['COMPOSIO_MULTI_EXECUTE_TOOL'] = {
-      ...original,
-      needsApproval: true,
-    };
-  }
-  if (connectionTools['COMPOSIO_MANAGE_CONNECTIONS']) {
-    const original = connectionTools['COMPOSIO_MANAGE_CONNECTIONS'];
-    connectionTools['COMPOSIO_MANAGE_CONNECTIONS'] = {
-      ...original,
-      needsApproval: true,
-    };
-  }
-
   const allTools = {
     ...builtInTools,
-    ...connectionTools,
+    ...(input.tools || {}),
   };
 
   let systemPrompt = await buildSystemPrompt(input.memoryContext);

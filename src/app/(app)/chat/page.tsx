@@ -1,7 +1,7 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai';
+import { DefaultChatTransport } from 'ai';
 import { ChatMessages } from '@/components/chat/ChatMessages';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { EmptyState } from '@/components/chat/EmptyState';
@@ -12,8 +12,7 @@ export default function ChatPage() {
   const router = useRouter();
   const threadIdRef = useRef<string | null>(null);
 
-  const { messages, sendMessage, stop, status, addToolApprovalResponse } = useChat({
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+  const { messages, sendMessage, stop, status } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
       fetch: async (url, options) => {
@@ -39,7 +38,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen flex-col">
       {hasMessages ? (
-        <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} />
+        <ChatMessages messages={messages} isStreaming={isStreaming} status={status} />
       ) : (
         <EmptyState />
       )}
