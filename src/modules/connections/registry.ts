@@ -12,6 +12,7 @@ export async function getToolsForOrg(
   userId?: string
 ): Promise<Record<string, any>> {
   const connections = await getConnectionsForOrg(supabase, orgId);
+  console.log(`[registry] Found ${connections.length} active connections:`, connections.map(c => `${c.name}(${c.type}:${c.id.slice(0,8)})`));
 
   const allTools: Record<string, any> = {};
 
