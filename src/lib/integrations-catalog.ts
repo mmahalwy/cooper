@@ -43,4 +43,5 @@ export const INTEGRATIONS: Integration[] = [
   { id: 'zendesk', name: 'Zendesk', description: 'Customer service and support platform', category: 'CRM', composioApp: 'zendesk', toolCount: 20 },
   { id: 'airtable', name: 'Airtable', description: 'Spreadsheet-database hybrid for teams', category: 'Productivity', composioApp: 'airtable', toolCount: 16 },
   { id: 'granola', name: 'Granola', description: 'AI meeting notes — automatic transcription, summaries, and action items', category: 'Productivity', composioApp: 'granola_mcp', toolCount: 10 },
+  { id: 'metabase', name: 'Metabase', description: 'Business intelligence, dashboards, and SQL queries', category: 'Analytics', composioApp: 'metabase', toolCount: 15 },
 ];
