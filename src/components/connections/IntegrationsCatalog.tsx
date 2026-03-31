@@ -23,7 +23,12 @@ export function IntegrationsCatalog() {
     setLoading(false);
   }
 
-  useEffect(() => { loadConnections(); }, []);
+  useEffect(() => {
+    // Auto-sync from Composio on page load, then load connections
+    fetch('/api/connections/sync', { method: 'POST' })
+      .then(() => loadConnections())
+      .catch(() => loadConnections());
+  }, []);
 
   const connectedIds = useMemo(() => {
     const ids = new Set<string>();
