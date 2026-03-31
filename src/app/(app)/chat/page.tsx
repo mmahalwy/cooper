@@ -26,7 +26,8 @@ export default function ChatPage() {
     }),
     onFinish: () => {
       if (threadIdRef.current) {
-        router.replace(`/chat/${threadIdRef.current}`);
+        // Update URL without triggering a full page navigation/remount
+        window.history.replaceState(null, '', `/chat/${threadIdRef.current}`);
       }
     },
   });
