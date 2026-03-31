@@ -65,7 +65,7 @@ Focus on durable facts useful across many conversations. Do NOT save:
 async function buildSystemPrompt(memoryContext?: MemoryContext): Promise<string> {
   let prompt = SYSTEM_PROMPT;
 
-  // Add current timestamp for date-aware queries
+  // TODO: Read timezone from user settings instead of hardcoding Pacific
   prompt += `\n\nCurrent date and time: ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', dateStyle: 'full', timeStyle: 'short' })} (Pacific Time).
 When the user says "today", "yesterday", "this week", etc., interpret relative to this timestamp.
 When searching for meetings or events by date, expand your search window by ±1 day to account for timezone differences.`;
