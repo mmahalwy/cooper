@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,8 @@ interface IntegrationCardProps {
 }
 
 export function IntegrationCard({ integration, connected, onConnect, onDisconnect }: IntegrationCardProps) {
+  const router = useRouter();
+
   return (
     <Card className="flex flex-col">
       <CardContent className="flex flex-1 flex-col p-5">
@@ -21,7 +24,10 @@ export function IntegrationCard({ integration, connected, onConnect, onDisconnec
           <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-lg font-semibold">
             {integration.name[0]}
           </div>
-          <button className="text-muted-foreground hover:text-foreground">
+          <button
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => router.push(`/connections/${integration.composioApp}`)}
+          >
             <SettingsIcon className="size-4" />
           </button>
         </div>

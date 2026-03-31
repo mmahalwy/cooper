@@ -233,3 +233,47 @@ export async function syncConnectionsAction() {
   revalidatePath('/connections');
   return { success: true, synced };
 }
+
+// ============================================================================
+// Connection Tools
+// ============================================================================
+
+export interface ConnectionTool {
+  name: string;
+  displayName: string;
+  description: string;
+  tags: string[];
+}
+
+export async function getConnectionToolsAction(appName: string): Promise<ConnectionTool[]> {
+  const apiKey = process.env.COMPOSIO_API_KEY;
+  if (!apiKey) return [];
+
+  const allTools: ConnectionTool[] = [];
+  let page = 1;
+  const limit = 100;
+
+  // Paginate through all actions for this app
+  while (true) {
+    const resp = await fetch(
+      `https://backend.composio.dev/api/v2/actions?apps=${appName}&limit=${limit}&page=${page}`,
+      { headers: { 'x-api-key': apiKey } }
+    );
+    const data = await resp.json();
+    const items = data.items || [];
+
+    for (const item of items) {
+      allTools.push({
+        name: item.name || '',
+        displayName: item.displayName || item.name?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase()) || '',
+        description: item.description || '',
+        tags: item.tags || [],
+      });
+    }
+
+    if (items.length < limit || page >= (data.totalPages || 1)) break;
+    page++;
+  }
+
+  return allTools;
+}
