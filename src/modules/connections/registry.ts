@@ -15,11 +15,12 @@ export async function getToolsForOrg(
 
   const allTools: Record<string, any> = {};
 
-  // Load Composio tools once per user (not per connection)
+  // Load Composio tools once (uses 'default' entity)
   const hasPlatformConnections = connections.some(c => c.type === 'platform');
-  if (hasPlatformConnections && userId) {
+  if (hasPlatformConnections) {
     try {
-      const composioTools = await getComposioTools(userId);
+      const composioTools = await getComposioTools('default');
+      console.log(`[registry] Composio tools:`, Object.keys(composioTools));
       Object.assign(allTools, composioTools);
     } catch (error) {
       console.error('[registry] Failed to load Composio tools:', error);
