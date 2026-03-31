@@ -95,17 +95,9 @@ export async function createAgentStream(input: AgentInput) {
   const modelName = MODELS[modelId] || MODELS[DEFAULT_MODEL];
 
   // Merge user-connected tools with built-in tools
-  const hasConnectionTools = input.tools && Object.keys(input.tools).length > 0;
-
-  // Google AI doesn't support mixing provider-defined tools (google_search)
-  // with regular function tools. Only include google_search when no connection tools.
   const builtInTools: Record<string, any> = {
     load_skill: createLoadSkillTool(),
   };
-
-  if (!hasConnectionTools) {
-    builtInTools.google_search = google.tools.googleSearch({});
-  }
 
   // Add memory and scheduler tools if supabase client is available
   if (input.supabase) {

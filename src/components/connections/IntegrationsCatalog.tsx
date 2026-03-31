@@ -23,26 +23,7 @@ export function IntegrationsCatalog() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    loadConnections();
-
-    // Check if user just returned from OAuth
-    const pending = sessionStorage.getItem('pending_connection');
-    if (pending) {
-      sessionStorage.removeItem('pending_connection');
-      const { name, provider, connectedAccountId } = JSON.parse(pending);
-      fetch('/api/connections', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          provider,
-          type: 'platform',
-          config: { apps: [provider], connectedAccountId },
-        }),
-      }).then(() => loadConnections());
-    }
-  }, []);
+  useEffect(() => { loadConnections(); }, []);
 
   const connectedIds = useMemo(() => {
     const ids = new Set<string>();
@@ -87,15 +68,17 @@ export function IntegrationsCatalog() {
 
     const data = await initiateRes.json();
 
-    // Composio's connect page handles all auth types (OAuth, API key, etc.)
+    // Open Composio's connect page — handles all auth types
     if (data.redirectUrl) {
-      sessionStorage.setItem('pending_connection', JSON.stringify({
-        name: integration.name,
-        provider: integration.composioApp,
-        connectedAccountId: data.connectedAccountId,
-      }));
       window.open(data.redirectUrl, '_blank');
     }
+  };
+
+  // After user completes auth in another tab, they click "Refresh" or we auto-detect
+  const handleRefreshConnections = async () => {
+    // Check Composio for newly connected accounts and sync to our DB
+    const res = await fetch('/api/connections/sync', { method: 'POST' });
+    if (res.ok) await loadConnections();
   };
 
   const handleDisconnect = async (integrationId: string) => {
@@ -132,10 +115,15 @@ export function IntegrationsCatalog() {
             Connect the tools you use and let Cooper perform tasks across various apps.
           </p>
         </div>
-        <Button variant="outline" onClick={() => setMcpModalOpened(true)}>
-          <PlusIcon className="size-4 mr-2" />
-          Add Custom MCP
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleRefreshConnections}>
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={() => setMcpModalOpened(true)}>
+            <PlusIcon className="size-4 mr-2" />
+            Add Custom MCP
+          </Button>
+        </div>
       </div>
 
       <div className="relative">
