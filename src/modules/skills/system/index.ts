@@ -94,7 +94,19 @@ export async function buildSkillsPrompt(): Promise<string> {
   if (skills.length === 0) return '';
 
   let prompt = '\n\n## Available Skills\n';
-  prompt += 'You have the following skills available. Use the `load_skill` tool to activate one when the user\'s request matches:\n\n';
+  prompt += `You have specialized skills you can load for better results. Before answering a complex request, check if a skill applies and load it.
+
+Load a skill when:
+- The request clearly matches a skill's description
+- You're about to do something the skill covers (e.g., writing a document, debugging, brainstorming)
+- The task would benefit from structured guidance
+
+Don't load a skill when:
+- The user is asking a simple factual question
+- You're just having a casual conversation
+- The task is straightforward and doesn't need a framework
+
+Skills:\n`;
 
   for (const skill of skills) {
     prompt += `- **${skill.name}**: ${skill.description}\n`;
