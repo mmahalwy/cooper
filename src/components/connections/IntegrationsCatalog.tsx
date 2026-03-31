@@ -16,6 +16,7 @@ export function IntegrationsCatalog() {
   const [category, setCategory] = useState<string>('All');
   const [mcpModalOpened, setMcpModalOpened] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   async function loadConnections() {
     const res = await fetch('/api/connections');
@@ -79,11 +80,15 @@ export function IntegrationsCatalog() {
     }
   };
 
-  // After user completes auth in another tab, they click "Refresh" or we auto-detect
   const handleRefreshConnections = async () => {
-    // Check Composio for newly connected accounts and sync to our DB
+    setSyncing(true);
     const res = await fetch('/api/connections/sync', { method: 'POST' });
-    if (res.ok) await loadConnections();
+    if (res.ok) {
+      const data = await res.json();
+      console.log('[sync] Result:', data);
+    }
+    await loadConnections();
+    setSyncing(false);
   };
 
   const handleDisconnect = async (integrationId: string) => {
@@ -121,8 +126,8 @@ export function IntegrationsCatalog() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefreshConnections}>
-            Refresh
+          <Button variant="outline" onClick={handleRefreshConnections} disabled={syncing}>
+            {syncing ? 'Syncing...' : 'Refresh'}
           </Button>
           <Button variant="outline" onClick={() => setMcpModalOpened(true)}>
             <PlusIcon className="size-4 mr-2" />

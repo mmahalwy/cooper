@@ -32,11 +32,17 @@ export async function POST() {
 
     const existingProviders = new Set((existingConnections || []).map((c: any) => c.provider));
 
+    console.log('[sync] Active apps from Composio:', activeApps);
+    console.log('[sync] Existing providers in DB:', [...existingProviders]);
+
     let synced = 0;
     for (const appName of activeApps) {
-      if (existingProviders.has(appName)) continue;
+      if (existingProviders.has(appName)) {
+        console.log(`[sync] Skipping ${appName} — already exists`);
+        continue;
+      }
 
-      await supabase.from('connections').insert({
+      const { error } = await supabase.from('connections').insert({
         org_id: dbUser.org_id,
         type: 'platform',
         name: appName,
@@ -44,7 +50,13 @@ export async function POST() {
         config: { apps: [appName] },
         status: 'active',
       });
-      synced++;
+
+      if (error) {
+        console.error(`[sync] Failed to insert ${appName}:`, error);
+      } else {
+        console.log(`[sync] Saved ${appName}`);
+        synced++;
+      }
     }
 
     return Response.json({ synced, activeApps, total: connectedApps.length });
