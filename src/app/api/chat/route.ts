@@ -109,7 +109,9 @@ export async function POST(req: Request) {
     .map((p) => (p as { type: 'text'; text: string }).text)
     .join('') || '';
 
-  const memoryContext = await retrieveContext(supabase, dbUser.org_id, userText);
+  const memoryContext = userText.trim()
+    ? await retrieveContext(supabase, dbUser.org_id, userText)
+    : { knowledge: [], matchedSkills: [] };
 
   const result = await createAgentStream({
     ...agentInput,

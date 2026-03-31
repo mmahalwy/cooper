@@ -6,6 +6,9 @@ class GoogleEmbeddingProvider implements EmbeddingProvider {
   private model = google.embeddingModel('gemini-embedding-001');
 
   async embed(text: string): Promise<number[]> {
+    if (!text || !text.trim()) {
+      return new Array(768).fill(0);
+    }
     const result = await embed({
       model: this.model,
       value: text,
