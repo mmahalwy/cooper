@@ -46,7 +46,10 @@ export function ConnectionDetail({ appName, displayName, description, tools }: C
     // TODO: persist to Supabase
   };
 
-  const filtered = tools.filter((t) =>
+  // Deduplicate tools by name
+  const uniqueTools = tools.filter((t, i, arr) => arr.findIndex((x) => x.name === t.name) === i);
+
+  const filtered = uniqueTools.filter((t) =>
     !search ||
     t.displayName.toLowerCase().includes(search.toLowerCase()) ||
     t.description.toLowerCase().includes(search.toLowerCase())
@@ -160,7 +163,7 @@ function ToolRow({ tool, permission, onPermissionChange }: {
       </div>
       <Select value={permission} onValueChange={(v) => onPermissionChange(v as ToolPermission)}>
         <SelectTrigger className="w-[180px] shrink-0 text-xs h-8">
-          <SelectValue />
+          {permission === 'auto' ? 'Run automatically' : permission === 'confirm' ? 'Ask for confirmation' : 'Off'}
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="disabled">Off</SelectItem>
