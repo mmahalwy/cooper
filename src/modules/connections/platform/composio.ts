@@ -1,7 +1,6 @@
-import { VercelAIToolSet } from 'composio-core';
+import { Composio } from '@composio/core';
 import type { ComposioConnectionConfig } from './types';
 
-// Cache by connection ID
 const cache = new Map<string, { tools: Record<string, unknown>; createdAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -15,18 +14,19 @@ export async function getComposioTools(
   }
 
   try {
-    const toolset = new VercelAIToolSet({
-      apiKey: config.apiKey || process.env.COMPOSIO_API_KEY || '',
-      entityId: config.entityId || 'default',
-    });
+    const apiKey = config.apiKey || process.env.COMPOSIO_API_KEY || '';
+    const composio = new Composio({ apiKey });
+    const session = await composio.create(config.entityId || 'default');
 
-    // Fetch important tools first (curated subset), fall back to all if none
-    let tools = await toolset.getTools({ apps: config.apps, tags: ['important'] }) as Record<string, unknown>;
-    if (Object.keys(tools).length === 0) {
-      // No important-tagged tools — get all but limit to avoid context overflow
-      const allTools = await toolset.getTools({ apps: config.apps }) as Record<string, unknown>;
-      const entries = Object.entries(allTools).slice(0, 30);
-      tools = Object.fromEntries(entries);
+    const toolsArray = await session.tools({ toolkits: config.apps } as any);
+
+    // Convert array to Record keyed by tool name
+    const tools: Record<string, unknown> = {};
+    if (Array.isArray(toolsArray)) {
+      for (const t of toolsArray.slice(0, 30)) {
+        const name = (t as any)?.function?.name || (t as any)?.name || `tool_${Object.keys(tools).length}`;
+        tools[name] = t;
+      }
     }
 
     cache.set(connectionId, { tools, createdAt: Date.now() });
