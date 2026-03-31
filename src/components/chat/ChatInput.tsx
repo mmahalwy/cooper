@@ -154,40 +154,6 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming, status }: Cha
                     <PromptInputActionAddScreenshot />
                   </PromptInputActionMenuContent>
                 </PromptInputActionMenu>
-                <PromptInputButton>
-                  <GlobeIcon size={16} />
-                  <span>Search</span>
-                </PromptInputButton>
-                <ModelSelector open={modelSelectorOpen} onOpenChange={setModelSelectorOpen}>
-                  <ModelSelectorTrigger>
-                    {selectedModelData?.chefSlug && (
-                      <ModelSelectorLogo provider={selectedModelData.chefSlug} />
-                    )}
-                    {selectedModelData?.name && (
-                      <ModelSelectorName>{selectedModelData.name}</ModelSelectorName>
-                    )}
-                  </ModelSelectorTrigger>
-                  <ModelSelectorContent>
-                    <ModelSelectorInput placeholder="Search models..." />
-                    <ModelSelectorList>
-                      <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-                      {['Google'].map((chef) => (
-                        <ModelSelectorGroup heading={chef} key={chef}>
-                          {models
-                            .filter((m) => m.chef === chef)
-                            .map((m) => (
-                              <ModelItem
-                                key={m.id}
-                                m={m}
-                                onSelect={handleModelSelect}
-                                selectedModel={model}
-                              />
-                            ))}
-                        </ModelSelectorGroup>
-                      ))}
-                    </ModelSelectorList>
-                  </ModelSelectorContent>
-                </ModelSelector>
               </PromptInputTools>
               <PromptInputSubmit status={chatStatus} />
             </PromptInputFooter>
