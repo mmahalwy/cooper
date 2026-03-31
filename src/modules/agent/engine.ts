@@ -72,9 +72,13 @@ async function buildSystemPrompt(memoryContext?: MemoryContext): Promise<string>
   let prompt = SYSTEM_PROMPT;
 
   // TODO: Read timezone from user settings instead of hardcoding Pacific
-  prompt += `\n\nCurrent date and time: ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', dateStyle: 'full', timeStyle: 'short' })} (Pacific Time).
-When the user says "today", "yesterday", "this week", etc., interpret relative to this timestamp.
-When searching for meetings or events by date, expand your search window by ±1 day to account for timezone differences.`;
+  const now = new Date();
+  const pacificDate = now.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const pacificTime = now.toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: '2-digit' });
+  prompt += `\n\n## Current Date & Time
+TODAY is ${pacificDate}. The current time is ${pacificTime} Pacific Time.
+ALWAYS use this as the reference for "today", "yesterday", "this week", etc. Do NOT use UTC or any other timezone.
+A meeting on ${pacificDate} is TODAY's meeting — even if the raw data shows a different date due to UTC conversion.`;
 
   // List available skills (names + descriptions only — loaded on demand via tool)
   prompt += await buildSkillsPrompt();
