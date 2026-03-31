@@ -3,7 +3,6 @@ import { getConnectionsForOrg, updateConnectionStatus } from './db';
 import { getMcpTools } from './mcp/client';
 import type { McpServerConfig } from './mcp/types';
 import { getComposioTools } from './platform/composio';
-import type { ComposioConnectionConfig } from './platform/types';
 import type { Connection } from '@/lib/types';
 
 export async function getToolsForOrg(
@@ -12,42 +11,36 @@ export async function getToolsForOrg(
   userId?: string
 ): Promise<Record<string, any>> {
   const connections = await getConnectionsForOrg(supabase, orgId);
-  console.log(`[registry] Found ${connections.length} active connections:`, connections.map(c => `${c.name}(${c.type}:${c.id.slice(0,8)})`));
+  console.log(`[registry] Found ${connections.length} active connections:`, connections.map(c => `${c.name}(${c.type}:${c.id.slice(0, 8)})`));
 
   const allTools: Record<string, any> = {};
 
-  const toolPromises = connections.map(async (conn) => {
+  // Load Composio tools once per user (not per connection)
+  const hasPlatformConnections = connections.some(c => c.type === 'platform');
+  if (hasPlatformConnections && userId) {
     try {
-      const tools = await getToolsForConnection(conn, userId);
+      const composioTools = await getComposioTools(userId);
+      Object.assign(allTools, composioTools);
+    } catch (error) {
+      console.error('[registry] Failed to load Composio tools:', error);
+    }
+  }
+
+  // Load MCP tools per connection
+  const mcpConnections = connections.filter(c => c.type === 'mcp');
+  const mcpPromises = mcpConnections.map(async (conn) => {
+    try {
+      const tools = await getMcpTools(conn.id, conn.config as unknown as McpServerConfig);
       for (const [name, tool] of Object.entries(tools)) {
         allTools[`${conn.provider}_${name}`] = tool;
       }
     } catch (error) {
-      console.error(`[registry] Failed to load tools for connection ${conn.id}:`, error);
-      // Auto-disable broken connections
+      console.error(`[registry] Failed to load MCP tools for ${conn.name} (${conn.id.slice(0, 8)}):`, error);
       await updateConnectionStatus(supabase, conn.id, 'error', String(error)).catch(() => {});
     }
   });
 
-  await Promise.all(toolPromises);
+  await Promise.all(mcpPromises);
 
   return allTools;
-}
-
-async function getToolsForConnection(conn: Connection, userId?: string): Promise<Record<string, any>> {
-  switch (conn.type) {
-    case 'mcp':
-      return getMcpTools(conn.id, conn.config as unknown as McpServerConfig);
-    case 'custom':
-      return {};
-    case 'platform': {
-      const platformConfig = conn.config as unknown as ComposioConnectionConfig;
-      if (userId && !platformConfig.entityId) {
-        platformConfig.entityId = userId;
-      }
-      return getComposioTools(conn.id, platformConfig);
-    }
-    default:
-      return {};
-  }
 }
