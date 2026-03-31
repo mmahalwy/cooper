@@ -1,31 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PlusIcon, TrashIcon } from 'lucide-react';
 import { AddKnowledgeModal } from './AddKnowledgeModal';
+import type { KnowledgeFact } from '@/modules/memory/knowledge';
 
-interface KnowledgeFact {
-  id: string;
-  content: string;
-  source: string;
-  created_at: string;
+interface KnowledgeListProps {
+  initialFacts: KnowledgeFact[];
 }
 
-export function KnowledgeList() {
-  const [facts, setFacts] = useState<KnowledgeFact[]>([]);
+export function KnowledgeList({ initialFacts }: KnowledgeListProps) {
+  const [facts, setFacts] = useState(initialFacts);
   const [modalOpened, setModalOpened] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  async function loadFacts() {
-    const res = await fetch('/api/knowledge');
-    if (res.ok) setFacts(await res.json());
-    setLoading(false);
-  }
-
-  useEffect(() => { loadFacts(); }, []);
 
   const handleAdd = async (content: string) => {
     const res = await fetch('/api/knowledge', {
@@ -33,7 +22,10 @@ export function KnowledgeList() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
     });
-    if (res.ok) await loadFacts();
+    if (res.ok) {
+      const newFact = await res.json();
+      setFacts((prev) => [newFact, ...prev]);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -57,9 +49,7 @@ export function KnowledgeList() {
           </Button>
         </div>
 
-        {loading && <p className="text-muted-foreground">Loading...</p>}
-
-        {!loading && facts.length === 0 && (
+        {facts.length === 0 && (
           <p className="text-center text-muted-foreground mt-8">
             No knowledge yet. Add facts about your organization to make Cooper smarter.
           </p>

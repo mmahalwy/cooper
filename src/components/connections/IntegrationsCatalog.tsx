@@ -10,25 +10,27 @@ import { INTEGRATIONS, CATEGORIES, type Integration } from '@/lib/integrations-c
 import type { Connection } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-export function IntegrationsCatalog() {
-  const [connections, setConnections] = useState<Connection[]>([]);
+interface IntegrationsCatalogProps {
+  initialConnections?: Connection[];
+}
+
+export function IntegrationsCatalog({ initialConnections = [] }: IntegrationsCatalogProps) {
+  const [connections, setConnections] = useState<Connection[]>(initialConnections);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>('All');
   const [mcpModalOpened, setMcpModalOpened] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
   async function loadConnections() {
     const res = await fetch('/api/connections');
     if (res.ok) setConnections(await res.json());
-    setLoading(false);
   }
 
   useEffect(() => {
-    // Auto-sync from Composio on page load, then load connections
+    // Auto-sync from Composio on load
     fetch('/api/connections/sync', { method: 'POST' })
       .then(() => loadConnections())
-      .catch(() => loadConnections());
+      .catch(() => {});
   }, []);
 
   const connectedIds = useMemo(() => {
@@ -163,10 +165,7 @@ export function IntegrationsCatalog() {
         ))}
       </div>
 
-      {loading ? (
-        <p className="text-muted-foreground">Loading...</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {filtered.map((integration) => (
             <IntegrationCard
               key={integration.id}
@@ -182,7 +181,6 @@ export function IntegrationsCatalog() {
             </p>
           )}
         </div>
-      )}
 
       <AddConnectionModal
         opened={mcpModalOpened}

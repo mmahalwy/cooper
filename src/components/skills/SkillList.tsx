@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,23 +15,14 @@ interface SystemSkillInfo {
   description: string;
 }
 
-export function SkillList() {
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [systemSkills, setSystemSkills] = useState<SystemSkillInfo[]>([]);
+interface SkillListProps {
+  initialSkills: Skill[];
+  systemSkills: SystemSkillInfo[];
+}
+
+export function SkillList({ initialSkills, systemSkills }: SkillListProps) {
+  const [skills, setSkills] = useState(initialSkills);
   const [modalOpened, setModalOpened] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  async function loadSkills() {
-    const [userRes, systemRes] = await Promise.all([
-      fetch('/api/skills'),
-      fetch('/api/skills/system'),
-    ]);
-    if (userRes.ok) setSkills(await userRes.json());
-    if (systemRes.ok) setSystemSkills(await systemRes.json());
-    setLoading(false);
-  }
-
-  useEffect(() => { loadSkills(); }, []);
 
   const handleDelete = async (id: string) => {
     const res = await fetch(`/api/skills?id=${id}`, { method: 'DELETE' });
@@ -54,7 +45,6 @@ export function SkillList() {
           </Button>
         </div>
 
-        {/* System Skills */}
         <div>
           <div className="flex items-center gap-2 mb-3">
             <ShieldIcon className="size-4 text-muted-foreground" />
@@ -77,17 +67,11 @@ export function SkillList() {
                 </CardContent>
               </Card>
             ))}
-            {systemSkills.length === 0 && !loading && (
-              <p className="text-sm text-muted-foreground col-span-2">
-                No system skills found. Add SKILL.md files to .agents/skills/
-              </p>
-            )}
           </div>
         </div>
 
         <Separator />
 
-        {/* User Skills */}
         <div>
           <div className="flex items-center gap-2 mb-3">
             <ZapIcon className="size-4 text-muted-foreground" />
@@ -95,9 +79,7 @@ export function SkillList() {
             <Badge variant="secondary" className="text-xs">{skills.length}</Badge>
           </div>
 
-          {loading && <p className="text-muted-foreground">Loading...</p>}
-
-          {!loading && skills.length === 0 && (
+          {skills.length === 0 && (
             <p className="text-center text-muted-foreground py-6">
               No custom skills yet. Create one to teach Cooper a workflow specific to your team.
             </p>
@@ -114,7 +96,10 @@ export function SkillList() {
       <CreateSkillModal
         opened={modalOpened}
         onClose={() => setModalOpened(false)}
-        onCreated={loadSkills}
+        onCreated={async () => {
+          const res = await fetch('/api/skills');
+          if (res.ok) setSkills(await res.json());
+        }}
       />
     </>
   );
