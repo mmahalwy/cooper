@@ -2,6 +2,42 @@
 
 import { getAuthContext } from './helpers';
 
+export async function renameThreadAction(threadId: string, title: string) {
+  const { supabase, user } = await getAuthContext();
+  const { error } = await supabase
+    .from('threads')
+    .update({ title })
+    .eq('id', threadId)
+    .eq('user_id', user.id);
+  if (error) return { error: 'Failed to rename' };
+  return { success: true };
+}
+
+export async function deleteThreadAction(threadId: string) {
+  const { supabase, user } = await getAuthContext();
+  // Delete messages first
+  await supabase.from('messages').delete().eq('thread_id', threadId);
+  // Delete thread
+  const { error } = await supabase
+    .from('threads')
+    .delete()
+    .eq('id', threadId)
+    .eq('user_id', user.id);
+  if (error) return { error: 'Failed to delete' };
+  return { success: true };
+}
+
+export async function togglePinThreadAction(threadId: string, pinned: boolean) {
+  const { supabase, user } = await getAuthContext();
+  const { error } = await supabase
+    .from('threads')
+    .update({ pinned })
+    .eq('id', threadId)
+    .eq('user_id', user.id);
+  if (error) return { error: 'Failed to pin' };
+  return { success: true };
+}
+
 export async function searchThreadsAction(query: string) {
   const { supabase, orgId } = await getAuthContext();
 

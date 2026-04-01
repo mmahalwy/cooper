@@ -17,6 +17,13 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -32,13 +39,19 @@ import {
   SearchIcon,
   XIcon,
   SettingsIcon,
+  MoreHorizontalIcon,
+  PenIcon,
+  TrashIcon,
+  PinIcon,
+  PinOffIcon,
 } from 'lucide-react';
 import { searchThreadsAction } from '@/app/actions';
 import { Input } from '@/components/ui/input';
 import { useRouter, useParams } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { renameThreadAction, deleteThreadAction, togglePinThreadAction } from '@/app/actions';
 import type { Thread } from '@/lib/types';
 
 function AppSidebar() {
@@ -49,18 +62,20 @@ function AppSidebar() {
   const [searchResults, setSearchResults] = useState<Array<{ id: string; title: string; snippet?: string }> | null>(null);
   const [searching, setSearching] = useState(false);
 
+  const loadThreads = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('threads')
+      .select('*')
+      .is('scheduled_task_id', null)
+      .order('pinned', { ascending: false, nullsFirst: false })
+      .order('updated_at', { ascending: false })
+      .limit(50);
+    if (data) setThreads(data);
+  }, []);
+
   useEffect(() => {
     const supabase = createClient();
-
-    async function loadThreads() {
-      const { data } = await supabase
-        .from('threads')
-        .select('*')
-        .is('scheduled_task_id', null)
-        .order('updated_at', { ascending: false })
-        .limit(50);
-      if (data) setThreads(data);
-    }
 
     loadThreads();
 
@@ -75,7 +90,7 @@ function AppSidebar() {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, []);
+  }, [loadThreads]);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -169,15 +184,56 @@ function AppSidebar() {
                       <p className="px-2 py-1 text-xs text-muted-foreground">No conversations yet</p>
                     )}
                     {threads.map((thread) => (
-                      <SidebarMenuItem key={thread.id}>
-                        <SidebarMenuButton
-                          isActive={params?.threadId === thread.id}
-                          onClick={() => router.push(`/chat/${thread.id}`)}
+                  <SidebarMenuItem key={thread.id} className="group relative">
+                    <SidebarMenuButton
+                      isActive={params?.threadId === thread.id}
+                      onClick={() => router.push(`/chat/${thread.id}`)}
+                    >
+                      {thread.pinned ? <PinIcon className="size-3.5" /> : <MessageSquareIcon />}
+                      <span className="truncate">{thread.title || 'Untitled'}</span>
+                    </SidebarMenuButton>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="absolute right-1 top-1.5 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted">
+                          <MoreHorizontalIcon className="size-3.5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem onClick={async () => {
+                          const title = prompt('Rename thread:', thread.title || '');
+                          if (title) {
+                            await renameThreadAction(thread.id, title);
+                            loadThreads();
+                          }
+                        }}>
+                          <PenIcon className="size-3.5 mr-2" /> Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={async () => {
+                          await togglePinThreadAction(thread.id, !thread.pinned);
+                          loadThreads();
+                        }}>
+                          {thread.pinned ? (
+                            <><PinOffIcon className="size-3.5 mr-2" /> Unpin</>
+                          ) : (
+                            <><PinIcon className="size-3.5 mr-2" /> Pin to top</>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={async () => {
+                            if (confirm('Delete this conversation?')) {
+                              await deleteThreadAction(thread.id);
+                              loadThreads();
+                              if (params?.threadId === thread.id) router.push('/chat');
+                            }
+                          }}
                         >
-                          <MessageSquareIcon />
-                          <span className="truncate">{thread.title || 'Untitled'}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
+                          <TrashIcon className="size-3.5 mr-2" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </SidebarMenuItem>
                     ))}
                   </>
                 )}
