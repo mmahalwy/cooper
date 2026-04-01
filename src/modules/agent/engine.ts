@@ -7,6 +7,7 @@ import { createSaveKnowledgeTool } from '@/modules/memory/tools';
 import { createScheduleTools } from '@/modules/scheduler/tools';
 import { createSkillTools } from '@/modules/skills/tools';
 import { createOrchestrationTools } from '@/modules/orchestration/tools';
+import { createSandboxTools } from '@/modules/sandbox/tools';
 
 const MODELS: Record<string, string> = {
   'gemini-flash': 'gemini-2.5-flash',
@@ -110,6 +111,11 @@ export async function createAgentStream(input: AgentInput) {
     const orchestrationTools = createOrchestrationTools(input.supabase, input.orgId);
     Object.assign(builtInTools, orchestrationTools);
   }
+
+  // Add sandbox tools if E2B is configured
+  const sandboxTools = createSandboxTools();
+  Object.assign(builtInTools, sandboxTools);
+
   const allTools = {
     ...builtInTools,
     ...(input.tools || {}),
