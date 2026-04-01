@@ -122,6 +122,38 @@ A meeting on ${pacificDate} is TODAY's meeting — even if the raw data shows a 
   return prompt;
 }
 
+const MESSAGE_WINDOW_SIZE = 20;
+
+/**
+ * Apply message windowing to prevent token limit blowups on long conversations.
+ * - If ≤ MESSAGE_WINDOW_SIZE messages: return all as-is
+ * - If > MESSAGE_WINDOW_SIZE: summarize older messages into a compact context
+ *   block and prepend it as a system message before the recent window
+ */
+function windowMessages(messages: AgentMessage[]): AgentMessage[] {
+  if (messages.length <= MESSAGE_WINDOW_SIZE) {
+    return messages;
+  }
+
+  const olderMessages = messages.slice(0, messages.length - MESSAGE_WINDOW_SIZE);
+  const recentMessages = messages.slice(messages.length - MESSAGE_WINDOW_SIZE);
+
+  // Build a compact summary of older messages
+  const summaryLines = olderMessages.map((msg) => {
+    const truncated = msg.content.length > 200
+      ? msg.content.slice(0, 200) + '...'
+      : msg.content;
+    return `[${msg.role}]: ${truncated}`;
+  });
+
+  const summaryMessage: AgentMessage = {
+    role: 'user',
+    content: `[CONVERSATION HISTORY SUMMARY — ${olderMessages.length} earlier messages]\n${summaryLines.join('\n')}`,
+  };
+
+  return [summaryMessage, ...recentMessages];
+}
+
 function toModelMessages(messages: AgentMessage[]): ModelMessage[] {
   return messages.map((msg): ModelMessage => {
     if (msg.role === 'tool') {
@@ -138,6 +170,7 @@ export async function createAgentStream(input: AgentInput) {
   // Merge user-connected tools with built-in tools
   const builtInTools: Record<string, any> = {
     load_skill: createLoadSkillTool(),
+    google_search: google.tools.googleSearch({}),
   };
 
   // Add memory and scheduler tools if supabase client is available
@@ -160,9 +193,9 @@ export async function createAgentStream(input: AgentInput) {
   const result = streamText({
     model: google(modelName),
     system: systemPrompt,
-    messages: toModelMessages(input.messages),
+    messages: toModelMessages(windowMessages(input.messages)),
     tools: allTools,
-    stopWhen: stepCountIs(10),
+    stopWhen: stepCountIs(25),
     providerOptions: {
       google: {
         thinkingConfig: { thinkingBudget: 1024 },
