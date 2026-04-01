@@ -8,6 +8,7 @@ import { summarizeAndStoreThread } from '@/modules/memory/thread-summary';
 import { trackUsage } from '@/modules/observability/usage';
 import { reflectOnResponse } from '@/modules/agent/reflection';
 import { generateSuggestions } from '@/modules/agent/suggestions';
+import { generateThreadTitle } from '@/modules/agent/title-generator';
 
 export const maxDuration = 60;
 
@@ -224,6 +225,10 @@ export async function POST(req: Request) {
           console.error('[chat] Thread summarization failed:', err);
         }
       );
+
+      // Background: generate a smart title for the thread
+      generateThreadTitle(sb, activeThreadId, userText, fullText || '')
+        .catch((err) => console.error('[chat] Title generation failed:', err));
 
       // Background: generate proactive follow-up suggestions
       if (toolCallSummary.length > 0 && fullText) {
