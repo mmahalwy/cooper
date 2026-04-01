@@ -118,9 +118,7 @@ export async function createAgentStream(input: AgentInput) {
     systemPrompt += `\n\n## Connected Integrations\nYou are currently connected to: ${input.connectedServices.join(', ')}. You can use these services to get data and take actions. When the user asks what you're connected to, list these service names. Do NOT mention "Composio" — that is an internal system, not a user-facing service.`;
   }
 
-  const modelMessages = await convertToModelMessages(input.uiMessages, {
-    tools: allTools,
-  });
+  const modelMessages = await convertToModelMessages(input.uiMessages);
 
   const result = streamText({
     model: google(modelName),
