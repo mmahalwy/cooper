@@ -116,14 +116,29 @@ export async function POST(req: Request) {
     ? await retrieveContext(supabase, dbUser.org_id, userText)
     : { knowledge: [], matchedSkills: [], threadSummaries: [] };
 
-  const result = await createAgentStream({
-    ...agentInput,
-    tools,
-    memoryContext,
-    supabase,
-    connectedServices,
-    timezone: dbUser.timezone || 'America/Los_Angeles',
-  });
+  let result;
+  try {
+    result = await createAgentStream({
+      ...agentInput,
+      tools,
+      memoryContext,
+      supabase,
+      connectedServices,
+      timezone: dbUser.timezone || 'America/Los_Angeles',
+    });
+  } catch (error) {
+    console.error('[chat] Failed to create agent stream:', error);
+    // Save error message so the user sees something
+    if (activeThreadId) {
+      await supabase.from('messages').insert({
+        thread_id: activeThreadId,
+        role: 'assistant',
+        content: "I'm sorry, I ran into an error processing your request. Please try again. If this keeps happening, try a simpler message first.",
+        metadata: { error: true, errorMessage: String(error) },
+      });
+    }
+    return new Response('Internal error', { status: 500 });
+  }
 
   // Save the assistant response after streaming completes
   const modelUsed = 'gemini-flash';
