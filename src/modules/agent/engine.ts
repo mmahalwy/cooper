@@ -140,6 +140,21 @@ export async function createAgentStream(input: AgentInput) {
 
   let systemPrompt = await buildSystemPrompt(input.memoryContext, input.timezone);
 
+  // Read org persona settings and inject into system prompt
+  if (input.supabase && input.orgId) {
+    const { data: orgSettings } = await input.supabase
+      .from('organizations')
+      .select('persona_name, persona_instructions, persona_tone')
+      .eq('id', input.orgId)
+      .single();
+
+    if (orgSettings?.persona_instructions) {
+      systemPrompt += `\n\n## Communication Style\nYour name is ${orgSettings.persona_name || 'Cooper'}. ${orgSettings.persona_instructions}\nTone: ${orgSettings.persona_tone || 'professional'}.`;
+    } else if (orgSettings?.persona_name && orgSettings.persona_name !== 'Cooper') {
+      systemPrompt += `\n\n## Communication Style\nYour name is ${orgSettings.persona_name}. Tone: ${orgSettings.persona_tone || 'professional'}.`;
+    }
+  }
+
   if (input.connectedServices && input.connectedServices.length > 0) {
     systemPrompt += `\n\n## Connected Integrations\nYou are currently connected to: ${input.connectedServices.join(', ')}. You can use these services to get data and take actions. When the user asks what you're connected to, list these service names. Do NOT mention "Composio" — that is an internal system, not a user-facing service.`;
   }
