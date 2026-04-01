@@ -190,16 +190,19 @@ export async function POST(req: Request) {
       // Track token usage and costs
       try {
         const usage = await result.usage;
-        if (usage) {
+        const totalUsage = await result.totalUsage;
+        const effectiveUsage = totalUsage || usage;
+        console.log('[chat] Usage:', JSON.stringify(effectiveUsage));
+        if (effectiveUsage) {
           trackUsage(sb, {
             orgId: dbUser.org_id,
             userId: user.id,
             threadId: activeThreadId,
             modelId: modelUsed,
             modelProvider: 'google',
-            promptTokens: usage.inputTokens || 0,
-            completionTokens: usage.outputTokens || 0,
-            latencyMs: undefined, // TODO: track request start time
+            promptTokens: effectiveUsage.inputTokens || 0,
+            completionTokens: effectiveUsage.outputTokens || 0,
+            latencyMs: undefined,
             source: 'chat',
           }).catch(err => console.error('[chat] Usage tracking failed:', err));
         }
