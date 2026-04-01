@@ -9,6 +9,8 @@ import { trackUsage } from '@/modules/observability/usage';
 import { reflectOnResponse } from '@/modules/agent/reflection';
 import { generateSuggestions } from '@/modules/agent/suggestions';
 import { generateThreadTitle } from '@/modules/agent/title-generator';
+import { evaluateAndLearnSkill } from '@/modules/skills/learner';
+import { evaluateSkillPerformance } from '@/modules/skills/improver';
 
 export const maxDuration = 60;
 
@@ -241,6 +243,46 @@ export async function POST(req: Request) {
             }
           })
           .catch((err) => console.error('[suggestions] Failed:', err));
+      }
+
+      // Background: auto-learn reusable skills from complex interactions
+      if (toolCallSummary.length >= 3 && fullText) {
+        evaluateAndLearnSkill(
+          sb,
+          dbUser.org_id,
+          userText,
+          fullText,
+          toolCallSummary
+        )
+          .then((result) => {
+            if (result.learned) {
+              console.log(
+                `[chat] Auto-learned skill: ${result.skillName}`
+              );
+            }
+          })
+          .catch((err) =>
+            console.error('[chat] Skill learning failed:', err)
+          );
+      }
+
+      // Background: improve existing skills based on actual execution
+      if (toolCallSummary.length >= 2 && fullText && memoryContext.matchedSkills.length > 0) {
+        for (const matchedSkill of memoryContext.matchedSkills) {
+          evaluateSkillPerformance(
+            sb,
+            dbUser.org_id,
+            matchedSkill.name,
+            userText,
+            fullText,
+            toolCallSummary
+          ).catch((err) =>
+            console.error(
+              `[chat] Skill improvement failed for "${matchedSkill.name}":`,
+              err
+            )
+          );
+        }
       }
     }
   }).catch((err) => {
