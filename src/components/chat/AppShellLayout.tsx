@@ -27,6 +27,7 @@ import {
   ZapIcon,
   CalendarClockIcon,
   BarChart3Icon,
+  ActivityIcon,
   LogOutIcon,
   SearchIcon,
   XIcon,
@@ -216,6 +217,12 @@ function AppSidebar() {
             <SidebarMenuButton onClick={() => router.push('/usage')}>
               <BarChart3Icon />
               <span>Usage</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => router.push('/activity')}>
+              <ActivityIcon />
+              <span>Activity</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

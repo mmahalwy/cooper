@@ -19,3 +19,4 @@ export type { ConnectionTool } from './connections';
 export { getPersonaAction, updatePersonaAction } from './persona';
 export { searchThreadsAction } from './threads';
 export { getUsageStatsAction } from './usage';
+export { getActivityAction } from './activity';
