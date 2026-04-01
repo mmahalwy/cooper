@@ -128,7 +128,6 @@ export async function createAgentStream(input: AgentInput) {
   // Merge user-connected tools with built-in tools
   const builtInTools: Record<string, any> = {
     load_skill: createLoadSkillTool(),
-    google_search: google.tools.googleSearch({}),
   };
 
   // Add memory and scheduler tools if supabase client is available

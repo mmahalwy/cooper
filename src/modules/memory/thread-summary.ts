@@ -46,7 +46,7 @@ export async function summarizeAndStoreThread(
 
     // Generate summary using a fast model
     const result = await generateText({
-      model: google('gemini-2.5-flash-preview-05-20'),
+      model: google('gemini-2.5-flash'),
       system:
         'You are a conversation summarizer. Create a concise 2-4 sentence summary of the following conversation. Focus on: what was discussed, what was decided, what actions were taken, and any key information shared. Be factual and specific.',
       prompt: conversationText,
