@@ -17,10 +17,13 @@ import {
   ReasoningContent,
 } from '@/components/ai-elements/reasoning';
 import {
-  Tool,
-  ToolHeader,
-  ToolContent,
-} from '@/components/ai-elements/tool';
+  ChainOfThought,
+  ChainOfThoughtHeader,
+  ChainOfThoughtStep,
+  ChainOfThoughtSearchResult,
+  ChainOfThoughtSearchResults,
+  ChainOfThoughtContent,
+} from '@/components/ai-elements/chain-of-thought';
 import {
   Sources,
   SourcesTrigger,
@@ -113,11 +116,24 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
                 </div>
               )}
               <MessageContent>
-                {message.parts.map((part, i) => {
+                {(() => {
+                  const hasToolParts = message.role === 'assistant' && message.parts.some(
+                    (p) => p.type.startsWith('tool-') || p.type === 'dynamic-tool'
+                  );
+                  // Find the last text part (the final response)
+                  const lastTextIdx = message.parts.reduce((acc, p, idx) => p.type === 'text' && p.text ? idx : acc, -1);
+
+                  return message.parts.map((part, i) => {
                   if (part.type === 'text') {
                     if (!part.text) return null;
                     if (message.role === 'user') {
                       return <p key={i} className="whitespace-pre-wrap">{part.text}</p>;
+                    }
+                    // If this message has tool parts and this is NOT the final text, render as a chain-of-thought step
+                    if (hasToolParts && i !== lastTextIdx) {
+                      return (
+                        <ChainOfThoughtStep key={i} label={part.text} status="complete" />
+                      );
                     }
                     return (
                       <MessageResponse
@@ -155,79 +171,34 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
                     );
                   }
 
-                  // Tool parts: type is 'tool-{name}' or 'dynamic-tool'
+                  // Tool parts rendered as chain-of-thought steps
                   if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
                     const toolPart = part as any;
                     const rawName = toolPart.type === 'dynamic-tool'
                       ? toolPart.toolName
                       : toolPart.type.replace('tool-', '');
                     const friendlyName = formatToolName(rawName);
-
-                    // Show confirmation component for approval-requested tools
-                    if (toolPart.state === 'approval-requested' && addToolApprovalResponse) {
-                      const actionDetails = extractActionDetails(toolPart.input);
-
-                      return (
-                        <Confirmation key={i} state={toolPart.state} approval={toolPart.approval}>
-                          <ConfirmationTitle>
-                            {actionDetails.description}
-                          </ConfirmationTitle>
-                          <ConfirmationRequest>
-                            {actionDetails.details.length > 0 && (
-                              <div className="mt-2 rounded bg-muted p-3 text-xs space-y-1">
-                                {actionDetails.details.map((d, j) => (
-                                  <div key={j} className="flex gap-2">
-                                    <span className="text-muted-foreground shrink-0">{d.label}:</span>
-                                    <span className="font-medium">{d.value}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            <ConfirmationActions>
-                              <ConfirmationAction
-                                variant="outline"
-                                onClick={() => addToolApprovalResponse({ id: toolPart.approval?.id || toolPart.toolCallId, approved: false })}
-                              >
-                                Deny
-                              </ConfirmationAction>
-                              <ConfirmationAction
-                                onClick={() => addToolApprovalResponse({ id: toolPart.approval?.id || toolPart.toolCallId, approved: true })}
-                              >
-                                Approve
-                              </ConfirmationAction>
-                            </ConfirmationActions>
-                          </ConfirmationRequest>
-                          <ConfirmationAccepted>
-                            <p className="text-sm text-muted-foreground">Approved — running...</p>
-                          </ConfirmationAccepted>
-                          <ConfirmationRejected>
-                            <p className="text-sm text-muted-foreground">Denied — action cancelled.</p>
-                          </ConfirmationRejected>
-                        </Confirmation>
-                      );
-                    }
+                    const isDone = toolPart.state === 'output-available' || toolPart.state === 'approval-responded';
+                    const isRunning = toolPart.state === 'input-streaming' || toolPart.state === 'input-available';
 
                     return (
-                      <Tool key={i} defaultOpen={false}>
-                        <ToolHeader
-                          type={toolPart.type}
-                          state={toolPart.state}
-                          title={friendlyName}
-                          {...(toolPart.type === 'dynamic-tool' ? { toolName: friendlyName } : {})}
-                        />
-                        {(toolPart.state === 'output-available' || toolPart.state === 'output-error') && (
-                          <ToolContent>
-                            <pre className="text-xs overflow-auto max-h-48">
-                              {JSON.stringify(toolPart.output ?? toolPart.errorText, null, 2)}
-                            </pre>
-                          </ToolContent>
+                      <ChainOfThoughtStep
+                        key={i}
+                        label={friendlyName}
+                        status={isDone ? 'complete' : isRunning ? 'active' : 'pending'}
+                      >
+                        {isDone && (
+                          <ChainOfThoughtSearchResults>
+                            <ChainOfThoughtSearchResult>Result</ChainOfThoughtSearchResult>
+                          </ChainOfThoughtSearchResults>
                         )}
-                      </Tool>
+                      </ChainOfThoughtStep>
                     );
                   }
 
                   return null;
-                })}
+                });
+                })()}
               </MessageContent>
               {message.role === 'user' && (
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
