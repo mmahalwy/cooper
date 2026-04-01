@@ -12,6 +12,7 @@ import { createUsageTools } from '@/modules/observability/tools';
 import { createSandboxTools } from '@/modules/sandbox/tools';
 import { createPlanningTools } from './planner';
 import { createWorkspaceTools } from '@/modules/workspace/tools';
+import { createCodeTools } from '@/modules/code/tools';
 import { getToolStatus, StatusTracker } from './status';
 import { classifyError } from './error-handler';
 import { getRelevantPatterns, CODE_PATTERNS } from './code-patterns';
@@ -90,7 +91,16 @@ You have a persistent workspace where you can save notes and files that persist 
 - Notes are org-wide and keyed by name — saving the same key replaces the content
 - Files can be thread-scoped (visible only in this conversation) or org-wide
 - Proactively check your workspace notes when context might help (e.g., "What's the project status?")
-- Don't ask permission to save workspace notes — just do it when it makes sense`;
+- Don't ask permission to save workspace notes — just do it when it makes sense
+
+## Code & Development
+You can investigate codebases and make code changes on GitHub. When the user references a repo or asks about code:
+- Use explore_repo and search_code to understand the codebase first
+- Use read_code to examine specific files
+- When making changes: clone_repo → edit files → run tests → create_pull_request
+- Always create a PR for code changes — never just describe changes without implementing them
+- Check workspace notes for cached repo indexes before exploring
+- For complex features, use plan_task first to outline your approach`;
 
 async function buildSystemPrompt(memoryContext?: MemoryContext, timezone?: string, userMessage?: string): Promise<string> {
   let prompt = SYSTEM_PROMPT;
@@ -180,6 +190,13 @@ export async function createAgentStream(input: AgentInput) {
   if (process.env.E2B_API_KEY) {
     const sandboxTools = createSandboxTools(input.orgId, input.threadId);
     Object.assign(builtInTools, sandboxTools);
+  }
+
+  // Register code tools when GitHub is connected and sandbox is available
+  const hasGitHub = input.connectedServices?.some(s => s.toLowerCase().includes('github'));
+  if (hasGitHub && input.supabase && process.env.E2B_API_KEY) {
+    const codeTools = createCodeTools(input.supabase, input.orgId, input.threadId);
+    Object.assign(builtInTools, codeTools);
   }
 
   const allTools = {
