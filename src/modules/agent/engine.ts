@@ -12,6 +12,7 @@ import { createUsageTools } from '@/modules/observability/tools';
 import { createSandboxTools } from '@/modules/sandbox/tools';
 import { createPlanningTools } from './planner';
 import { createWorkspaceTools } from '@/modules/workspace/tools';
+import { createTaskTools } from '@/modules/tasks/tools';
 import { getToolStatus, StatusTracker } from './status';
 import { classifyError } from './error-handler';
 
@@ -150,6 +151,8 @@ export async function createAgentStream(input: AgentInput) {
       const planningTools = createPlanningTools(input.supabase, input.orgId, input.threadId);
       Object.assign(builtInTools, planningTools);
     }
+    const taskTools = createTaskTools(input.supabase, input.orgId, input.userId, input.threadId);
+    Object.assign(builtInTools, taskTools);
   }
 
   // Register sandbox tools if E2B is configured
