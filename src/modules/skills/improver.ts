@@ -5,12 +5,19 @@
  *
  * This creates a continuous improvement loop: skills get more accurate
  * every time they're used, converging on the actual best workflow.
+ *
+ * Flow:
+ * 1. Skill matched → injected into context
+ * 2. Agent executes (may deviate from documented steps)
+ * 3. Post-response: compare actual vs documented
+ * 4. If better: update skill with new steps/description/trigger
  */
 
 import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
 import { z } from 'zod';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { embeddingProvider } from '@/modules/memory/embeddings';
 import type { Skill } from '@/lib/types';
 
 const improvementSchema = z.object({
@@ -36,6 +43,14 @@ const improvementSchema = z.object({
     .array(z.string())
     .optional()
     .describe('Updated tool list, if tools changed'),
+  updatedDescription: z
+    .string()
+    .optional()
+    .describe('Updated description, if the skill scope changed'),
+  updatedTrigger: z
+    .string()
+    .optional()
+    .describe('Updated trigger, if activation criteria changed'),
   updatedOutputFormat: z
     .string()
     .optional()
@@ -92,6 +107,7 @@ export async function evaluateSkillPerformance(
 
 ## Saved skill: "${skill.name}"
 Description: ${skill.description}
+Trigger: ${skill.trigger}
 Defined steps:
 ${definedSteps || '(no steps defined)'}
 Defined tools: ${definedTools || '(none)'}
@@ -107,6 +123,8 @@ Tools actually used: ${toolsUsed.join(', ')}
 - Tools were used in a clearly better order
 - The output format was significantly improved
 - A step was consistently skipped (remove it)
+- The description no longer reflects what the skill actually does
+- The trigger condition should be broader or more specific
 
 ## DO NOT update if:
 - The difference is cosmetic (wording changes, minor reordering)
@@ -133,8 +151,27 @@ Most executions should NOT trigger an update. Be conservative.`,
     if (result.object.updatedTools) {
       updates.tools = result.object.updatedTools;
     }
+    if (result.object.updatedDescription) {
+      updates.description = result.object.updatedDescription;
+    }
+    if (result.object.updatedTrigger) {
+      updates.trigger = result.object.updatedTrigger;
+    }
     if (result.object.updatedOutputFormat) {
       updates.output_format = result.object.updatedOutputFormat;
+    }
+
+    // Re-embed if description or trigger changed (affects future matching)
+    if (result.object.updatedDescription || result.object.updatedTrigger) {
+      try {
+        const newDesc = result.object.updatedDescription || skill.description;
+        const newTrigger = result.object.updatedTrigger || skill.trigger;
+        const embeddingText = `${skill.name}: ${newDesc}. Trigger: ${newTrigger}`;
+        updates.embedding = await embeddingProvider.embed(embeddingText);
+      } catch (embedError) {
+        console.error('[skill-improver] Failed to re-embed, skipping embedding update:', embedError);
+        // Continue with other updates — embedding can be refreshed later
+      }
     }
 
     const { error: updateError } = await supabase

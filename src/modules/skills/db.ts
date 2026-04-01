@@ -8,7 +8,7 @@ export async function getSkillsForOrg(
 ): Promise<Skill[]> {
   const { data, error } = await supabase
     .from('skills')
-    .select('id, org_id, name, description, trigger, steps, tools, output_format, created_by, version, enabled, created_at, updated_at')
+    .select('id, org_id, name, description, trigger, steps, tools, output_format, created_by, version, enabled, usage_count, last_used_at, created_at, updated_at')
     .eq('org_id', orgId)
     .order('created_at', { ascending: false });
 
@@ -42,7 +42,7 @@ export async function createSkill(
       ...skill,
       embedding,
     })
-    .select('id, org_id, name, description, trigger, steps, tools, output_format, created_by, version, enabled, created_at, updated_at')
+    .select('id, org_id, name, description, trigger, steps, tools, output_format, created_by, version, enabled, usage_count, last_used_at, created_at, updated_at')
     .single();
 
   if (error) {

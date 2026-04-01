@@ -10,6 +10,8 @@ export interface Skill {
   created_by: 'user' | 'cooper';
   version: number;
   enabled: boolean;
+  usage_count: number;
+  last_used_at: string | null;
   created_at: string;
   updated_at: string;
 }
