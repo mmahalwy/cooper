@@ -6,6 +6,7 @@ import { buildSkillsPrompt, createLoadSkillTool } from '@/modules/skills/system'
 import { createSaveKnowledgeTool } from '@/modules/memory/tools';
 import { createScheduleTools } from '@/modules/scheduler/tools';
 import { createSkillTools } from '@/modules/skills/tools';
+import { createOrchestrationTools } from '@/modules/orchestration/tools';
 
 const MODELS: Record<string, string> = {
   'gemini-flash': 'gemini-2.5-flash',
@@ -106,6 +107,8 @@ export async function createAgentStream(input: AgentInput) {
     Object.assign(builtInTools, scheduleTools);
     const skillTools = createSkillTools(input.supabase, input.orgId);
     Object.assign(builtInTools, skillTools);
+    const orchestrationTools = createOrchestrationTools(input.supabase, input.orgId);
+    Object.assign(builtInTools, orchestrationTools);
   }
   const allTools = {
     ...builtInTools,
