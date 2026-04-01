@@ -49,10 +49,7 @@ export async function executeScheduledTask(
       systemPrompt += `\n\n## Organization context:\n${memoryContext.knowledge.map((k) => `- ${k}`).join('\n')}`;
     }
 
-    const builtInTools = {
-      google_search: google.tools.googleSearch({}),
-    };
-    const allTools = { ...builtInTools, ...tools };
+    const allTools = { ...tools };
 
     const result = await generateText({
       model: google('gemini-2.5-flash'),
