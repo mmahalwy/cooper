@@ -111,6 +111,13 @@ A meeting on ${pacificDate} is TODAY's meeting — even if the raw data shows a 
     }
   }
 
+  if (memoryContext?.threadSummaries?.length) {
+    prompt += `\n\n## Relevant past conversations:\n`;
+    for (const thread of memoryContext.threadSummaries) {
+      prompt += `- ${thread.summary}\n`;
+    }
+  }
+
   return prompt;
 }
 

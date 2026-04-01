@@ -10,6 +10,10 @@ export interface MemoryContext {
     tools: string[];
     outputFormat?: string;
   }>;
+  threadSummaries: Array<{
+    threadId: string;
+    summary: string;
+  }>;
 }
 
 export async function retrieveContext(
@@ -20,12 +24,13 @@ export async function retrieveContext(
   const context: MemoryContext = {
     knowledge: [],
     matchedSkills: [],
+    threadSummaries: [],
   };
 
   try {
     const queryEmbedding = await embeddingProvider.embed(userMessage);
 
-    const [knowledgeResult, skillsResult] = await Promise.all([
+    const [knowledgeResult, skillsResult, threadResult] = await Promise.all([
       supabase.rpc('match_knowledge', {
         query_embedding: queryEmbedding,
         match_org_id: orgId,
@@ -37,6 +42,12 @@ export async function retrieveContext(
         match_org_id: orgId,
         match_count: 3,
         match_threshold: 0.55,
+      }),
+      supabase.rpc('match_thread_summaries', {
+        query_embedding: queryEmbedding,
+        match_org_id: orgId,
+        match_count: 3,
+        match_threshold: 0.60,
       }),
     ]);
 
@@ -51,6 +62,13 @@ export async function retrieveContext(
         steps: s.steps,
         tools: s.tools,
         outputFormat: s.output_format,
+      }));
+    }
+
+    if (threadResult.data) {
+      context.threadSummaries = threadResult.data.map((t: any) => ({
+        threadId: t.thread_id,
+        summary: t.summary,
       }));
     }
   } catch (error) {

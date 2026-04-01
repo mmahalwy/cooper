@@ -4,6 +4,7 @@ import { createAgentStream } from '@/modules/agent/engine';
 import { getToolsForOrg } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
 import { extractAndSaveMemories } from '@/modules/memory/extractor';
+import { summarizeAndStoreThread } from '@/modules/memory/thread-summary';
 
 export const maxDuration = 60;
 
@@ -105,7 +106,7 @@ export async function POST(req: Request) {
 
   const memoryContext = userText.trim()
     ? await retrieveContext(supabase, dbUser.org_id, userText)
-    : { knowledge: [], matchedSkills: [] };
+    : { knowledge: [], matchedSkills: [], threadSummaries: [] };
 
   const result = await createAgentStream({
     ...agentInput,
@@ -166,6 +167,13 @@ export async function POST(req: Request) {
       ).catch((err) => {
         console.error('[chat] Memory extraction failed:', err);
       });
+
+      // Background: summarize thread for cross-thread recall
+      summarizeAndStoreThread(sb, activeThreadId, dbUser.org_id).catch(
+        (err) => {
+          console.error('[chat] Thread summarization failed:', err);
+        }
+      );
     }
   }).catch((err) => {
     console.error('[chat] Failed to persist assistant response:', err);
