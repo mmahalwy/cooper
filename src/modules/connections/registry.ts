@@ -3,6 +3,8 @@ import { getConnectionsForOrg, updateConnectionStatus } from './db';
 import { getMcpTools } from './mcp/client';
 import type { McpServerConfig } from './mcp/types';
 import { getComposioTools } from './platform/composio';
+import { createActionTools } from './platform/action-resolver';
+import type { ResolvedAction } from './platform/action-resolver';
 import type { Connection } from '@/lib/types';
 import { withRetry } from '@/modules/agent/error-handler';
 
@@ -37,20 +39,48 @@ export async function getToolsForOrg(
         }
       }
 
+      // Create direct tool wrappers from pre-resolved actions
+      const composioExecuteTool = composioTools['COMPOSIO_MULTI_EXECUTE_TOOL'];
+      for (const conn of platformConnections) {
+        const resolvedActions = (conn.config as any)?.resolvedActions as ResolvedAction[] | undefined;
+        if (resolvedActions?.length && composioExecuteTool) {
+          const actionTools = createActionTools(resolvedActions, composioExecuteTool, toolPermissions);
+          Object.assign(allTools, actionTools);
+          console.log(`[registry] Created ${Object.keys(actionTools).length} direct tools for ${conn.name}`);
+        }
+      }
+
+      // Keep meta-tools as fallback for rare actions
       const READ_VERBS = /^(GET|LIST|SEARCH|FIND|FETCH|READ|RETRIEVE|QUERY|CHECK|SHOW|VIEW|DESCRIBE|COUNT|LOOKUP|DOWNLOAD)/i;
 
       for (const [name, tool] of Object.entries(composioTools)) {
         if (name === 'COMPOSIO_MULTI_EXECUTE_TOOL' && !options?.skipApproval) {
+          const disabledSlugs = new Set(
+            Object.entries(toolPermissions)
+              .filter(([_, perm]) => perm === 'disabled')
+              .map(([slug]) => slug)
+          );
+
+          const originalExecute = tool.execute;
           allTools[name] = {
             ...tool,
+            execute: async (input: any) => {
+              // Block disabled slugs before execution
+              const inputTools: any[] = input?.tools || [];
+              const blocked = inputTools.filter((t: any) => disabledSlugs.has(t?.tool_slug));
+              if (blocked.length > 0) {
+                return {
+                  error: `The following actions are disabled: ${blocked.map((t: any) => t.tool_slug).join(', ')}. They can be re-enabled in the connection settings.`,
+                };
+              }
+              return originalExecute?.(input);
+            },
             needsApproval: (input: any) => {
               const inputTools: any[] = input?.tools || [];
               for (const t of inputTools) {
                 const slug = t?.tool_slug || '';
-                // Check saved permission for this specific tool slug
                 const perm = toolPermissions[slug];
                 console.log(`[registry] Approval check: slug=${slug} perm=${perm || 'none'}`);
-                if (perm === 'disabled') return true;
                 if (perm === 'confirm') return true;
                 if (perm === 'auto') continue;
                 // No saved permission — fall back to verb-based detection

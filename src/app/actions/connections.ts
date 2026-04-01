@@ -106,6 +106,34 @@ export async function syncConnectionsAction() {
     clearComposioCache();
   }
 
+  // Resolve top actions for each connected app
+  const { fetchActionsForApp } = await import('@/modules/connections/platform/action-resolver');
+
+  for (const appName of activeApps) {
+    try {
+      const actions = await fetchActionsForApp(appName);
+      if (actions.length > 0) {
+        const { data: conn } = await supabase
+          .from('connections')
+          .select('id, config')
+          .eq('org_id', orgId)
+          .eq('provider', appName)
+          .single();
+
+        if (conn) {
+          const config = (conn.config || {}) as Record<string, any>;
+          await supabase
+            .from('connections')
+            .update({ config: { ...config, resolvedActions: actions } })
+            .eq('id', conn.id);
+          console.log(`[sync] Resolved ${actions.length} actions for ${appName}`);
+        }
+      }
+    } catch (err) {
+      console.error(`[sync] Failed to resolve actions for ${appName}:`, err);
+    }
+  }
+
   revalidatePath('/connections');
   return { success: true, synced };
 }

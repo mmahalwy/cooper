@@ -1,7 +1,9 @@
 'use client';
 
 import { useTheme } from './ThemeProvider';
-import { Button } from '@/components/ui/button';
+import {
+  SidebarMenuButton,
+} from '@/components/ui/sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,15 +17,15 @@ export function ThemeToggle() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
+      <DropdownMenuTrigger>
+        <SidebarMenuButton>
           {resolvedTheme === 'dark' ? (
-            <MoonIcon className="size-4" />
+            <MoonIcon />
           ) : (
-            <SunIcon className="size-4" />
+            <SunIcon />
           )}
           <span>Theme</span>
-        </Button>
+        </SidebarMenuButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuItem onClick={() => setTheme('light')}>
