@@ -1,5 +1,6 @@
 import { streamText, stepCountIs, convertToModelMessages } from 'ai';
-import { selectModel } from './model-router';
+import { selectModel, getModelInstance } from './model-router';
+
 import { manageContextWindow } from './context-manager';
 import type { AgentInput } from './types';
 import type { MemoryContext } from '@/modules/memory/retriever';
@@ -167,8 +168,8 @@ export async function createAgentStream(input: AgentInput) {
   const lastUserMsg = input.uiMessages.filter(m => m.role === 'user').pop();
   const userText = lastUserMsg?.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
 
-  const modelSelection = selectModel(userText, input.connectedServices || []);
-  console.log(`[agent] Model: ${modelSelection.modelId} (${modelSelection.tier})`);
+  const modelConfig = selectModel(userText, input.modelOverride);
+  console.log(`[agent] Selected model: ${modelConfig.displayName} (${modelConfig.id})`);
 
   let systemPrompt = await buildSystemPrompt(input.memoryContext, input.timezone, userText);
 
@@ -202,13 +203,13 @@ export async function createAgentStream(input: AgentInput) {
   const statusTracker = new StatusTracker();
 
   const result = streamText({
-    model: modelSelection.model,
+    model: getModelInstance(modelConfig),
     system: systemPrompt,
     messages: modelMessages,
     tools: allTools,
-    stopWhen: stepCountIs(25),
-    providerOptions: modelSelection.provider === 'google' ? {
-      google: { thinkingConfig: { thinkingBudget: 1024 } },
+    stopWhen: stepCountIs(modelConfig.maxSteps),
+    providerOptions: modelConfig.provider === 'google' && modelConfig.thinkingBudget ? {
+      google: { thinkingConfig: { thinkingBudget: modelConfig.thinkingBudget } },
     } : undefined,
     onError: ({ error }) => {
       const classified = classifyError(error);

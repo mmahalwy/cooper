@@ -83,9 +83,9 @@ async function runCase(evalCase: EvalCase): Promise<EvalResult> {
       steps,
       durationMs: Date.now() - startTime,
       tokenUsage: {
-        prompt: result.usage?.inputTokens || 0,
-        completion: result.usage?.outputTokens || 0,
-        total: (result.usage?.inputTokens || 0) + (result.usage?.outputTokens || 0),
+        prompt: result.usage?.promptTokens || 0,
+        completion: result.usage?.completionTokens || 0,
+        total: result.usage?.totalTokens || 0,
       },
       failures,
     };

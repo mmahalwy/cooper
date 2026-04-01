@@ -1,89 +1,75 @@
 import { google } from '@ai-sdk/google';
-import type { LanguageModel } from 'ai';
+import { anthropic } from '@ai-sdk/anthropic';
 
-export type ModelTier = 'simple' | 'medium' | 'complex';
-
-interface ModelSelection {
-  model: LanguageModel;
-  modelId: string;
-  provider: string;
-  tier: ModelTier;
+export interface ModelConfig {
+  id: string;
+  provider: 'google' | 'anthropic';
+  modelName: string;
+  displayName: string;
+  strengths: string[];
+  maxSteps: number;
+  thinkingBudget?: number;
 }
 
-const COMPLEX_KEYWORDS = /\b(plan|analyze|compare|report|across|investigate|audit|review|summarize.*from|combine.*data)\b/i;
-const SIMPLE_PATTERNS = /^(hi|hello|hey|thanks|ok|yes|no|what can you|are you connected)\b/i;
+export const AVAILABLE_MODELS: ModelConfig[] = [
+  {
+    id: 'gemini-flash',
+    provider: 'google',
+    modelName: 'gemini-2.5-flash-preview-05-20',
+    displayName: 'Gemini Flash',
+    strengths: ['speed', 'simple-questions', 'data-lookup', 'summarization'],
+    maxSteps: 25,
+    thinkingBudget: 1024,
+  },
+  {
+    id: 'gemini-pro',
+    provider: 'google',
+    modelName: 'gemini-2.5-pro-preview-05-06',
+    displayName: 'Gemini Pro',
+    strengths: ['complex-reasoning', 'analysis', 'planning', 'multi-step'],
+    maxSteps: 25,
+    thinkingBudget: 4096,
+  },
+  {
+    id: 'claude-sonnet',
+    provider: 'anthropic',
+    modelName: 'claude-sonnet-4-20250514',
+    displayName: 'Claude Sonnet',
+    strengths: ['code-generation', 'writing', 'detailed-analysis', 'instruction-following'],
+    maxSteps: 25,
+  },
+];
 
-export function selectModel(
-  message: string,
-  connectedServices: string[],
-  options?: { previousStepFailed?: boolean; forceProvider?: string }
-): ModelSelection {
-  // Lazy-load providers only when API keys are available
-  const getAnthropic = () => {
-    const { anthropic } = require('@ai-sdk/anthropic');
-    return anthropic;
-  };
-  const getOpenAI = () => {
-    const { openai } = require('@ai-sdk/openai');
-    return openai;
-  };
+const DEFAULT_MODEL_ID = 'gemini-flash';
 
-  // If a provider is forced
-  if (options?.forceProvider === 'anthropic' && process.env.ANTHROPIC_API_KEY) {
-    return { model: getAnthropic()('claude-sonnet-4-20250514'), modelId: 'claude-sonnet-4-20250514', provider: 'anthropic', tier: 'complex' };
+export function selectModel(userMessage: string, modelOverride?: string): ModelConfig {
+  if (modelOverride) {
+    const override = AVAILABLE_MODELS.find(m => m.id === modelOverride);
+    if (override) return override;
   }
-  if (options?.forceProvider === 'openai' && process.env.OPENAI_API_KEY) {
-    return { model: getOpenAI()('gpt-4o'), modelId: 'gpt-4o', provider: 'openai', tier: 'medium' };
+  const msg = userMessage.toLowerCase();
+  const codeSignals = ['write code', 'write a script', 'debug', 'fix this code', 'implement', 'refactor', 'pull request', 'function that', 'class that', 'regex', 'sql query', 'api endpoint'];
+  if (codeSignals.some(s => msg.includes(s))) {
+    const claude = AVAILABLE_MODELS.find(m => m.id === 'claude-sonnet');
+    if (claude && process.env.ANTHROPIC_API_KEY) return claude;
   }
-
-  // Escalate if previous step failed
-  if (options?.previousStepFailed) {
-    if (process.env.ANTHROPIC_API_KEY) {
-      return { model: getAnthropic()('claude-sonnet-4-20250514'), modelId: 'claude-sonnet-4-20250514', provider: 'anthropic', tier: 'complex' };
-    }
-    if (process.env.OPENAI_API_KEY) {
-      return { model: getOpenAI()('gpt-4o'), modelId: 'gpt-4o', provider: 'openai', tier: 'medium' };
-    }
+  const complexSignals = ['analyze', 'compare', 'strategy', 'plan', 'architecture', 'design', 'trade-off', 'tradeoff', 'pros and cons', 'deep dive', 'evaluate', 'review this', 'what should', 'complex'];
+  if (complexSignals.some(s => msg.includes(s))) {
+    return AVAILABLE_MODELS.find(m => m.id === 'gemini-pro')!;
   }
+  return AVAILABLE_MODELS.find(m => m.id === DEFAULT_MODEL_ID)!;
+}
 
-  // Simple: greetings, yes/no, basic Q&A
-  if (SIMPLE_PATTERNS.test(message.trim()) && message.length < 100) {
-    return { model: google('gemini-2.5-flash'), modelId: 'gemini-2.5-flash', provider: 'google', tier: 'simple' };
+export function getModelInstance(config: ModelConfig) {
+  switch (config.provider) {
+    case 'google': return google(config.modelName);
+    case 'anthropic': return anthropic(config.modelName);
+    default: return google(config.modelName);
   }
-
-  // Complex: multi-service keywords, long messages referencing multiple services
-  const mentionedServices = connectedServices.filter(s => message.toLowerCase().includes(s.toLowerCase()));
-  const isComplex = COMPLEX_KEYWORDS.test(message) || mentionedServices.length >= 2 || message.length > 500;
-
-  if (isComplex) {
-    if (process.env.ANTHROPIC_API_KEY) {
-      return { model: getAnthropic()('claude-sonnet-4-20250514'), modelId: 'claude-sonnet-4-20250514', provider: 'anthropic', tier: 'complex' };
-    }
-    if (process.env.OPENAI_API_KEY) {
-      return { model: getOpenAI()('gpt-4o'), modelId: 'gpt-4o', provider: 'openai', tier: 'complex' };
-    }
-  }
-
-  // Medium: anything that involves tool use with connected services
-  if (mentionedServices.length >= 1) {
-    if (process.env.OPENAI_API_KEY) {
-      return { model: getOpenAI()('gpt-4o'), modelId: 'gpt-4o', provider: 'openai', tier: 'medium' };
-    }
-  }
-
-  // Default: Gemini Flash
-  return { model: google('gemini-2.5-flash'), modelId: 'gemini-2.5-flash', provider: 'google', tier: 'simple' };
 }
 
 /** For scheduler executor — always use medium tier */
-export function selectSchedulerModel(): ModelSelection {
-  if (process.env.OPENAI_API_KEY) {
-    const { openai } = require('@ai-sdk/openai');
-    return { model: openai('gpt-4o'), modelId: 'gpt-4o', provider: 'openai', tier: 'medium' };
-  }
-  if (process.env.ANTHROPIC_API_KEY) {
-    const { anthropic } = require('@ai-sdk/anthropic');
-    return { model: anthropic('claude-sonnet-4-20250514'), modelId: 'claude-sonnet-4-20250514', provider: 'anthropic', tier: 'medium' };
-  }
-  return { model: google('gemini-2.5-flash'), modelId: 'gemini-2.5-flash', provider: 'google', tier: 'simple' };
+export function selectSchedulerModel() {
+  const model = AVAILABLE_MODELS.find(m => m.id === 'gemini-pro') || AVAILABLE_MODELS.find(m => m.id === DEFAULT_MODEL_ID)!;
+  return { model: getModelInstance(model), modelId: model.modelName, provider: model.provider, tier: 'medium' as const };
 }

@@ -42,7 +42,6 @@ import {
   ConfirmationAction,
 } from '@/components/ai-elements/confirmation';
 import { CopyMessageButton } from './CopyMessageButton';
-import { PlanView as DBPlanView } from './PlanView';
 
 function formatToolName(raw: string): string {
   // Map internal tool names to friendly labels
@@ -353,9 +352,6 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
           >
             {isPlanTask && isDone && (
               <PlanView input={toolPart.input} output={toolPart.output} stepUpdates={stepUpdates} />
-            )}
-            {isPlanTask && isDone && toolPart.output?.planId && (
-              <DBPlanView planId={toolPart.output.planId} />
             )}
             {!isPlanTask && !isUpdateStep && isDone && toolPart.output != null && (
               <ToolResultView output={toolPart.output} />
