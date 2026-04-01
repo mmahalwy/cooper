@@ -28,6 +28,7 @@ import {
   CalendarClockIcon,
   BarChart3Icon,
   ActivityIcon,
+  KeyIcon,
   LogOutIcon,
   SearchIcon,
   XIcon,
@@ -230,6 +231,12 @@ function AppSidebar() {
             <SidebarMenuButton onClick={() => router.push('/settings')}>
               <SettingsIcon />
               <span>Settings</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => router.push('/settings/api-keys')}>
+              <KeyIcon />
+              <span>API Keys</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
