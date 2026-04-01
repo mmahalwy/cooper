@@ -27,7 +27,11 @@ import {
   ZapIcon,
   CalendarClockIcon,
   LogOutIcon,
+  SearchIcon,
+  XIcon,
 } from 'lucide-react';
+import { searchThreadsAction } from '@/app/actions';
+import { Input } from '@/components/ui/input';
 import { useRouter, useParams } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { useEffect, useState } from 'react';
@@ -38,6 +42,9 @@ function AppSidebar() {
   const router = useRouter();
   const params = useParams();
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; title: string; snippet?: string }> | null>(null);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -67,6 +74,22 @@ function AppSidebar() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults(null);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      setSearching(true);
+      const results = await searchThreadsAction(searchQuery);
+      setSearchResults(results);
+      setSearching(false);
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -92,22 +115,69 @@ function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Conversations</SidebarGroupLabel>
           <SidebarGroupContent>
-            <ScrollArea className="max-h-[calc(100vh-320px)]">
-              <SidebarMenu>
-                {threads.length === 0 && (
-                  <p className="px-2 py-1 text-xs text-muted-foreground">No conversations yet</p>
+            <div className="px-2 pb-2">
+              <div className="relative">
+                <SearchIcon className="absolute left-2 top-2 size-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search chats..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-7 pl-7 pr-7 text-xs"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <XIcon className="size-3.5" />
+                  </button>
                 )}
-                {threads.map((thread) => (
-                  <SidebarMenuItem key={thread.id}>
-                    <SidebarMenuButton
-                      isActive={params?.threadId === thread.id}
-                      onClick={() => router.push(`/chat/${thread.id}`)}
-                    >
-                      <MessageSquareIcon />
-                      <span className="truncate">{thread.title || 'Untitled'}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+              </div>
+            </div>
+            <ScrollArea className="max-h-[calc(100vh-380px)]">
+              <SidebarMenu>
+                {searchResults !== null ? (
+                  // Search results
+                  <>
+                    {searchResults.length === 0 && (
+                      <p className="px-2 py-1 text-xs text-muted-foreground">No results</p>
+                    )}
+                    {searchResults.map((result) => (
+                      <SidebarMenuItem key={result.id}>
+                        <SidebarMenuButton
+                          isActive={params?.threadId === result.id}
+                          onClick={() => { router.push(`/chat/${result.id}`); setSearchQuery(''); }}
+                        >
+                          <MessageSquareIcon />
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">{result.title}</span>
+                            {result.snippet && (
+                              <span className="truncate text-[10px] text-muted-foreground">{result.snippet}</span>
+                            )}
+                          </div>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </>
+                ) : (
+                  // Normal thread list
+                  <>
+                    {threads.length === 0 && (
+                      <p className="px-2 py-1 text-xs text-muted-foreground">No conversations yet</p>
+                    )}
+                    {threads.map((thread) => (
+                      <SidebarMenuItem key={thread.id}>
+                        <SidebarMenuButton
+                          isActive={params?.threadId === thread.id}
+                          onClick={() => router.push(`/chat/${thread.id}`)}
+                        >
+                          <MessageSquareIcon />
+                          <span className="truncate">{thread.title || 'Untitled'}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </>
+                )}
               </SidebarMenu>
             </ScrollArea>
           </SidebarGroupContent>
