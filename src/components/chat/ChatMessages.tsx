@@ -29,7 +29,7 @@ import {
   Source,
 } from '@/components/ai-elements/sources';
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { BotIcon, UserIcon, ChevronRightIcon, ClockIcon, CheckCircle2Icon, XCircleIcon, CircleDotIcon, CircleDashedIcon, TargetIcon } from 'lucide-react';
+import { BotIcon, UserIcon, ChevronRightIcon, ClockIcon, CheckCircle2Icon, XCircleIcon, CircleDotIcon, CircleDashedIcon, TargetIcon, HammerIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StreamingStatus } from './StreamingStatus';
 import {
@@ -43,6 +43,7 @@ import {
 } from '@/components/ai-elements/confirmation';
 import { CopyMessageButton } from './CopyMessageButton';
 import { PlanView as DBPlanView } from './PlanView';
+import { DeepWorkProgress } from './DeepWorkProgress';
 
 function formatToolName(raw: string): string {
   // Map internal tool names to friendly labels
@@ -60,6 +61,9 @@ function formatToolName(raw: string): string {
     'delete_schedule': 'Deleting schedule',
     'plan_task': 'Planning approach',
     'update_plan_step': 'Updating progress',
+    'start_deep_work': 'Starting deep work',
+    'report_deep_work_progress': 'Reporting progress',
+    'get_deep_work_status': 'Checking progress',
   };
   if (map[raw]) return map[raw];
   // Clean up tool names: METABASE_POST_API_DATASET → "Metabase: Post API Dataset"
@@ -198,6 +202,31 @@ const planStepStatusIcon: Record<string, React.ReactNode> = {
   skipped: <CircleDashedIcon className="size-3.5 text-muted-foreground line-through" />,
 };
 
+function DeepWorkInlineProgress({ output }: { output: any }) {
+  if (!output?.started) return null;
+
+  return (
+    <div className="mt-2 rounded-lg border bg-card p-3 space-y-2">
+      <div className="flex items-start gap-2">
+        <HammerIcon className="size-4 mt-0.5 text-primary shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">{output.goal}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{output.approach}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <ClockIcon className="size-3" />
+              ~{output.estimatedMinutes} min
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {output.stepCount} steps
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlanView({ input, output, stepUpdates }: { input: any; output: any; stepUpdates: Map<string, { status: string; note?: string }> }) {
   if (!input?.goal || !input?.steps) return null;
 
@@ -333,6 +362,9 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
 
         const isPlanTask = raw === 'plan_task';
         const isUpdateStep = raw === 'update_plan_step';
+        const isDeepWork = raw === 'start_deep_work';
+        const isDeepWorkReport = raw === 'report_deep_work_progress';
+        const isDeepWorkStatus = raw === 'get_deep_work_status';
 
         // Build label with timing info when available
         const duration = toolTimings.get(i);
@@ -357,7 +389,10 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
             {isPlanTask && isDone && toolPart.output?.planId && (
               <DBPlanView planId={toolPart.output.planId} />
             )}
-            {!isPlanTask && !isUpdateStep && isDone && toolPart.output != null && (
+            {isDeepWork && isDone && toolPart.output?.started && (
+              <DeepWorkInlineProgress output={toolPart.output} />
+            )}
+            {!isPlanTask && !isUpdateStep && !isDeepWork && !isDeepWorkReport && !isDeepWorkStatus && isDone && toolPart.output != null && (
               <ToolResultView output={toolPart.output} />
             )}
             {needsApproval && (
