@@ -22,3 +22,4 @@ export { getUsageStatsAction } from './usage';
 export { getActivityAction } from './activity';
 export { getSettingsAction, updateProfileAction, updateOrgAction } from './settings';
 export { approvePlanAction, cancelPlanAction, getPlanAction } from './plans';
+export { checkOnboardingAction, completeOnboardingAction } from './onboarding';
