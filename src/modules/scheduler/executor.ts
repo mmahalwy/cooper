@@ -6,6 +6,7 @@ import { retrieveContext } from '@/modules/memory/retriever';
 import { updateTaskAfterRun, createExecutionLog, updateScheduledTaskStatus, clearTaskLock, recordTaskFailure, resetTaskFailures } from './db';
 import { getNextRunTime } from './matcher';
 import type { ScheduledTask } from '@/lib/types';
+import { trackUsage } from '@/modules/observability/usage';
 
 const TASK_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
 
@@ -101,6 +102,19 @@ export async function executeScheduledTask(
         })
         .eq('id', log.id);
     }
+
+    // Track usage
+    trackUsage(supabase, {
+      orgId: task.org_id,
+      userId: task.user_id,
+      threadId: thread?.id,
+      modelId: 'gemini-2.5-flash',
+      modelProvider: 'google',
+      promptTokens: result.usage?.promptTokens || 0,
+      completionTokens: result.usage?.completionTokens || 0,
+      latencyMs: durationMs,
+      source: 'scheduler',
+    }).catch(err => console.error('[scheduler] Usage tracking failed:', err));
 
     await resetTaskFailures(supabase, task.id);
   } catch (error) {
