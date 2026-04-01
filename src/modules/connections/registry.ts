@@ -44,9 +44,10 @@ export async function getToolsForOrg(
                 const slug = t?.tool_slug || '';
                 // Check saved permission for this specific tool slug
                 const perm = toolPermissions[slug];
-                if (perm === 'disabled') return true; // block it
+                console.log(`[registry] Approval check: slug=${slug} perm=${perm || 'none'}`);
+                if (perm === 'disabled') return true;
                 if (perm === 'confirm') return true;
-                if (perm === 'auto') continue; // no approval needed
+                if (perm === 'auto') continue;
                 // No saved permission — fall back to verb-based detection
                 const action = slug.split('_').slice(1).join('_');
                 if (action && !READ_VERBS.test(action)) return true;

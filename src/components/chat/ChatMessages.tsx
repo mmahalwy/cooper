@@ -173,6 +173,7 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
         const friendly = formatToolName(raw);
         const isDone = toolPart.state === 'output-available' || toolPart.state === 'approval-responded';
         const isRunning = toolPart.state === 'input-streaming' || toolPart.state === 'input-available';
+        const needsApproval = toolPart.approval && (toolPart.state === 'approval-requested' || toolPart.state === 'approval-responded' || toolPart.state === 'output-denied');
 
         steps.push(
           <ChainOfThoughtStep
@@ -182,6 +183,41 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
           >
             {isDone && toolPart.output != null && (
               <ToolResultView output={toolPart.output} />
+            )}
+            {needsApproval && (
+              <Confirmation approval={toolPart.approval} state={toolPart.state} className="mt-2">
+                <ConfirmationTitle>{extractActionDetails(toolPart.input).description}</ConfirmationTitle>
+                <ConfirmationRequest>
+                  {extractActionDetails(toolPart.input).details.length > 0 && (
+                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                      {extractActionDetails(toolPart.input).details.map((d, j) => (
+                        <div key={j}><span className="font-medium capitalize">{d.label}:</span> {d.value}</div>
+                      ))}
+                    </div>
+                  )}
+                </ConfirmationRequest>
+                <ConfirmationAccepted>
+                  <p className="text-xs text-green-600">Approved</p>
+                </ConfirmationAccepted>
+                <ConfirmationRejected>
+                  <p className="text-xs text-red-600">Denied</p>
+                </ConfirmationRejected>
+                {addToolApprovalResponse && (
+                  <ConfirmationActions>
+                    <ConfirmationAction
+                      variant="outline"
+                      onClick={() => addToolApprovalResponse({ id: toolPart.approval.id, approved: false })}
+                    >
+                      Deny
+                    </ConfirmationAction>
+                    <ConfirmationAction
+                      onClick={() => addToolApprovalResponse({ id: toolPart.approval.id, approved: true })}
+                    >
+                      Approve
+                    </ConfirmationAction>
+                  </ConfirmationActions>
+                )}
+              </Confirmation>
             )}
           </ChainOfThoughtStep>
         );
@@ -197,51 +233,6 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
       </ChainOfThought>
     );
 
-    // Render confirmation UI for tools awaiting approval
-    parts.forEach((part, i) => {
-      if (!part.type?.startsWith('tool-') && part.type !== 'dynamic-tool') return;
-      const toolPart = part as any;
-      if (toolPart.state !== 'approval-requested' && toolPart.state !== 'approval-responded' && toolPart.state !== 'output-denied' && toolPart.state !== 'output-available') return;
-      if (!toolPart.approval) return;
-
-      const { description, details } = extractActionDetails(toolPart.input);
-
-      elements.push(
-        <Confirmation key={`confirm-${i}`} approval={toolPart.approval} state={toolPart.state}>
-          <ConfirmationTitle>{description}</ConfirmationTitle>
-          <ConfirmationRequest>
-            {details.length > 0 && (
-              <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                {details.map((d, j) => (
-                  <div key={j}><span className="font-medium capitalize">{d.label}:</span> {d.value}</div>
-                ))}
-              </div>
-            )}
-          </ConfirmationRequest>
-          <ConfirmationAccepted>
-            <p className="text-xs text-green-600">Approved</p>
-          </ConfirmationAccepted>
-          <ConfirmationRejected>
-            <p className="text-xs text-red-600">Denied</p>
-          </ConfirmationRejected>
-          {addToolApprovalResponse && (
-            <ConfirmationActions>
-              <ConfirmationAction
-                variant="outline"
-                onClick={() => addToolApprovalResponse({ id: toolPart.approval.id, approved: false })}
-              >
-                Deny
-              </ConfirmationAction>
-              <ConfirmationAction
-                onClick={() => addToolApprovalResponse({ id: toolPart.approval.id, approved: true })}
-              >
-                Approve
-              </ConfirmationAction>
-            </ConfirmationActions>
-          )}
-        </Confirmation>
-      );
-    });
   }
 
   // Render parts that aren't tool-related
