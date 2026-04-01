@@ -12,38 +12,45 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select';
 import { ArrowLeftIcon, UnplugIcon, SearchIcon } from 'lucide-react';
+import { saveToolPermissionAction } from '@/app/actions';
 import type { ConnectionTool } from '@/app/actions';
 
 type ToolPermission = 'auto' | 'confirm' | 'disabled';
 
 interface ConnectionDetailProps {
   appName: string;
+  connectionId: string | null;
   displayName: string;
   description: string;
   tools: ConnectionTool[];
+  savedPermissions: Record<string, ToolPermission>;
 }
 
-export function ConnectionDetail({ appName, displayName, description, tools }: ConnectionDetailProps) {
+function isReadTool(name: string) {
+  return /GET|LIST|SEARCH|QUERY|RETRIEVE|FETCH/.test(name);
+}
+
+export function ConnectionDetail({ appName, connectionId, displayName, description, tools, savedPermissions }: ConnectionDetailProps) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [enabled, setEnabled] = useState(true);
 
-  // Initialize permissions: reads = auto, writes = confirm
+  // Initialize from saved permissions, falling back to defaults
   const [permissions, setPermissions] = useState<Record<string, ToolPermission>>(() => {
     const initial: Record<string, ToolPermission> = {};
     for (const tool of tools) {
-      const isRead = tool.name.includes('GET') || tool.name.includes('LIST') || tool.name.includes('SEARCH') || tool.name.includes('QUERY') || tool.name.includes('RETRIEVE') || tool.name.includes('FETCH');
-      initial[tool.name] = isRead ? 'auto' : 'confirm';
+      initial[tool.name] = savedPermissions[tool.name] ?? (isReadTool(tool.name) ? 'auto' : 'confirm');
     }
     return initial;
   });
 
   const setPermission = (toolName: string, permission: ToolPermission) => {
     setPermissions((prev) => ({ ...prev, [toolName]: permission }));
-    // TODO: persist to Supabase
+    if (connectionId) {
+      saveToolPermissionAction(connectionId, toolName, permission);
+    }
   };
 
   // Deduplicate tools by name
@@ -55,10 +62,8 @@ export function ConnectionDetail({ appName, displayName, description, tools }: C
     t.description.toLowerCase().includes(search.toLowerCase())
   );
 
-  const readTools = filtered.filter((t) =>
-    t.name.includes('GET') || t.name.includes('LIST') || t.name.includes('SEARCH') || t.name.includes('QUERY') || t.name.includes('RETRIEVE') || t.name.includes('FETCH')
-  );
-  const writeTools = filtered.filter((t) => !readTools.includes(t));
+  const readTools = filtered.filter((t) => isReadTool(t.name));
+  const writeTools = filtered.filter((t) => !isReadTool(t.name));
 
   return (
     <div className="mx-auto max-w-3xl p-6">

@@ -17,14 +17,21 @@ export async function getToolsForOrg(
   const allTools: Record<string, any> = {};
 
   // Load Composio tools once (uses 'default' entity)
-  const hasPlatformConnections = connections.some(c => c.type === 'platform');
-  if (hasPlatformConnections) {
+  const platformConnections = connections.filter(c => c.type === 'platform');
+  if (platformConnections.length > 0) {
     try {
       const composioTools = await getComposioTools('default');
       console.log(`[registry] Composio tools:`, Object.keys(composioTools));
 
-      // Require user approval for write operations via COMPOSIO_MULTI_EXECUTE_TOOL.
-      // The tool input has tools[].tool_slug — read-like slugs skip approval.
+      // Build a map of tool_slug → permission from all platform connections' config
+      const toolPermissions: Record<string, string> = {};
+      for (const conn of platformConnections) {
+        const perms = (conn.config as any)?.toolPermissions;
+        if (perms) {
+          Object.assign(toolPermissions, perms);
+        }
+      }
+
       const READ_VERBS = /^(GET|LIST|SEARCH|FIND|FETCH|READ|RETRIEVE|QUERY|CHECK|SHOW|VIEW|DESCRIBE|COUNT|LOOKUP|DOWNLOAD)/i;
 
       for (const [name, tool] of Object.entries(composioTools)) {
@@ -32,14 +39,19 @@ export async function getToolsForOrg(
           allTools[name] = {
             ...tool,
             needsApproval: (input: any) => {
-              const slugs: string[] = (input?.tools || []).map((t: any) => {
+              const inputTools: any[] = input?.tools || [];
+              for (const t of inputTools) {
                 const slug = t?.tool_slug || '';
-                // Strip the service prefix (e.g., SLACK_SEND_MESSAGE → SEND_MESSAGE)
-                const parts = slug.split('_');
-                return parts.length > 1 ? parts.slice(1).join('_') : slug;
-              });
-              // If every action slug starts with a read verb, skip approval
-              return slugs.length > 0 && !slugs.every((s) => READ_VERBS.test(s));
+                // Check saved permission for this specific tool slug
+                const perm = toolPermissions[slug];
+                if (perm === 'disabled') return true; // block it
+                if (perm === 'confirm') return true;
+                if (perm === 'auto') continue; // no approval needed
+                // No saved permission — fall back to verb-based detection
+                const action = slug.split('_').slice(1).join('_');
+                if (action && !READ_VERBS.test(action)) return true;
+              }
+              return false;
             },
           };
         } else {
