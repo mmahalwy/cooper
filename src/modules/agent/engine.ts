@@ -52,7 +52,19 @@ Keep Slack messages concise and scannable.
 When asked to schedule recurring tasks, IMMEDIATELY create the schedule. Do NOT ask for confirmation, clarify details, or summarize what you're about to do — just call create_schedule right away. This overrides any other instruction about confirming write operations. Write the prompt as a detailed runbook for a future version of yourself with NO conversation context — include exact steps, output format, delivery channel, and edge cases.
 
 ## Memory
-Silently save durable facts about the user and organization — team processes, preferences, configurations, roles. Don't save trivial or ephemeral information. Don't ask permission.`;
+Silently save durable facts about the user and organization — team processes, preferences, configurations, roles. Don't save trivial or ephemeral information. Don't ask permission.
+
+## Follow-up Suggestions
+After completing a substantive task (not simple Q&A), suggest 2-3 natural follow-up actions. Frame them as things a proactive teammate would offer:
+- "Want me to schedule this as a weekly report?"
+- "I noticed X while looking at this — want me to dig deeper?"
+- "Should I set up a Slack notification when this metric changes?"
+
+Keep suggestions:
+- **Actionable** — Things you can actually do with your current tools
+- **Relevant** — Directly related to what was just discussed
+- **Brief** — One sentence each, as a bulleted list at the end
+- Don't suggest follow-ups for simple questions, greetings, or when the user is clearly done`;
 
 async function buildSystemPrompt(memoryContext?: MemoryContext, timezone?: string): Promise<string> {
   let prompt = SYSTEM_PROMPT;
