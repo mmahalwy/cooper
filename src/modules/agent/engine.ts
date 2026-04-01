@@ -123,9 +123,7 @@ export async function createAgentStream(input: AgentInput) {
   // Merge user-connected tools with built-in tools
   const builtInTools: Record<string, any> = {};
 
-  // Planning tools — always available
-  const planningTools = createPlanningTools();
-  Object.assign(builtInTools, planningTools);
+  // Planning tools need supabase + context — only register when available
 
   // Add memory and scheduler tools if supabase client is available
   if (input.supabase) {
@@ -140,6 +138,10 @@ export async function createAgentStream(input: AgentInput) {
     Object.assign(builtInTools, usageTools);
     const workspaceTools = createWorkspaceTools(input.supabase, input.orgId, input.threadId);
     Object.assign(builtInTools, workspaceTools);
+    if (input.threadId) {
+      const planningTools = createPlanningTools(input.supabase, input.orgId, input.threadId);
+      Object.assign(builtInTools, planningTools);
+    }
   }
 
   // Register sandbox tools if E2B is configured
