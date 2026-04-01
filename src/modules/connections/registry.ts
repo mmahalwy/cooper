@@ -3,6 +3,8 @@ import { getConnectionsForOrg, updateConnectionStatus } from './db';
 import { getMcpTools } from './mcp/client';
 import type { McpServerConfig } from './mcp/types';
 import { getComposioTools } from './platform/composio';
+import { createActionTools } from './platform/action-resolver';
+import type { ResolvedAction } from './platform/action-resolver';
 import type { Connection } from '@/lib/types';
 import { withRetry } from '@/modules/agent/error-handler';
 
@@ -37,6 +39,18 @@ export async function getToolsForOrg(
         }
       }
 
+      // Create direct tool wrappers from pre-resolved actions
+      const composioExecuteTool = composioTools['COMPOSIO_MULTI_EXECUTE_TOOL'];
+      for (const conn of platformConnections) {
+        const resolvedActions = (conn.config as any)?.resolvedActions as ResolvedAction[] | undefined;
+        if (resolvedActions?.length && composioExecuteTool) {
+          const actionTools = createActionTools(resolvedActions, composioExecuteTool, toolPermissions);
+          Object.assign(allTools, actionTools);
+          console.log(`[registry] Created ${Object.keys(actionTools).length} direct tools for ${conn.name}`);
+        }
+      }
+
+      // Keep meta-tools as fallback for rare actions
       const READ_VERBS = /^(GET|LIST|SEARCH|FIND|FETCH|READ|RETRIEVE|QUERY|CHECK|SHOW|VIEW|DESCRIBE|COUNT|LOOKUP|DOWNLOAD)/i;
 
       for (const [name, tool] of Object.entries(composioTools)) {
