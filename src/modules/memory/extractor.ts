@@ -61,13 +61,17 @@ Assistant: ${assistantResponse}
 
     if (result.object.facts.length === 0) return;
 
-    // Save each extracted fact
-    for (const fact of result.object.facts) {
-      await addKnowledge(supabase, orgId, fact.content, 'conversation');
-    }
+    console.log(
+      `[memory] Extracted ${result.object.facts.length} candidate facts, dedup will run on save`
+    );
 
-    if (result.object.facts.length > 0) {
-      console.log(`[memory] Extracted ${result.object.facts.length} facts: ${result.object.facts.map((f) => f.content).join('; ')}`);
+    // Save each extracted fact — addKnowledge handles deduplication via
+    // semantic similarity so duplicates are skipped or merged automatically
+    for (const fact of result.object.facts) {
+      const saved = await addKnowledge(supabase, orgId, fact.content, 'conversation');
+      if (saved) {
+        console.log(`[memory] Saved fact: "${fact.content.slice(0, 60)}..."`);
+      }
     }
   } catch (error) {
     // Non-critical — don't break the chat flow
