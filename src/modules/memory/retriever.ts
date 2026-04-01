@@ -4,8 +4,10 @@ import { embeddingProvider } from './embeddings';
 export interface MemoryContext {
   knowledge: string[];
   matchedSkills: Array<{
+    id: string;
     name: string;
     description: string;
+    trigger: string;
     steps: unknown[];
     tools: string[];
     outputFormat?: string;
@@ -57,8 +59,10 @@ export async function retrieveContext(
 
     if (skillsResult.data) {
       context.matchedSkills = skillsResult.data.map((s: any) => ({
+        id: s.id,
         name: s.name,
         description: s.description,
+        trigger: s.trigger,
         steps: s.steps,
         tools: s.tools,
         outputFormat: s.output_format,

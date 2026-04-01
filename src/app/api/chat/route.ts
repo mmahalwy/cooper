@@ -11,6 +11,7 @@ import { generateSuggestions } from '@/modules/agent/suggestions';
 import { generateThreadTitle } from '@/modules/agent/title-generator';
 import { evaluateAndLearnSkill } from '@/modules/skills/learner';
 import { evaluateSkillPerformance } from '@/modules/skills/improver';
+import { trackMatchedSkills } from '@/modules/skills/tracker';
 import { logActivity } from '@/modules/observability/activity';
 
 export const maxDuration = 60;
@@ -164,6 +165,12 @@ export async function POST(req: Request) {
         .from('threads')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', activeThreadId);
+
+      // Track skill usage (non-blocking)
+      if (memoryContext.matchedSkills.length > 0) {
+        trackMatchedSkills(sb, memoryContext.matchedSkills)
+          .catch(err => console.error('[chat] Skill usage tracking failed:', err));
+      }
 
       // Track token usage and costs
       try {
