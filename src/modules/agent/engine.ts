@@ -6,13 +6,7 @@ import type { MemoryContext } from '@/modules/memory/retriever';
 import { buildSkillsPrompt, createLoadSkillTool } from '@/modules/skills/system';
 import { createSaveKnowledgeTool } from '@/modules/memory/tools';
 import { createScheduleTools } from '@/modules/scheduler/tools';
-
-const MODELS: Record<string, string> = {
-  'gemini-flash': 'gemini-2.5-flash',
-  'gemini-pro': 'gemini-2.5-pro',
-};
-
-const DEFAULT_MODEL = 'gemini-flash';
+import { selectModel, getModelInstance } from './model-router';
 
 const SYSTEM_PROMPT = `You are Cooper, an AI teammate. You are helpful, concise, and action-oriented.
 You help users with their work by connecting to their tools and completing tasks.
@@ -164,8 +158,11 @@ function toModelMessages(messages: AgentMessage[]): ModelMessage[] {
 }
 
 export async function createAgentStream(input: AgentInput) {
-  const modelId = input.modelOverride || DEFAULT_MODEL;
-  const modelName = MODELS[modelId] || MODELS[DEFAULT_MODEL];
+  // Select model based on user message content (or override)
+  const lastMsg = input.messages[input.messages.length - 1];
+  const userText = lastMsg?.role === 'user' ? lastMsg.content : '';
+  const modelConfig = selectModel(userText, input.modelOverride);
+  console.log(`[agent] Selected model: ${modelConfig.displayName} (${modelConfig.id})`);
 
   // Merge user-connected tools with built-in tools
   const builtInTools: Record<string, any> = {
@@ -190,17 +187,19 @@ export async function createAgentStream(input: AgentInput) {
     systemPrompt += `\n\n## Connected Integrations\nYou are currently connected to: ${input.connectedServices.join(', ')}. You can use these services to get data and take actions. When the user asks what you're connected to, list these service names. Do NOT mention "Composio" — that is an internal system, not a user-facing service.`;
   }
 
+  // Build provider-specific options (thinking config only applies to Google models)
+  const providerOpts: Record<string, any> = {};
+  if (modelConfig.provider === 'google' && modelConfig.thinkingBudget) {
+    providerOpts.google = { thinkingConfig: { thinkingBudget: modelConfig.thinkingBudget } };
+  }
+
   const result = streamText({
-    model: google(modelName),
+    model: getModelInstance(modelConfig),
     system: systemPrompt,
     messages: toModelMessages(windowMessages(input.messages)),
     tools: allTools,
-    stopWhen: stepCountIs(25),
-    providerOptions: {
-      google: {
-        thinkingConfig: { thinkingBudget: 1024 },
-      },
-    },
+    stopWhen: stepCountIs(modelConfig.maxSteps),
+    providerOptions: providerOpts,
     onError: ({ error }) => {
       console.error('[agent] Stream error:', error);
     },

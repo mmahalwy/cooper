@@ -1,6 +1,8 @@
 import type { MemoryContext } from '@/modules/memory/retriever';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+export type { ModelConfig } from './model-router';
+
 export interface AgentInput {
   threadId: string;
   orgId: string;
