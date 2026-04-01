@@ -80,6 +80,7 @@ export interface ScheduledTask {
   channel_config: { channel: 'web' | 'slack'; destination?: string };
   status: 'active' | 'paused';
   failure_reason: string | null;
+  rolling_summary: string | null;
   last_run_at: string | null;
   next_run_at: string | null;
   ends_at: string | null;
