@@ -231,19 +231,20 @@ export async function clearTaskLock(
 export async function recordTaskFailure(
   supabase: SupabaseClient,
   taskId: string,
+  errorMessage?: string,
   maxConsecutiveFailures: number = 3
 ): Promise<boolean> {
   // Increment consecutive_failures
   const { data, error } = await supabase
     .from('scheduled_tasks')
-    .select('consecutive_failures')
+    .select('consecutive_failures, name, org_id, user_id')
     .eq('id', taskId)
     .single();
 
   if (error || !data) return false;
 
   const newCount = (data.consecutive_failures || 0) + 1;
-  
+
   if (newCount >= maxConsecutiveFailures) {
     // Auto-pause the task
     await supabase
@@ -251,17 +252,39 @@ export async function recordTaskFailure(
       .update({
         consecutive_failures: newCount,
         status: 'paused',
+        failure_reason: errorMessage || 'Unknown error',
         locked_until: null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', taskId);
     console.warn(`[scheduler] Task ${taskId} auto-paused after ${newCount} consecutive failures`);
+
+    // Notify the user by inserting a message in their most recent non-scheduled thread
+    const { data: recentThread } = await supabase
+      .from('threads')
+      .select('id')
+      .eq('org_id', data.org_id)
+      .is('scheduled_task_id', null)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (recentThread) {
+      await supabase.from('messages').insert({
+        thread_id: recentThread.id,
+        role: 'assistant',
+        content: `⚠️ Your scheduled task "${data.name}" has been paused after ${newCount} consecutive failures.\n\nLast error: ${errorMessage || 'Unknown error'}\n\nYou can resume it from the Schedules page after investigating the issue.`,
+        metadata: { system_notification: true, task_id: taskId },
+      });
+    }
+
     return true; // was paused
   } else {
     await supabase
       .from('scheduled_tasks')
       .update({
         consecutive_failures: newCount,
+        failure_reason: errorMessage || null,
         locked_until: null,
         updated_at: new Date().toISOString(),
       })

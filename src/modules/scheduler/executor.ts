@@ -169,7 +169,7 @@ export async function executeScheduledTask(
     }
 
     console.error(`[scheduler] Task ${task.id} failed:`, error);
-    await recordTaskFailure(supabase, task.id);
+    await recordTaskFailure(supabase, task.id, errorMessage);
   } finally {
     await clearTaskLock(supabase, task.id);
     const nextRun = getNextRunTime(task.cron);

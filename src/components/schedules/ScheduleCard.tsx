@@ -48,6 +48,11 @@ export function ScheduleCard({ task, onDelete, onToggle }: ScheduleCardProps) {
             <div>
               <p className="font-medium text-sm">{task.name}</p>
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{task.prompt}</p>
+              {task.status === 'paused' && task.failure_reason && (
+                <p className="text-xs text-destructive mt-1">
+                  ⚠️ {task.failure_reason}
+                </p>
+              )}
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge variant={isActive ? 'default' : 'secondary'}>{task.status}</Badge>
                 <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{task.cron}</code>
