@@ -16,6 +16,18 @@ import {
 import type { Connection } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
+const CATEGORIES = [
+  { id: 'all', label: 'All' },
+  { id: 'communication', label: 'Communication', match: ['communication', 'team chat', 'email', 'phone & sms'] },
+  { id: 'project-management', label: 'Project Management', match: ['project management', 'task management', 'productivity & project management'] },
+  { id: 'analytics', label: 'Analytics', match: ['analytics', 'business intelligence', 'dashboards'] },
+  { id: 'crm', label: 'CRM', match: ['crm', 'sales & crm', 'contact management'] },
+  { id: 'development', label: 'Development', match: ['developer tools', 'developer tools & devops', 'databases'] },
+  { id: 'productivity', label: 'Productivity', match: ['productivity', 'notes', 'documents', 'calendar', 'spreadsheets', 'file management & storage'] },
+  { id: 'marketing', label: 'Marketing', match: ['marketing', 'marketing automation', 'social media marketing', 'email newsletters'] },
+  { id: 'finance', label: 'Finance', match: ['accounting', 'payment processing', 'taxes'] },
+];
+
 interface IntegrationsCatalogProps {
   initialConnections?: Connection[];
   integrations: Integration[];
@@ -24,7 +36,7 @@ interface IntegrationsCatalogProps {
 export function IntegrationsCatalog({ initialConnections = [], integrations }: IntegrationsCatalogProps) {
   const [connections, setConnections] = useState<Connection[]>(initialConnections);
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState<'all' | 'popular'>('all');
+  const [category, setCategory] = useState('all');
   const [showConnectedOnly, setShowConnectedOnly] = useState(false);
   const [mcpModalOpened, setMcpModalOpened] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -49,18 +61,23 @@ export function IntegrationsCatalog({ initialConnections = [], integrations }: I
   }, [connections, integrations]);
 
   const filtered = useMemo(() => {
+    const activeCat = CATEGORIES.find(c => c.id === category);
+    const matchTerms = activeCat && 'match' in activeCat ? activeCat.match : null;
+
     return integrations.filter((i) => {
       const matchesSearch = !search || i.name.toLowerCase().includes(search.toLowerCase());
       const matchesConnected = !showConnectedOnly || connectedIds.has(i.id);
-      const matchesTab = tab === 'all' || (tab === 'popular' && i.toolCount > 15);
-      return matchesSearch && matchesConnected && matchesTab;
+      const matchesCategory = !matchTerms || matchTerms.some(term =>
+        i.category.toLowerCase() === term.toLowerCase()
+      );
+      return matchesSearch && matchesConnected && matchesCategory;
     }).sort((a, b) => {
       const aConnected = connectedIds.has(a.id) ? 0 : 1;
       const bConnected = connectedIds.has(b.id) ? 0 : 1;
       if (aConnected !== bConnected) return aConnected - bConnected;
       return a.name.localeCompare(b.name);
     });
-  }, [search, tab, showConnectedOnly, connectedIds, integrations]);
+  }, [search, category, showConnectedOnly, connectedIds, integrations]);
 
   const handleMcpAdd = async (connection: {
     name: string;
@@ -97,29 +114,25 @@ export function IntegrationsCatalog({ initialConnections = [], integrations }: I
         />
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex gap-1">
-          <button
-            onClick={() => setTab('all')}
-            className={cn(
-              'rounded-md px-3 py-1.5 text-sm transition-colors',
-              tab === 'all' ? 'bg-muted font-medium' : 'hover:bg-muted/50'
-            )}
-          >
-            All integrations
-          </button>
-          <button
-            onClick={() => setTab('popular')}
-            className={cn(
-              'rounded-md px-3 py-1.5 text-sm transition-colors',
-              tab === 'popular' ? 'bg-muted font-medium' : 'hover:bg-muted/50'
-            )}
-          >
-            Popular integrations
-          </button>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex gap-1 overflow-x-auto pb-1">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setCategory(cat.id)}
+              className={cn(
+                'shrink-0 rounded-full border px-3 py-1 text-xs transition-colors',
+                category === cat.id
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border hover:bg-muted'
+              )}
+            >
+              {cat.label}
+            </button>
+          ))}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Show connected only</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs text-muted-foreground">Connected only</span>
           <Switch checked={showConnectedOnly} onCheckedChange={setShowConnectedOnly} />
         </div>
       </div>
