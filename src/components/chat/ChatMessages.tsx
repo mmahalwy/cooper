@@ -20,8 +20,6 @@ import {
   ChainOfThought,
   ChainOfThoughtHeader,
   ChainOfThoughtStep,
-  ChainOfThoughtSearchResult,
-  ChainOfThoughtSearchResults,
   ChainOfThoughtContent,
 } from '@/components/ai-elements/chain-of-thought';
 import {
@@ -30,7 +28,9 @@ import {
   SourcesContent,
   Source,
 } from '@/components/ai-elements/sources';
-import { BotIcon, UserIcon } from 'lucide-react';
+import { useState } from 'react';
+import { BotIcon, UserIcon, ChevronRightIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   Confirmation,
   ConfirmationTitle,
@@ -96,7 +96,30 @@ function extractActionDetails(input: any): { description: string; details: Array
   return { description: 'Cooper wants to perform an action', details: [] };
 }
 
-function AssistantParts({ parts, role, isStreaming, isLastMessage }: { parts: any[]; role: string; isStreaming?: boolean; isLastMessage: boolean }) {
+function ToolResultView({ output }: { output: unknown }) {
+  const [expanded, setExpanded] = useState(false);
+  const formatted = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+  const isLong = formatted.length > 200;
+
+  return (
+    <div className="mt-1">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+      >
+        <ChevronRightIcon className={cn('size-3 transition-transform', expanded && 'rotate-90')} />
+        {expanded ? 'Hide result' : 'View result'}
+      </button>
+      {expanded && (
+        <pre className="mt-1.5 max-h-60 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap break-all">
+          {formatted}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprovalResponse }: { parts: any[]; role: string; isStreaming?: boolean; isLastMessage: boolean; addToolApprovalResponse?: (response: { id: string; approved: boolean }) => void }) {
   if (role === 'user') {
     return parts.map((part, i) => {
       if (part.type === 'text' && part.text) {
@@ -157,10 +180,8 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage }: { parts: an
             label={friendly}
             status={isDone ? 'complete' : isRunning ? 'active' : 'pending'}
           >
-            {isDone && (
-              <ChainOfThoughtSearchResults>
-                <ChainOfThoughtSearchResult>Result</ChainOfThoughtSearchResult>
-              </ChainOfThoughtSearchResults>
+            {isDone && toolPart.output != null && (
+              <ToolResultView output={toolPart.output} />
             )}
           </ChainOfThoughtStep>
         );
@@ -175,6 +196,52 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage }: { parts: an
         </ChainOfThoughtContent>
       </ChainOfThought>
     );
+
+    // Render confirmation UI for tools awaiting approval
+    parts.forEach((part, i) => {
+      if (!part.type?.startsWith('tool-') && part.type !== 'dynamic-tool') return;
+      const toolPart = part as any;
+      if (toolPart.state !== 'approval-requested' && toolPart.state !== 'approval-responded' && toolPart.state !== 'output-denied' && toolPart.state !== 'output-available') return;
+      if (!toolPart.approval) return;
+
+      const { description, details } = extractActionDetails(toolPart.input);
+
+      elements.push(
+        <Confirmation key={`confirm-${i}`} approval={toolPart.approval} state={toolPart.state}>
+          <ConfirmationTitle>{description}</ConfirmationTitle>
+          <ConfirmationRequest>
+            {details.length > 0 && (
+              <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                {details.map((d, j) => (
+                  <div key={j}><span className="font-medium capitalize">{d.label}:</span> {d.value}</div>
+                ))}
+              </div>
+            )}
+          </ConfirmationRequest>
+          <ConfirmationAccepted>
+            <p className="text-xs text-green-600">Approved</p>
+          </ConfirmationAccepted>
+          <ConfirmationRejected>
+            <p className="text-xs text-red-600">Denied</p>
+          </ConfirmationRejected>
+          {addToolApprovalResponse && (
+            <ConfirmationActions>
+              <ConfirmationAction
+                variant="outline"
+                onClick={() => addToolApprovalResponse({ id: toolPart.approval.id, approved: false })}
+              >
+                Deny
+              </ConfirmationAction>
+              <ConfirmationAction
+                onClick={() => addToolApprovalResponse({ id: toolPart.approval.id, approved: true })}
+              >
+                Approve
+              </ConfirmationAction>
+            </ConfirmationActions>
+          )}
+        </Confirmation>
+      );
+    });
   }
 
   // Render parts that aren't tool-related
@@ -236,7 +303,7 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
                 </div>
               )}
               <MessageContent>
-                <AssistantParts parts={message.parts} role={message.role} isStreaming={isStreaming} isLastMessage={message.id === messages[messages.length - 1]?.id} />
+                <AssistantParts parts={message.parts} role={message.role} isStreaming={isStreaming} isLastMessage={message.id === messages[messages.length - 1]?.id} addToolApprovalResponse={addToolApprovalResponse} />
               </MessageContent>
               {message.role === 'user' && (
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">

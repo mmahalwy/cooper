@@ -44,6 +44,7 @@ function AppSidebar() {
       const { data } = await supabase
         .from('threads')
         .select('*')
+        .is('scheduled_task_id', null)
         .order('updated_at', { ascending: false })
         .limit(50);
       if (data) setThreads(data);

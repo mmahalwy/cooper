@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { PlusIcon, SearchIcon } from 'lucide-react';
 import { IntegrationCard } from './IntegrationCard';
 import { AddConnectionModal } from './AddConnectionModal';
-import { INTEGRATIONS, CATEGORIES, type Integration } from '@/lib/integrations-catalog';
+import type { Integration } from '@/lib/integrations-catalog';
 import {
   deleteConnectionAction,
   syncConnectionsAction,
@@ -18,9 +18,10 @@ import { cn } from '@/lib/utils';
 
 interface IntegrationsCatalogProps {
   initialConnections?: Connection[];
+  integrations: Integration[];
 }
 
-export function IntegrationsCatalog({ initialConnections = [] }: IntegrationsCatalogProps) {
+export function IntegrationsCatalog({ initialConnections = [], integrations }: IntegrationsCatalogProps) {
   const [connections, setConnections] = useState<Connection[]>(initialConnections);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string>('All');
@@ -37,31 +38,34 @@ export function IntegrationsCatalog({ initialConnections = [] }: IntegrationsCat
     });
   }, []);
 
+  const VISIBLE_CATEGORIES = [
+    'All', 'Connected', 'Analytics', 'CRM', 'Communication', 'Development',
+    'Project Management', 'Marketing', 'Finance', 'HR', 'Productivity',
+  ];
+
   const connectedIds = useMemo(() => {
     const ids = new Set<string>();
     connections.forEach((c) => {
-      const match = INTEGRATIONS.find(
+      const match = integrations.find(
         (i) => i.composioApp === c.provider || i.id === c.provider || c.name.toLowerCase().includes(i.name.toLowerCase())
       );
       if (match) ids.add(match.id);
     });
     return ids;
-  }, [connections]);
+  }, [connections, integrations]);
 
   const filtered = useMemo(() => {
-    return INTEGRATIONS.filter((i) => {
+    return integrations.filter((i) => {
       const matchesSearch = !search || i.name.toLowerCase().includes(search.toLowerCase()) || i.description.toLowerCase().includes(search.toLowerCase());
-      const matchesCategory = category === 'All' || i.category === category;
+      const matchesCategory = category === 'All' || (category === 'Connected' ? connectedIds.has(i.id) : i.category === category);
       return matchesSearch && matchesCategory;
     }).sort((a, b) => {
       const aConnected = connectedIds.has(a.id) ? 0 : 1;
       const bConnected = connectedIds.has(b.id) ? 0 : 1;
       if (aConnected !== bConnected) return aConnected - bConnected;
-      const aPopular = a.popular ? 0 : 1;
-      const bPopular = b.popular ? 0 : 1;
-      return aPopular - bPopular;
+      return a.name.localeCompare(b.name);
     });
-  }, [search, category, connectedIds]);
+  }, [search, category, connectedIds, integrations]);
 
   const handleConnect = async (integration: Integration) => {
     const initiateRes = await fetch('/api/connections/initiate', {
@@ -89,7 +93,7 @@ export function IntegrationsCatalog({ initialConnections = [] }: IntegrationsCat
 
   const handleDisconnect = (integrationId: string) => {
     const conn = connections.find((c) => {
-      const match = INTEGRATIONS.find((i) => i.id === integrationId);
+      const match = integrations.find((i) => i.id === integrationId);
       return match && (c.provider === match.composioApp || c.provider === match.id);
     });
     if (!conn) return;
@@ -141,7 +145,7 @@ export function IntegrationsCatalog({ initialConnections = [] }: IntegrationsCat
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {CATEGORIES.map((cat) => (
+        {VISIBLE_CATEGORIES.map((cat) => (
           <button
             key={cat}
             onClick={() => setCategory(cat)}

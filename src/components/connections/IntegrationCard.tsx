@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SettingsIcon, UnplugIcon, PlugIcon } from 'lucide-react';
 import type { Integration } from '@/lib/integrations-catalog';
@@ -34,9 +33,6 @@ export function IntegrationCard({ integration, connected, onConnect, onDisconnec
         <div className="mt-3">
           <div className="flex items-center gap-2">
             <p className="font-semibold text-sm">{integration.name}</p>
-            {integration.popular && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium">POPULAR</Badge>
-            )}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{integration.description}</p>
         </div>

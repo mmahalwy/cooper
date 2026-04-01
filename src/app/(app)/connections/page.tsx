@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { IntegrationsCatalog } from '@/components/connections/IntegrationsCatalog';
+import { getIntegrations } from '@/lib/integrations-catalog.server';
 
 export default async function ConnectionsPage() {
   const supabase = await createClient();
@@ -11,11 +12,14 @@ export default async function ConnectionsPage() {
     .from('users').select('org_id').eq('id', user.id).single();
   if (!dbUser) redirect('/auth/login');
 
-  const { data: connections } = await supabase
-    .from('connections')
-    .select('*')
-    .eq('org_id', dbUser.org_id)
-    .order('created_at', { ascending: false });
+  const [{ data: connections }, integrations] = await Promise.all([
+    supabase
+      .from('connections')
+      .select('*')
+      .eq('org_id', dbUser.org_id)
+      .order('created_at', { ascending: false }),
+    getIntegrations(),
+  ]);
 
-  return <IntegrationsCatalog initialConnections={connections || []} />;
+  return <IntegrationsCatalog initialConnections={connections || []} integrations={integrations} />;
 }

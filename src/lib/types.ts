@@ -20,6 +20,7 @@ export interface Thread {
   org_id: string;
   user_id: string;
   title: string | null;
+  scheduled_task_id: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -36,6 +36,7 @@ export async function executeScheduledTask(
         org_id: task.org_id,
         user_id: task.user_id,
         title: `[Scheduled] ${task.name}`,
+        scheduled_task_id: task.id,
       })
       .select('id')
       .single();

@@ -1,11 +1,12 @@
 import type { MemoryContext } from '@/modules/memory/retriever';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { UIMessage } from 'ai';
 
 export interface AgentInput {
   threadId: string;
   orgId: string;
   userId: string;
-  messages: AgentMessage[];
+  uiMessages: UIMessage[];
   modelOverride?: string;
   tools?: Record<string, any>;
   memoryContext?: MemoryContext;

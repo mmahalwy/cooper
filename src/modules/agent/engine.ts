@@ -1,7 +1,6 @@
-import { streamText, stepCountIs } from 'ai';
+import { streamText, stepCountIs, convertToModelMessages } from 'ai';
 import { google } from '@ai-sdk/google';
-import type { ModelMessage } from 'ai';
-import type { AgentInput, AgentMessage } from './types';
+import type { AgentInput } from './types';
 import type { MemoryContext } from '@/modules/memory/retriever';
 import { buildSkillsPrompt, createLoadSkillTool } from '@/modules/skills/system';
 import { createSaveKnowledgeTool } from '@/modules/memory/tools';
@@ -16,7 +15,7 @@ const DEFAULT_MODEL = 'gemini-flash';
 
 const SYSTEM_PROMPT = `You are Cooper, an AI teammate. You are helpful, concise, and action-oriented.
 You help users with their work by connecting to their tools and completing tasks.
-Be direct and professional. Use markdown formatting when it helps readability.
+Be direct and professional. Use markdown formatting when it helps readability. Use emojis liberally to make responses more engaging and fun! 🚀
 When you have tools available, use them proactively to get information or take actions.
 You can search the web for current information when needed.
 Always explain what you did after using a tool. Show your reasoning when tackling complex tasks.
@@ -55,13 +54,6 @@ IMPORTANT for Slack, email, and messaging tools: ALWAYS look up the channel/reci
 - To post to a Slack channel: first search for the channel by name to get its ID, then post using the ID.
 - Never guess channel IDs or assume a channel name is the same as its ID.
 - If a channel is not found, tell the user and ask them to confirm the exact channel name.
-
-## Confirmation Before Actions
-For WRITE actions (sending messages, creating/updating/deleting records, posting content), describe what you're about to do and ask the user to confirm BEFORE executing. For example:
-- "I'm about to send 'yoooo' to #social on Slack. Should I go ahead?"
-- "I'll create a new Linear issue titled 'Fix login bug'. Confirm?"
-Do NOT ask for confirmation on READ actions (searching, listing, fetching data) — just do them.
-Once the user confirms, execute immediately without re-searching or re-explaining.
 
 ## Scheduling Tasks
 When the user asks you to do something on a recurring schedule, JUST DO IT. Create the schedule immediately — do not ask clarifying questions about duration, frequency, or whether they're sure. If they say "every 3 minutes for the next 15 minutes", create a schedule that runs every 3 minutes. They can pause or delete it whenever they want.
@@ -122,47 +114,6 @@ A meeting on ${pacificDate} is TODAY's meeting — even if the raw data shows a 
   return prompt;
 }
 
-const MESSAGE_WINDOW_SIZE = 20;
-
-/**
- * Apply message windowing to prevent token limit blowups on long conversations.
- * - If ≤ MESSAGE_WINDOW_SIZE messages: return all as-is
- * - If > MESSAGE_WINDOW_SIZE: summarize older messages into a compact context
- *   block and prepend it as a system message before the recent window
- */
-function windowMessages(messages: AgentMessage[]): AgentMessage[] {
-  if (messages.length <= MESSAGE_WINDOW_SIZE) {
-    return messages;
-  }
-
-  const olderMessages = messages.slice(0, messages.length - MESSAGE_WINDOW_SIZE);
-  const recentMessages = messages.slice(messages.length - MESSAGE_WINDOW_SIZE);
-
-  // Build a compact summary of older messages
-  const summaryLines = olderMessages.map((msg) => {
-    const truncated = msg.content.length > 200
-      ? msg.content.slice(0, 200) + '...'
-      : msg.content;
-    return `[${msg.role}]: ${truncated}`;
-  });
-
-  const summaryMessage: AgentMessage = {
-    role: 'user',
-    content: `[CONVERSATION HISTORY SUMMARY — ${olderMessages.length} earlier messages]\n${summaryLines.join('\n')}`,
-  };
-
-  return [summaryMessage, ...recentMessages];
-}
-
-function toModelMessages(messages: AgentMessage[]): ModelMessage[] {
-  return messages.map((msg): ModelMessage => {
-    if (msg.role === 'tool') {
-      return { role: 'user', content: msg.content };
-    }
-    return { role: msg.role, content: msg.content };
-  });
-}
-
 export async function createAgentStream(input: AgentInput) {
   const modelId = input.modelOverride || DEFAULT_MODEL;
   const modelName = MODELS[modelId] || MODELS[DEFAULT_MODEL];
@@ -190,10 +141,14 @@ export async function createAgentStream(input: AgentInput) {
     systemPrompt += `\n\n## Connected Integrations\nYou are currently connected to: ${input.connectedServices.join(', ')}. You can use these services to get data and take actions. When the user asks what you're connected to, list these service names. Do NOT mention "Composio" — that is an internal system, not a user-facing service.`;
   }
 
+  const modelMessages = await convertToModelMessages(input.uiMessages, {
+    tools: allTools,
+  });
+
   const result = streamText({
     model: google(modelName),
     system: systemPrompt,
-    messages: toModelMessages(windowMessages(input.messages)),
+    messages: modelMessages,
     tools: allTools,
     stopWhen: stepCountIs(25),
     providerOptions: {

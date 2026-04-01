@@ -81,13 +81,7 @@ export async function POST(req: Request) {
     threadId: activeThreadId!,
     orgId: dbUser.org_id,
     userId: user.id,
-    messages: messages.map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.parts
-        .filter((p) => p.type === 'text')
-        .map((p) => (p as { type: 'text'; text: string }).text)
-        .join(''),
-    })),
+    uiMessages: messages,
   };
 
   // Load tools and connection names

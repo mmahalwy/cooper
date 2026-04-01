@@ -21,7 +21,30 @@ export async function getToolsForOrg(
     try {
       const composioTools = await getComposioTools('default');
       console.log(`[registry] Composio tools:`, Object.keys(composioTools));
-      Object.assign(allTools, composioTools);
+
+      // Require user approval for write operations via COMPOSIO_MULTI_EXECUTE_TOOL.
+      // The tool input has tools[].tool_slug — read-like slugs skip approval.
+      const READ_VERBS = /^(GET|LIST|SEARCH|FIND|FETCH|READ|RETRIEVE|QUERY|CHECK|SHOW|VIEW|DESCRIBE|COUNT|LOOKUP|DOWNLOAD)/i;
+
+      for (const [name, tool] of Object.entries(composioTools)) {
+        if (name === 'COMPOSIO_MULTI_EXECUTE_TOOL') {
+          allTools[name] = {
+            ...tool,
+            needsApproval: (input: any) => {
+              const slugs: string[] = (input?.tools || []).map((t: any) => {
+                const slug = t?.tool_slug || '';
+                // Strip the service prefix (e.g., SLACK_SEND_MESSAGE → SEND_MESSAGE)
+                const parts = slug.split('_');
+                return parts.length > 1 ? parts.slice(1).join('_') : slug;
+              });
+              // If every action slug starts with a read verb, skip approval
+              return slugs.length > 0 && !slugs.every((s) => READ_VERBS.test(s));
+            },
+          };
+        } else {
+          allTools[name] = tool;
+        }
+      }
     } catch (error) {
       console.error('[registry] Failed to load Composio tools:', error);
     }

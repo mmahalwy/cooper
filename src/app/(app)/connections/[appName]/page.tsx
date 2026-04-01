@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { getConnectionToolsAction } from '@/app/actions';
-import { INTEGRATIONS } from '@/lib/integrations-catalog';
+import { getIntegrations } from '@/lib/integrations-catalog.server';
 import { ConnectionDetail } from '@/components/connections/ConnectionDetail';
 
 export default async function ConnectionDetailPage({ params }: { params: Promise<{ appName: string }> }) {
@@ -11,8 +11,12 @@ export default async function ConnectionDetailPage({ params }: { params: Promise
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/auth/login');
 
-  const integration = INTEGRATIONS.find((i) => i.composioApp === appName || i.id === appName);
-  const tools = await getConnectionToolsAction(appName);
+  const [integrations, tools] = await Promise.all([
+    getIntegrations(),
+    getConnectionToolsAction(appName),
+  ]);
+
+  const integration = integrations.find((i) => i.composioApp === appName || i.id === appName);
 
   return (
     <ConnectionDetail
