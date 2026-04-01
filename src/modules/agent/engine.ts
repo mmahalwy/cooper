@@ -216,6 +216,8 @@ export async function createAgentStream(input: AgentInput) {
     ...(input.tools || {}),
   };
 
+  console.log(`[agent] Total tools: ${Object.keys(allTools).length} (${Object.keys(builtInTools).length} built-in + ${Object.keys(input.tools || {}).length} connection)`);
+
   // Extract last user message for skill matching
   const lastUserMsg = input.uiMessages.filter(m => m.role === 'user').pop();
   const userText = lastUserMsg?.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
