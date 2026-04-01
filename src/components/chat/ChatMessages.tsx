@@ -28,9 +28,10 @@ import {
   SourcesContent,
   Source,
 } from '@/components/ai-elements/sources';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { BotIcon, UserIcon, ChevronRightIcon, ClockIcon, CheckCircle2Icon, XCircleIcon, CircleDotIcon, CircleDashedIcon, TargetIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { StreamingStatus } from './StreamingStatus';
 import {
   Confirmation,
   ConfirmationTitle,
@@ -40,7 +41,6 @@ import {
   ConfirmationActions,
   ConfirmationAction,
 } from '@/components/ai-elements/confirmation';
-import { Shimmer } from '@/components/ai-elements/shimmer';
 import { CopyMessageButton } from './CopyMessageButton';
 
 function formatToolName(raw: string): string {
@@ -102,7 +102,6 @@ function extractActionDetails(input: any): { description: string; details: Array
 function ToolResultView({ output }: { output: unknown }) {
   const [expanded, setExpanded] = useState(false);
   const formatted = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
-  const isLong = formatted.length > 200;
 
   return (
     <div className="mt-1">
@@ -120,6 +119,75 @@ function ToolResultView({ output }: { output: unknown }) {
       )}
     </div>
   );
+}
+
+/**
+ * Format milliseconds into a human-friendly duration string.
+ */
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
+/**
+ * Hook to track tool execution timing.
+ * Records when each tool part first appears as running and when it completes,
+ * then returns the elapsed duration per tool index.
+ */
+function useToolTiming(parts: any[]): Map<number, number> {
+  const startTimesRef = useRef<Map<number, number>>(new Map());
+  const durationsRef = useRef<Map<number, number>>(new Map());
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    let changed = false;
+
+    parts.forEach((part, i) => {
+      if (!part.type?.startsWith('tool-') && part.type !== 'dynamic-tool') return;
+
+      const state = (part as any).state;
+      const isRunning = state === 'input-streaming' || state === 'input-available';
+      const isDone = state === 'output-available' || state === 'approval-responded' ||
+                     state === 'output-error' || state === 'output-denied';
+
+      if (isRunning && !startTimesRef.current.has(i)) {
+        startTimesRef.current.set(i, Date.now());
+        changed = true;
+      }
+
+      if (isDone && startTimesRef.current.has(i) && !durationsRef.current.has(i)) {
+        const start = startTimesRef.current.get(i)!;
+        durationsRef.current.set(i, Date.now() - start);
+        changed = true;
+      }
+    });
+
+    if (changed) forceUpdate((n) => n + 1);
+  }, [parts]);
+
+  return durationsRef.current;
+}
+
+/**
+ * Extract the currently active tool's friendly name from message parts.
+ * Returns undefined if no tool is actively running.
+ */
+function getActiveToolName(parts: any[]): string | undefined {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const part = parts[i];
+    if (!part.type?.startsWith('tool-') && part.type !== 'dynamic-tool') continue;
+
+    const state = (part as any).state;
+    if (state === 'input-streaming' || state === 'input-available') {
+      const raw = part.type === 'dynamic-tool' ? part.toolName : part.type.replace('tool-', '');
+      return formatToolName(raw) + '...';
+    }
+  }
+  return undefined;
 }
 
 const planStepStatusIcon: Record<string, React.ReactNode> = {
@@ -194,6 +262,8 @@ function PlanView({ input, output, stepUpdates }: { input: any; output: any; ste
 }
 
 function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprovalResponse }: { parts: any[]; role: string; isStreaming?: boolean; isLastMessage: boolean; addToolApprovalResponse?: (response: { id: string; approved: boolean }) => void }) {
+  const toolTimings = useToolTiming(parts);
+
   if (role === 'user') {
     return parts.map((part, i) => {
       if (part.type === 'text' && part.text) {
@@ -264,10 +334,21 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
         const isPlanTask = raw === 'plan_task';
         const isUpdateStep = raw === 'update_plan_step';
 
+        // Build label with timing info when available
+        const duration = toolTimings.get(i);
+        const labelWithTiming = duration != null ? (
+          <span>
+            {friendly}
+            <span className="ml-1.5 text-xs text-muted-foreground/70">
+              ({formatDuration(duration)})
+            </span>
+          </span>
+        ) : friendly;
+
         steps.push(
           <ChainOfThoughtStep
             key={`s-${i}`}
-            label={friendly}
+            label={labelWithTiming}
             status={isDone ? 'complete' : isRunning ? 'active' : 'pending'}
           >
             {isPlanTask && isDone && (
@@ -374,6 +455,13 @@ interface ChatMessagesProps {
 }
 
 export function ChatMessages({ messages, isStreaming, status, addToolApprovalResponse }: ChatMessagesProps) {
+  // Derive the active tool name from the last assistant message's parts
+  const lastMessage = messages[messages.length - 1];
+  const currentTool =
+    isStreaming && lastMessage?.role === 'assistant'
+      ? getActiveToolName(lastMessage.parts)
+      : undefined;
+
   return (
     <Conversation className="flex-1">
       <ConversationContent className="mx-auto max-w-3xl">
@@ -417,7 +505,7 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
                 <BotIcon className="size-4" />
               </div>
               <MessageContent>
-                <Shimmer>Cooper is thinking...</Shimmer>
+                <StreamingStatus status={status} currentTool={currentTool} />
               </MessageContent>
             </div>
           </Message>
