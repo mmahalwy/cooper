@@ -1,5 +1,5 @@
 import { streamText, stepCountIs, convertToModelMessages } from 'ai';
-import { google } from '@ai-sdk/google';
+import { selectModel } from './model-router';
 import { manageContextWindow } from './context-manager';
 import type { AgentInput } from './types';
 import type { MemoryContext } from '@/modules/memory/retriever';
@@ -14,13 +14,6 @@ import { createPlanningTools } from './planner';
 import { createWorkspaceTools } from '@/modules/workspace/tools';
 import { getToolStatus, StatusTracker } from './status';
 import { classifyError } from './error-handler';
-
-const MODELS: Record<string, string> = {
-  'gemini-flash': 'gemini-2.5-flash',
-  'gemini-pro': 'gemini-2.5-pro',
-};
-
-const DEFAULT_MODEL = 'gemini-flash';
 
 const SYSTEM_PROMPT = `You are Cooper, an AI teammate — not a chatbot. You work alongside humans, take ownership of tasks, and deliver quality results.
 
@@ -127,9 +120,6 @@ A meeting on ${localDate} is TODAY's meeting — even if the raw data shows a di
 }
 
 export async function createAgentStream(input: AgentInput) {
-  const modelId = input.modelOverride || DEFAULT_MODEL;
-  const modelName = MODELS[modelId] || MODELS[DEFAULT_MODEL];
-
   // Merge user-connected tools with built-in tools
   const builtInTools: Record<string, any> = {};
 
@@ -167,6 +157,9 @@ export async function createAgentStream(input: AgentInput) {
   const lastUserMsg = input.uiMessages.filter(m => m.role === 'user').pop();
   const userText = lastUserMsg?.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
 
+  const modelSelection = selectModel(userText, input.connectedServices || []);
+  console.log(`[agent] Model: ${modelSelection.modelId} (${modelSelection.tier})`);
+
   let systemPrompt = await buildSystemPrompt(input.memoryContext, input.timezone, userText);
 
   // Read org persona settings and inject into system prompt
@@ -199,16 +192,14 @@ export async function createAgentStream(input: AgentInput) {
   const statusTracker = new StatusTracker();
 
   const result = streamText({
-    model: google(modelName),
+    model: modelSelection.model,
     system: systemPrompt,
     messages: modelMessages,
     tools: allTools,
     stopWhen: stepCountIs(25),
-    providerOptions: {
-      google: {
-        thinkingConfig: { thinkingBudget: 1024 },
-      },
-    },
+    providerOptions: modelSelection.provider === 'google' ? {
+      google: { thinkingConfig: { thinkingBudget: 1024 } },
+    } : undefined,
     onError: ({ error }) => {
       const classified = classifyError(error);
       console.error(`[agent] Stream error [${classified.type}]:`, classified.message);

@@ -1,5 +1,5 @@
 import { generateText, stepCountIs } from 'ai';
-import { google } from '@ai-sdk/google';
+import { selectSchedulerModel } from '@/modules/agent/model-router';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { getToolsForOrg } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
@@ -49,8 +49,9 @@ async function updateRollingSummary(
       ? `You maintain a rolling summary of a recurring scheduled task's outputs. Update the summary with the latest run results. Keep it under 500 words. Focus on trends, changes, and patterns across runs.\n\nExisting summary:\n${existingSummary}\n\nLatest run output:\n${runOutput.slice(0, 2000)}`
       : `Summarize this first run of a recurring scheduled task in 2-3 sentences. Focus on key findings that would be useful context for the next run.\n\nRun output:\n${runOutput.slice(0, 2000)}`;
 
+    const summaryModel = selectSchedulerModel();
     const result = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: summaryModel.model,
       prompt,
     });
 
@@ -109,8 +110,11 @@ export async function executeScheduledTask(
 
     const allTools = { ...tools };
 
+    const schedulerModel = selectSchedulerModel();
+    console.log(`[scheduler] Using model: ${schedulerModel.modelId}`);
+
     const result = await withTimeout(generateText({
-      model: google('gemini-2.5-flash'),
+      model: schedulerModel.model,
       system: systemPrompt,
       prompt: task.prompt,
       tools: allTools,
@@ -174,8 +178,8 @@ export async function executeScheduledTask(
       orgId: task.org_id,
       userId: task.user_id,
       threadId: thread?.id,
-      modelId: 'gemini-2.5-flash',
-      modelProvider: 'google',
+      modelId: schedulerModel.modelId,
+      modelProvider: schedulerModel.provider,
       promptTokens: result.usage?.promptTokens || 0,
       completionTokens: result.usage?.completionTokens || 0,
       latencyMs: durationMs,
