@@ -77,16 +77,39 @@ export async function executeScheduledTask(
     const durationMs = Date.now() - startTime;
 
     if (thread?.id) {
-      // Save the prompt and only the final step's text (not all intermediate steps concatenated)
-      const steps = result.steps || [];
-      const finalText = steps.length > 0
-        ? steps[steps.length - 1].text || result.text
-        : result.text;
-
-      await supabase.from('messages').insert([
+      const messages: Array<{ thread_id: string; role: string; content: string; metadata?: any }> = [
         { thread_id: thread.id, role: 'user', content: task.prompt },
-        { thread_id: thread.id, role: 'assistant', content: finalText, metadata: { scheduled: true, task_id: task.id } },
-      ]);
+      ];
+
+      // Save each step as a message so the full conversation is visible
+      const steps = result.steps || [];
+      for (const step of steps) {
+        // Save tool call summaries
+        if (step.toolCalls?.length) {
+          const toolSummary = step.toolCalls.map((tc: any) => {
+            const resultEntry = step.toolResults?.find((tr: any) => tr.toolCallId === tc.toolCallId);
+            const output = resultEntry?.result;
+            const outputPreview = typeof output === 'string'
+              ? output.slice(0, 500)
+              : JSON.stringify(output)?.slice(0, 500) || '';
+            return `**${tc.toolName}**\n${outputPreview}`;
+          }).join('\n\n');
+          if (toolSummary) {
+            messages.push({ thread_id: thread.id, role: 'assistant', content: toolSummary, metadata: { scheduled: true, type: 'tool_calls' } });
+          }
+        }
+        // Save text output
+        if (step.text?.trim()) {
+          messages.push({ thread_id: thread.id, role: 'assistant', content: step.text, metadata: { scheduled: true, task_id: task.id } });
+        }
+      }
+
+      // If no messages beyond the prompt, save a fallback
+      if (messages.length === 1) {
+        messages.push({ thread_id: thread.id, role: 'assistant', content: result.text || '(No output generated)', metadata: { scheduled: true, task_id: task.id } });
+      }
+
+      await supabase.from('messages').insert(messages);
     }
 
     if (log?.id) {
