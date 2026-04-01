@@ -1,5 +1,6 @@
 'use client';
 
+import { CommandPalette } from '@/components/command-palette/CommandPalette';
 import {
   Sidebar,
   SidebarContent,
@@ -81,6 +82,9 @@ function AppSidebar() {
           <PlusIcon className="size-4" />
           New chat
         </Button>
+        <p className="text-[10px] text-muted-foreground text-center mt-1">
+          ⌘K to search • ⌘N for new chat
+        </p>
       </SidebarHeader>
 
       <SidebarContent>
@@ -159,6 +163,7 @@ function AppSidebar() {
 export function AppShellLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
+      <CommandPalette />
       <AppSidebar />
       <SidebarInset>
         {children}
