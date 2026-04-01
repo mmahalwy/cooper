@@ -21,3 +21,8 @@ export { searchThreadsAction } from './threads';
 export { getUsageStatsAction } from './usage';
 export { getActivityAction } from './activity';
 export { getSettingsAction, updateProfileAction, updateOrgAction } from './settings';
+export {
+  getNotificationsAction,
+  markNotificationReadAction,
+  markAllNotificationsReadAction,
+} from './notifications';
