@@ -1,5 +1,5 @@
 import { streamText, stepCountIs, convertToModelMessages } from 'ai';
-import { google } from '@ai-sdk/google';
+import { selectModel, getModelInstance } from './model-router';
 import { manageContextWindow } from './context-manager';
 import type { AgentInput } from './types';
 import type { MemoryContext } from '@/modules/memory/retriever';
@@ -15,12 +15,6 @@ import { createWorkspaceTools } from '@/modules/workspace/tools';
 import { getToolStatus, StatusTracker } from './status';
 import { classifyError } from './error-handler';
 
-const MODELS: Record<string, string> = {
-  'gemini-flash': 'gemini-2.5-flash',
-  'gemini-pro': 'gemini-2.5-pro',
-};
-
-const DEFAULT_MODEL = 'gemini-flash';
 
 const SYSTEM_PROMPT = `You are Cooper, an AI teammate — not a chatbot. You work alongside humans, take ownership of tasks, and deliver quality results.
 
@@ -127,8 +121,10 @@ A meeting on ${localDate} is TODAY's meeting — even if the raw data shows a di
 }
 
 export async function createAgentStream(input: AgentInput) {
-  const modelId = input.modelOverride || DEFAULT_MODEL;
-  const modelName = MODELS[modelId] || MODELS[DEFAULT_MODEL];
+  const lastMsg = input.uiMessages[input.uiMessages.length - 1];
+  const userText = lastMsg?.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
+  const modelConfig = selectModel(userText, input.modelOverride);
+  console.log(`[agent] Selected model: ${modelConfig.displayName} (${modelConfig.id})`);
 
   // Merge user-connected tools with built-in tools
   const builtInTools: Record<string, any> = {};
@@ -199,16 +195,14 @@ export async function createAgentStream(input: AgentInput) {
   const statusTracker = new StatusTracker();
 
   const result = streamText({
-    model: google(modelName),
+    model: getModelInstance(modelConfig),
     system: systemPrompt,
     messages: modelMessages,
     tools: allTools,
-    stopWhen: stepCountIs(25),
-    providerOptions: {
-      google: {
-        thinkingConfig: { thinkingBudget: 1024 },
-      },
-    },
+    stopWhen: stepCountIs(modelConfig.maxSteps),
+    providerOptions: modelConfig.provider === 'google' && modelConfig.thinkingBudget ? {
+      google: { thinkingConfig: { thinkingBudget: modelConfig.thinkingBudget } },
+    } : undefined,
     onError: ({ error }) => {
       const classified = classifyError(error);
       console.error(`[agent] Stream error [${classified.type}]:`, classified.message);
