@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { searchThreadsAction } from '@/app/actions';
 import { Input } from '@/components/ui/input';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useRouter, useParams } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { useEffect, useState } from 'react';
@@ -99,6 +100,9 @@ function AppSidebar() {
         <div className="flex items-center gap-2 px-2 py-1">
           <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-bold">C</div>
           <span className="font-semibold text-sm">Cooper</span>
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </div>
         <Button
           variant="outline"
