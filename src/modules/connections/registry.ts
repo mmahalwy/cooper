@@ -8,7 +8,8 @@ import type { Connection } from '@/lib/types';
 export async function getToolsForOrg(
   supabase: SupabaseClient,
   orgId: string,
-  userId?: string
+  userId?: string,
+  options?: { skipApproval?: boolean }
 ): Promise<Record<string, any>> {
   const connections = await getConnectionsForOrg(supabase, orgId);
   console.log(`[registry] Found ${connections.length} active connections:`, connections.map(c => `${c.name}(${c.type}:${c.id.slice(0, 8)})`));
@@ -27,7 +28,7 @@ export async function getToolsForOrg(
       const READ_VERBS = /^(GET|LIST|SEARCH|FIND|FETCH|READ|RETRIEVE|QUERY|CHECK|SHOW|VIEW|DESCRIBE|COUNT|LOOKUP|DOWNLOAD)/i;
 
       for (const [name, tool] of Object.entries(composioTools)) {
-        if (name === 'COMPOSIO_MULTI_EXECUTE_TOOL') {
+        if (name === 'COMPOSIO_MULTI_EXECUTE_TOOL' && !options?.skipApproval) {
           allTools[name] = {
             ...tool,
             needsApproval: (input: any) => {

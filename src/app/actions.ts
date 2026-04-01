@@ -168,6 +168,17 @@ export async function deleteScheduleAction(id: string) {
   return { success: true };
 }
 
+export async function getScheduleRunsAction(taskId: string) {
+  const { supabase } = await getAuthContext();
+  const { data } = await supabase
+    .from('threads')
+    .select('id, title, created_at')
+    .eq('scheduled_task_id', taskId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+  return data || [];
+}
+
 // ============================================================================
 // Connections
 // ============================================================================

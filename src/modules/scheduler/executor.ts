@@ -41,7 +41,7 @@ export async function executeScheduledTask(
       .select('id')
       .single();
 
-    const tools = await getToolsForOrg(supabase, task.org_id);
+    const tools = await getToolsForOrg(supabase, task.org_id, undefined, { skipApproval: true });
     const memoryContext = await retrieveContext(supabase, task.org_id, task.prompt);
 
     let systemPrompt = SYSTEM_PROMPT;
@@ -65,9 +65,15 @@ export async function executeScheduledTask(
     const durationMs = Date.now() - startTime;
 
     if (thread?.id) {
+      // Save the prompt and only the final step's text (not all intermediate steps concatenated)
+      const steps = result.steps || [];
+      const finalText = steps.length > 0
+        ? steps[steps.length - 1].text || result.text
+        : result.text;
+
       await supabase.from('messages').insert([
         { thread_id: thread.id, role: 'user', content: task.prompt },
-        { thread_id: thread.id, role: 'assistant', content: result.text, metadata: { scheduled: true, task_id: task.id } },
+        { thread_id: thread.id, role: 'assistant', content: finalText, metadata: { scheduled: true, task_id: task.id } },
       ]);
     }
 
