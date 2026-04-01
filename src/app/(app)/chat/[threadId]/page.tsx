@@ -5,6 +5,7 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai';
 import { ChatMessages } from '@/components/chat/ChatMessages';
 import { ChatInput } from '@/components/chat/ChatInput';
+import { MobileHeader } from '@/components/chat/MobileHeader';
 import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Message } from '@/lib/types';
@@ -81,6 +82,7 @@ function ChatThread({
 
   return (
     <div className="flex h-screen flex-col">
+      <MobileHeader title="Chat" />
       <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} />
       <ChatInput
         onSend={({ text, files }) => sendMessage({ text, files })}

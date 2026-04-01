@@ -285,7 +285,7 @@ interface ChatMessagesProps {
 export function ChatMessages({ messages, isStreaming, status, addToolApprovalResponse }: ChatMessagesProps) {
   return (
     <Conversation className="flex-1">
-      <ConversationContent className="mx-auto max-w-3xl">
+      <ConversationContent className="mx-auto max-w-3xl px-3 md:px-6">
         {messages.map((message) => {
           const textContent = message.parts
             .filter((p): p is { type: 'text'; text: string } => p.type === 'text' && 'text' in p)

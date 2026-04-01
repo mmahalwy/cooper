@@ -193,7 +193,7 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming, status }: Cha
   const chatStatus = (status || 'ready') as 'submitted' | 'streaming' | 'ready' | 'error';
 
   return (
-    <div className="bg-background px-4 pb-4 pt-2">
+    <div className="bg-background px-2 md:px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
       <div className="mx-auto max-w-3xl">
         <PromptInputProvider>
           <PromptInput globalDrop multiple onSubmit={handleSubmit}>

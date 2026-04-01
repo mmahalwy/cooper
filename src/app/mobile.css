@@ -1,0 +1,39 @@
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  /* Chat input improvements */
+  .chat-input-area {
+    padding: 0.5rem;
+  }
+
+  /* Message padding */
+  .message-list {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Smaller text on mobile */
+  .message-content {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  /* Code blocks scroll horizontally */
+  .message-content pre {
+    max-width: calc(100vw - 4rem);
+  }
+
+  /* Full-width cards on mobile */
+  .settings-card {
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    border-radius: 0;
+  }
+}
+
+/* Touch-friendly targets */
+@media (pointer: coarse) {
+  button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

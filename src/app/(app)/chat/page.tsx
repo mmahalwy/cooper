@@ -5,6 +5,7 @@ import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalRespons
 import { ChatMessages } from '@/components/chat/ChatMessages';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { EmptyState } from '@/components/chat/EmptyState';
+import { MobileHeader } from '@/components/chat/MobileHeader';
 import { useRouter } from 'next/navigation';
 import { useRef } from 'react';
 
@@ -38,6 +39,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen flex-col">
+      <MobileHeader title="New Chat" />
       {hasMessages ? (
         <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} />
       ) : (
