@@ -100,3 +100,27 @@ export interface ExecutionLog {
   tokens_used: number | null;
   duration_ms: number | null;
 }
+
+export interface WorkspaceFile {
+  id: string;
+  org_id: string;
+  thread_id: string | null;
+  filename: string;
+  content: string | null;
+  storage_path: string | null;
+  mime_type: string;
+  size_bytes: number;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkspaceNote {
+  id: string;
+  org_id: string;
+  key: string;
+  content: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}

@@ -11,6 +11,7 @@ import { createOrchestrationTools } from '@/modules/orchestration/tools';
 import { createUsageTools } from '@/modules/observability/tools';
 import { createSandboxTools } from '@/modules/sandbox/tools';
 import { createPlanningTools } from './planner';
+import { createWorkspaceTools } from '@/modules/workspace/tools';
 import { getToolStatus, StatusTracker } from './status';
 import { classifyError } from './error-handler';
 
@@ -66,7 +67,16 @@ You have a sandboxed code execution environment. When a task requires computatio
 - Use execute_code for Python, JavaScript, or bash
 - Install packages first if needed with install_packages
 - Read/write files for persistent data within a session
-- Show the user your code and results`;
+- Show the user your code and results
+
+## Workspace
+You have a persistent workspace where you can save notes and files that persist across conversations.
+- Use save_note / read_note for quick persistent data (status updates, team info, project notes, checklists)
+- Use save_workspace_file for larger content (reports, code, data exports, drafts)
+- Notes are org-wide and keyed by name — saving the same key replaces the content
+- Files can be thread-scoped (visible only in this conversation) or org-wide
+- Proactively check your workspace notes when context might help (e.g., "What's the project status?")
+- Don't ask permission to save workspace notes — just do it when it makes sense`;
 
 async function buildSystemPrompt(memoryContext?: MemoryContext, timezone?: string, userMessage?: string): Promise<string> {
   let prompt = SYSTEM_PROMPT;
@@ -138,6 +148,8 @@ export async function createAgentStream(input: AgentInput) {
     Object.assign(builtInTools, orchestrationTools);
     const usageTools = createUsageTools(input.supabase, input.orgId);
     Object.assign(builtInTools, usageTools);
+    const workspaceTools = createWorkspaceTools(input.supabase, input.orgId, input.threadId);
+    Object.assign(builtInTools, workspaceTools);
   }
 
   // Register sandbox tools if E2B is configured
