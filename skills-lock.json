@@ -176,6 +176,11 @@
       "sourceType": "github",
       "computedHash": "ba920829092719e7ade6fba0412b7eeca89899facd979498762536b4bc162027"
     },
+    "pptx": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "6b8b859d26f93aa059c9870d1ab76b44ab69e3d6757ce4a03cc94cb760888073"
+    },
     "prd": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
