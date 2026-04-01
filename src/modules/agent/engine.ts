@@ -8,6 +8,7 @@ import { createSaveKnowledgeTool } from '@/modules/memory/tools';
 import { createScheduleTools } from '@/modules/scheduler/tools';
 import { createSkillTools } from '@/modules/skills/tools';
 import { createOrchestrationTools } from '@/modules/orchestration/tools';
+import { createUsageTools } from '@/modules/observability/tools';
 import { getToolStatus, StatusTracker } from './status';
 import { classifyError } from './error-handler';
 
@@ -133,6 +134,8 @@ export async function createAgentStream(input: AgentInput) {
     Object.assign(builtInTools, skillTools);
     const orchestrationTools = createOrchestrationTools(input.supabase, input.orgId);
     Object.assign(builtInTools, orchestrationTools);
+    const usageTools = createUsageTools(input.supabase, input.orgId);
+    Object.assign(builtInTools, usageTools);
   }
   const allTools = {
     ...builtInTools,
