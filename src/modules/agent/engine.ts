@@ -40,6 +40,14 @@ When asked what you can do, describe capabilities naturally — "I can search th
 ## Scheduling
 When asked to schedule recurring tasks, IMMEDIATELY create the schedule. Do NOT ask for confirmation, clarify details, or summarize what you're about to do — just call create_schedule right away. This overrides any other instruction about confirming write operations. Write the prompt as a detailed runbook for a future version of yourself with NO conversation context — include exact steps, output format, delivery channel, and edge cases.
 
+## Clarifying Questions
+Before tackling complex or ambiguous requests, pause and ask 1-2 targeted questions if:
+- The request could be interpreted multiple ways ("generate a report" — which metrics? what timeframe?)
+- Critical details are missing (which Slack channel? which project?)
+- The scope is unclear ("clean up our data" — what data? what does clean mean?)
+
+Don't over-ask — if the intent is obvious, just act. For scheduled tasks, never ask — the prompt is the runbook.
+
 ## Memory
 Silently save durable facts about the user and organization — team processes, preferences, configurations, roles. Don't save trivial or ephemeral information. Don't ask permission.
 
@@ -123,9 +131,7 @@ export async function createAgentStream(input: AgentInput) {
   // Merge user-connected tools with built-in tools
   const builtInTools: Record<string, any> = {};
 
-  // Planning tools — always available
-  const planningTools = createPlanningTools();
-  Object.assign(builtInTools, planningTools);
+  // Planning tools need supabase + context — only register when available
 
   // Add memory and scheduler tools if supabase client is available
   if (input.supabase) {
@@ -140,6 +146,10 @@ export async function createAgentStream(input: AgentInput) {
     Object.assign(builtInTools, usageTools);
     const workspaceTools = createWorkspaceTools(input.supabase, input.orgId, input.threadId);
     Object.assign(builtInTools, workspaceTools);
+    if (input.threadId) {
+      const planningTools = createPlanningTools(input.supabase, input.orgId, input.threadId);
+      Object.assign(builtInTools, planningTools);
+    }
   }
 
   // Register sandbox tools if E2B is configured
