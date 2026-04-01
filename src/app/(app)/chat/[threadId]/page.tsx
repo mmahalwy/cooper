@@ -5,6 +5,7 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from 'ai';
 import { ChatMessages } from '@/components/chat/ChatMessages';
 import { ChatInput } from '@/components/chat/ChatInput';
+import { ExportButton } from '@/components/chat/ExportButton';
 import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Message } from '@/lib/types';
@@ -81,6 +82,9 @@ function ChatThread({
 
   return (
     <div className="flex h-screen flex-col">
+      <div className="flex items-center justify-end border-b px-4 py-2">
+        <ExportButton threadId={threadId} />
+      </div>
       <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} />
       <ChatInput
         onSend={({ text, files }) => sendMessage({ text, files })}
