@@ -41,6 +41,7 @@ import {
   ConfirmationAction,
 } from '@/components/ai-elements/confirmation';
 import { Shimmer } from '@/components/ai-elements/shimmer';
+import { CopyMessageButton } from './CopyMessageButton';
 
 function formatToolName(raw: string): string {
   // Map internal tool names to friendly labels
@@ -285,25 +286,38 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
   return (
     <Conversation className="flex-1">
       <ConversationContent className="mx-auto max-w-3xl">
-        {messages.map((message) => (
-          <Message key={message.id} from={message.role}>
-            <div className="flex items-start gap-3">
-              {message.role !== 'user' && (
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <BotIcon className="size-4" />
-                </div>
-              )}
-              <MessageContent>
-                <AssistantParts parts={message.parts} role={message.role} isStreaming={isStreaming} isLastMessage={message.id === messages[messages.length - 1]?.id} addToolApprovalResponse={addToolApprovalResponse} />
-              </MessageContent>
-              {message.role === 'user' && (
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <UserIcon className="size-4" />
-                </div>
-              )}
-            </div>
-          </Message>
-        ))}
+        {messages.map((message) => {
+          const textContent = message.parts
+            .filter((p): p is { type: 'text'; text: string } => p.type === 'text' && 'text' in p)
+            .map((p) => p.text || '')
+            .join('\n')
+            .trim();
+
+          return (
+            <Message key={message.id} from={message.role}>
+              <div className="group/msg relative flex items-start gap-3">
+                {message.role !== 'user' && (
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <BotIcon className="size-4" />
+                  </div>
+                )}
+                <MessageContent>
+                  <AssistantParts parts={message.parts} role={message.role} isStreaming={isStreaming} isLastMessage={message.id === messages[messages.length - 1]?.id} addToolApprovalResponse={addToolApprovalResponse} />
+                </MessageContent>
+                {message.role === 'user' && (
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <UserIcon className="size-4" />
+                  </div>
+                )}
+                {textContent && (
+                  <div className="absolute -bottom-3 right-0 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                    <CopyMessageButton content={textContent} />
+                  </div>
+                )}
+              </div>
+            </Message>
+          );
+        })}
 
         {status === 'submitted' && (
           <Message from="assistant">
