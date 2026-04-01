@@ -11,6 +11,7 @@ import { createOrchestrationTools } from '@/modules/orchestration/tools';
 import { createUsageTools } from '@/modules/observability/tools';
 import { createSandboxTools } from '@/modules/sandbox/tools';
 import { createPlanningTools } from './planner';
+import { createDeepWorkTools } from './deep-work-tools';
 import { createWorkspaceTools } from '@/modules/workspace/tools';
 import { createCodeTools } from '@/modules/code/tools';
 import { getToolStatus, StatusTracker } from './status';
@@ -64,6 +65,15 @@ Keep suggestions:
 - **Relevant** — Directly related to what was just discussed
 - **Brief** — One sentence each, as a bulleted list at the end
 - Don't suggest follow-ups for simple questions, greetings, or when the user is clearly done
+
+## Deep Work
+For substantial tasks that require multiple steps of research, analysis, and synthesis:
+1. Use start_deep_work to create a tracked work session
+2. Execute each step methodically, using code execution for computation
+3. Call report_deep_work_progress after each milestone
+4. Compile a final comprehensive result
+
+This shows the user you're working methodically and lets them track progress. Use deep work for tasks like "analyze our data and create a report", "research X and give me a summary", or "build me a plan for Y".
 
 ## Code Execution — YOUR PRIMARY TOOL 🔧
 You are a CODE-FIRST assistant. When a task involves ANY of these, WRITE CODE instead of trying to do it manually:
@@ -183,6 +193,8 @@ export async function createAgentStream(input: AgentInput) {
     if (input.threadId) {
       const planningTools = createPlanningTools(input.supabase, input.orgId, input.threadId);
       Object.assign(builtInTools, planningTools);
+      const deepWorkTools = createDeepWorkTools(input.supabase, input.orgId, input.userId, input.threadId);
+      Object.assign(builtInTools, deepWorkTools);
     }
   }
 
