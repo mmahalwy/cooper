@@ -1,29 +1,21 @@
 /**
- * System Skills — loaded from .agents/skills/ and auto-activated by keyword matching.
+ * System Skills — loaded from .agents/skills/ and auto-activated by semantic matching.
  *
- * Skills are injected into the system prompt when the user's message matches
- * their trigger keywords. No manual tool call needed.
+ * At load time, skill descriptions are embedded. At request time, the user's
+ * message is compared against skill embeddings to find relevant ones.
+ * Matching skills have their full content injected into the system prompt.
  *
  * NOTE: This module uses 'fs' and can only be imported server-side.
  */
+
+import { embeddingProvider } from '@/modules/memory/embeddings';
 
 export interface SystemSkill {
   name: string;
   description: string;
   content: string;
-  /** Keywords that trigger auto-loading this skill */
-  keywords: string[];
+  embedding?: number[];
 }
-
-/** Map skill names to trigger keywords. Skills not listed here are ignored. */
-const SKILL_KEYWORDS: Record<string, string[]> = {
-  'slack-messaging': ['slack', '#social', '#general', 'channel', 'send message', 'post to'],
-  'slack-search': ['slack', 'find message', 'search slack', 'slack history'],
-  'brainstorming': ['brainstorm', 'ideas', 'think through', 'explore options'],
-  'product-brainstorming': ['product idea', 'feature idea', 'user story', 'product strategy'],
-  'sql-optimization': ['sql', 'query', 'database', 'postgres', 'metabase'],
-  'supabase-postgres-best-practices': ['supabase', 'postgres', 'migration', 'rls', 'row level security'],
-};
 
 let _cachedSkills: SystemSkill[] | null = null;
 
@@ -46,8 +38,19 @@ function parseFrontmatter(raw: string): { name: string; description: string; con
   };
 }
 
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
 /**
- * Load system skills from .agents/skills/ (only those with keyword triggers).
+ * Load all system skills from .agents/skills/ and embed their descriptions.
  */
 export async function loadSystemSkills(): Promise<SystemSkill[]> {
   if (_cachedSkills) return _cachedSkills;
@@ -70,15 +73,27 @@ export async function loadSystemSkills(): Promise<SystemSkill[]> {
     const skills: SystemSkill[] = [];
 
     for (const dir of dirs) {
-      const keywords = SKILL_KEYWORDS[dir];
-      if (!keywords) continue; // Skip skills without keyword triggers
-
       const skillPath = path.join(skillsDir, dir, 'SKILL.md');
       if (!fs.existsSync(skillPath)) continue;
 
       const raw = fs.readFileSync(skillPath, 'utf-8');
       const parsed = parseFrontmatter(raw);
-      skills.push({ ...parsed, keywords });
+      if (parsed.description) {
+        skills.push(parsed);
+      }
+    }
+
+    // Embed all descriptions in one batch
+    if (skills.length > 0) {
+      try {
+        const descriptions = skills.map((s) => `${s.name}: ${s.description}`);
+        const embeddings = await embeddingProvider.embedBatch(descriptions);
+        for (let i = 0; i < skills.length; i++) {
+          skills[i].embedding = embeddings[i];
+        }
+      } catch (err) {
+        console.error('[skills] Failed to embed skill descriptions:', err);
+      }
     }
 
     console.log(`[skills] Loaded ${skills.length} system skills: ${skills.map((s) => s.name).join(', ')}`);
@@ -91,32 +106,50 @@ export async function loadSystemSkills(): Promise<SystemSkill[]> {
   }
 }
 
+const SKILL_MATCH_THRESHOLD = 0.45;
+const MAX_ACTIVATED_SKILLS = 2;
+
 /**
- * Build skills prompt with auto-activated skills based on the user's message.
- * Returns the full content of any matching skills, plus a brief list of others.
+ * Build skills prompt with auto-activated skills based on semantic similarity.
  */
 export async function buildSkillsPrompt(userMessage?: string): Promise<string> {
   const skills = await loadSystemSkills();
   if (skills.length === 0) return '';
 
-  const messageLower = (userMessage || '').toLowerCase();
-
-  // Find skills whose keywords match the user's message
-  const activated: SystemSkill[] = [];
+  let activated: SystemSkill[] = [];
   const available: SystemSkill[] = [];
 
-  for (const skill of skills) {
-    const matches = skill.keywords.some((kw) => messageLower.includes(kw.toLowerCase()));
-    if (matches && userMessage) {
-      activated.push(skill);
-    } else {
-      available.push(skill);
+  // Semantic matching if we have a user message and embeddings
+  if (userMessage?.trim() && skills.some((s) => s.embedding)) {
+    try {
+      const messageEmbedding = await embeddingProvider.embed(userMessage);
+
+      const scored = skills
+        .filter((s) => s.embedding)
+        .map((s) => ({
+          skill: s,
+          score: cosineSimilarity(messageEmbedding, s.embedding!),
+        }))
+        .sort((a, b) => b.score - a.score);
+
+      for (const { skill, score } of scored) {
+        if (score >= SKILL_MATCH_THRESHOLD && activated.length < MAX_ACTIVATED_SKILLS) {
+          activated.push(skill);
+          console.log(`[skills] Activated "${skill.name}" (score: ${score.toFixed(3)})`);
+        } else {
+          available.push(skill);
+        }
+      }
+    } catch (err) {
+      console.error('[skills] Failed to match skills:', err);
+      available.push(...skills);
     }
+  } else {
+    available.push(...skills);
   }
 
   let prompt = '';
 
-  // Inject full content of activated skills
   if (activated.length > 0) {
     prompt += '\n\n## Active Skill Guidance\n';
     prompt += 'The following skill guidance is relevant to this request. Follow it.\n';
@@ -125,7 +158,6 @@ export async function buildSkillsPrompt(userMessage?: string): Promise<string> {
     }
   }
 
-  // List other available skills briefly (so Cooper knows they exist for follow-ups)
   if (available.length > 0) {
     prompt += '\n\n## Other Available Skills\n';
     prompt += 'These skills are available if the conversation shifts to these topics:\n';
