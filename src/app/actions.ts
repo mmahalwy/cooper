@@ -17,6 +17,7 @@ import { getNextRunTime } from '@/modules/scheduler/matcher';
 import { parseSkillFromNL } from '@/modules/skills/parser';
 import { parseScheduleFromNL } from '@/modules/scheduler/parser';
 import { clearMcpClientCache } from '@/modules/connections/mcp/client';
+import { clearComposioCache } from '@/modules/connections/platform/composio';
 
 // ============================================================================
 // Helpers
@@ -230,6 +231,7 @@ export async function saveToolPermissionAction(
 export async function deleteConnectionAction(id: string) {
   const { supabase } = await getAuthContext();
   clearMcpClientCache(id);
+  clearComposioCache();
   const success = await deleteConnection(supabase, id);
   if (!success) return { error: 'Failed to delete' };
   revalidatePath('/connections');
@@ -267,6 +269,10 @@ export async function syncConnectionsAction() {
       status: 'active',
     });
     synced++;
+  }
+
+  if (synced > 0) {
+    clearComposioCache();
   }
 
   revalidatePath('/connections');

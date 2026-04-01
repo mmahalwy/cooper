@@ -38,6 +38,33 @@ When posting messages to Slack, use Slack's mrkdwn syntax — NOT Markdown:
 - NO ** for bold — that renders literally in Slack
 - Keep messages concise and scannable`;
 
+async function updateRollingSummary(
+  supabase: SupabaseClient,
+  taskId: string,
+  runOutput: string,
+  existingSummary: string | null
+): Promise<void> {
+  try {
+    const prompt = existingSummary
+      ? `You maintain a rolling summary of a recurring scheduled task's outputs. Update the summary with the latest run results. Keep it under 500 words. Focus on trends, changes, and patterns across runs.\n\nExisting summary:\n${existingSummary}\n\nLatest run output:\n${runOutput.slice(0, 2000)}`
+      : `Summarize this first run of a recurring scheduled task in 2-3 sentences. Focus on key findings that would be useful context for the next run.\n\nRun output:\n${runOutput.slice(0, 2000)}`;
+
+    const result = await generateText({
+      model: google('gemini-2.5-flash'),
+      prompt,
+    });
+
+    if (result.text) {
+      await supabase
+        .from('scheduled_tasks')
+        .update({ rolling_summary: result.text })
+        .eq('id', taskId);
+    }
+  } catch (err) {
+    console.error(`[scheduler] Failed to update rolling summary for ${taskId}:`, err);
+  }
+}
+
 export async function executeScheduledTask(
   supabase: SupabaseClient,
   task: ScheduledTask
@@ -74,6 +101,10 @@ export async function executeScheduledTask(
     let systemPrompt = SYSTEM_PROMPT;
     if (memoryContext.knowledge.length) {
       systemPrompt += `\n\n## Organization context:\n${memoryContext.knowledge.map((k) => `- ${k}`).join('\n')}`;
+    }
+
+    if (task.rolling_summary) {
+      systemPrompt += `\n\n## Previous Run Context\nHere is a summary of previous runs of this task. Use it for comparisons and trend analysis:\n${task.rolling_summary}`;
     }
 
     const allTools = { ...tools };
@@ -152,6 +183,13 @@ export async function executeScheduledTask(
     }).catch(err => console.error('[scheduler] Usage tracking failed:', err));
 
     await resetTaskFailures(supabase, task.id);
+
+    // Update rolling summary for next run context
+    const fullOutput = result.text || (result.steps || []).map((s: any) => s.text).filter(Boolean).join('\n');
+    if (fullOutput) {
+      updateRollingSummary(supabase, task.id, fullOutput, task.rolling_summary)
+        .catch(err => console.error('[scheduler] Rolling summary update failed:', err));
+    }
   } catch (error) {
     const durationMs = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -169,7 +207,7 @@ export async function executeScheduledTask(
     }
 
     console.error(`[scheduler] Task ${task.id} failed:`, error);
-    await recordTaskFailure(supabase, task.id);
+    await recordTaskFailure(supabase, task.id, errorMessage);
   } finally {
     await clearTaskLock(supabase, task.id);
     const nextRun = getNextRunTime(task.cron);

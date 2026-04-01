@@ -16,7 +16,7 @@ function getComposioClient() {
 }
 
 const sessionCache = new Map<string, { tools: Record<string, any>; createdAt: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes — tools rarely change
 
 /**
  * Find the entity ID from the first active Composio connected account.
