@@ -199,6 +199,34 @@ export async function createConnectionAction(connection: {
   return { success: true, connection: result };
 }
 
+export async function saveToolPermissionAction(
+  connectionId: string,
+  toolName: string,
+  permission: 'auto' | 'confirm' | 'disabled'
+) {
+  const { supabase } = await getAuthContext();
+
+  // Fetch current config
+  const { data: conn } = await supabase
+    .from('connections')
+    .select('config')
+    .eq('id', connectionId)
+    .single();
+
+  if (!conn) return { error: 'Connection not found' };
+
+  const config = (conn.config || {}) as Record<string, any>;
+  const toolPermissions = config.toolPermissions || {};
+  toolPermissions[toolName] = permission;
+
+  await supabase
+    .from('connections')
+    .update({ config: { ...config, toolPermissions }, updated_at: new Date().toISOString() })
+    .eq('id', connectionId);
+
+  return { success: true };
+}
+
 export async function deleteConnectionAction(id: string) {
   const { supabase } = await getAuthContext();
   clearMcpClientCache(id);
