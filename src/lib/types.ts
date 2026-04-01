@@ -124,3 +124,22 @@ export interface WorkspaceNote {
   created_at: string;
   updated_at: string;
 }
+
+export interface PlanStep {
+  id: string;
+  description: string;
+  tool_hint: string | null;
+  status: 'pending' | 'running' | 'done' | 'failed' | 'skipped';
+  output: string | null;
+}
+
+export interface Plan {
+  id: string;
+  thread_id: string;
+  org_id: string;
+  title: string;
+  status: 'draft' | 'approved' | 'executing' | 'completed' | 'failed';
+  steps: PlanStep[];
+  created_at: string;
+  updated_at: string;
+}
