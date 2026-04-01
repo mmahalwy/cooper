@@ -29,6 +29,7 @@ import {
   LogOutIcon,
 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Thread } from '@/lib/types';
@@ -139,6 +140,9 @@ function AppSidebar() {
               <CalendarClockIcon />
               <span>Schedules</span>
             </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <ThemeToggle />
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
