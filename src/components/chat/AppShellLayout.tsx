@@ -1,6 +1,7 @@
 'use client';
 
 import { CommandPalette } from '@/components/command-palette/CommandPalette';
+import { OnboardingModal } from '@/components/onboarding/OnboardingModal';
 import {
   Sidebar,
   SidebarContent,
@@ -259,6 +260,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <CommandPalette />
+      <OnboardingModal />
       <AppSidebar />
       <SidebarInset>
         {children}
