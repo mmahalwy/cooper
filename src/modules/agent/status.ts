@@ -12,7 +12,6 @@ const TOOL_STATUS_MAP: Record<string, string> = {
   'COMPOSIO_GET_TOOL_SCHEMAS': 'Loading tool details...',
   // Built-in tools
   'save_knowledge': 'Saving to memory...',
-  'load_skill': 'Loading skill...',
   'create_skill': 'Creating new skill...',
   'list_skills': 'Checking skills...',
   'create_schedule': 'Setting up schedule...',

@@ -1,28 +1,24 @@
 /**
- * System Skills — loaded dynamically from .agents/skills/ directory.
+ * System Skills — loaded from .agents/skills/ and auto-activated by semantic matching.
  *
- * Skills use lazy loading per the AI SDK pattern:
- * - Only name + description go in the system prompt
- * - A `load_skill` tool lets Cooper activate the full skill on demand
+ * At load time, skill descriptions are embedded. At request time, the user's
+ * message is compared against skill embeddings to find relevant ones.
+ * Matching skills have their full content injected into the system prompt.
  *
  * NOTE: This module uses 'fs' and can only be imported server-side.
- * For client components, use the /api/skills/system endpoint.
  */
 
-import { tool } from 'ai';
-import { z } from 'zod';
+import { embeddingProvider } from '@/modules/memory/embeddings';
 
 export interface SystemSkill {
   name: string;
   description: string;
   content: string;
+  embedding?: number[];
 }
 
 let _cachedSkills: SystemSkill[] | null = null;
 
-/**
- * Parse YAML frontmatter from a SKILL.md file.
- */
 function parseFrontmatter(raw: string): { name: string; description: string; content: string } {
   const match = raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!match) {
@@ -42,9 +38,19 @@ function parseFrontmatter(raw: string): { name: string; description: string; con
   };
 }
 
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
+}
+
 /**
- * Load all system skills from .agents/skills/
- * Uses dynamic import for 'fs' to avoid client-side bundling issues.
+ * Load all system skills from .agents/skills/ and embed their descriptions.
  */
 export async function loadSystemSkills(): Promise<SystemSkill[]> {
   if (_cachedSkills) return _cachedSkills;
@@ -56,7 +62,6 @@ export async function loadSystemSkills(): Promise<SystemSkill[]> {
     const skillsDir = path.join(process.cwd(), '.agents', 'skills');
 
     if (!fs.existsSync(skillsDir)) {
-      console.warn('[skills] .agents/skills/ directory not found');
       _cachedSkills = [];
       return [];
     }
@@ -73,7 +78,22 @@ export async function loadSystemSkills(): Promise<SystemSkill[]> {
 
       const raw = fs.readFileSync(skillPath, 'utf-8');
       const parsed = parseFrontmatter(raw);
-      skills.push(parsed);
+      if (parsed.description) {
+        skills.push(parsed);
+      }
+    }
+
+    // Embed all descriptions in one batch
+    if (skills.length > 0) {
+      try {
+        const descriptions = skills.map((s) => `${s.name}: ${s.description}`);
+        const embeddings = await embeddingProvider.embedBatch(descriptions);
+        for (let i = 0; i < skills.length; i++) {
+          skills[i].embedding = embeddings[i];
+        }
+      } catch (err) {
+        console.error('[skills] Failed to embed skill descriptions:', err);
+      }
     }
 
     console.log(`[skills] Loaded ${skills.length} system skills: ${skills.map((s) => s.name).join(', ')}`);
@@ -86,59 +106,65 @@ export async function loadSystemSkills(): Promise<SystemSkill[]> {
   }
 }
 
+const SKILL_MATCH_THRESHOLD = 0.45;
+const MAX_ACTIVATED_SKILLS = 2;
+
 /**
- * Build skills prompt — only names + descriptions.
+ * Build skills prompt with auto-activated skills based on semantic similarity.
  */
-export async function buildSkillsPrompt(): Promise<string> {
+export async function buildSkillsPrompt(userMessage?: string): Promise<string> {
   const skills = await loadSystemSkills();
   if (skills.length === 0) return '';
 
-  let prompt = '\n\n## Available Skills\n';
-  prompt += `You have specialized skills you can load for better results. Before answering a complex request, check if a skill applies and load it.
+  let activated: SystemSkill[] = [];
+  const available: SystemSkill[] = [];
 
-Load a skill when:
-- The request clearly matches a skill's description
-- You're about to do something the skill covers (e.g., writing a document, debugging, brainstorming)
-- The task would benefit from structured guidance
+  // Semantic matching if we have a user message and embeddings
+  if (userMessage?.trim() && skills.some((s) => s.embedding)) {
+    try {
+      const messageEmbedding = await embeddingProvider.embed(userMessage);
 
-Don't load a skill when:
-- The user is asking a simple factual question
-- You're just having a casual conversation
-- The task is straightforward and doesn't need a framework
+      const scored = skills
+        .filter((s) => s.embedding)
+        .map((s) => ({
+          skill: s,
+          score: cosineSimilarity(messageEmbedding, s.embedding!),
+        }))
+        .sort((a, b) => b.score - a.score);
 
-Skills:\n`;
+      for (const { skill, score } of scored) {
+        if (score >= SKILL_MATCH_THRESHOLD && activated.length < MAX_ACTIVATED_SKILLS) {
+          activated.push(skill);
+          console.log(`[skills] Activated "${skill.name}" (score: ${score.toFixed(3)})`);
+        } else {
+          available.push(skill);
+        }
+      }
+    } catch (err) {
+      console.error('[skills] Failed to match skills:', err);
+      available.push(...skills);
+    }
+  } else {
+    available.push(...skills);
+  }
 
-  for (const skill of skills) {
-    prompt += `- **${skill.name}**: ${skill.description}\n`;
+  let prompt = '';
+
+  if (activated.length > 0) {
+    prompt += '\n\n## Active Skill Guidance\n';
+    prompt += 'The following skill guidance is relevant to this request. Follow it.\n';
+    for (const skill of activated) {
+      prompt += `\n### ${skill.name}\n${skill.content}\n`;
+    }
+  }
+
+  if (available.length > 0) {
+    prompt += '\n\n## Other Available Skills\n';
+    prompt += 'These skills are available if the conversation shifts to these topics:\n';
+    for (const skill of available) {
+      prompt += `- **${skill.name}**: ${skill.description}\n`;
+    }
   }
 
   return prompt;
-}
-
-/**
- * Create the load_skill tool — lets Cooper activate skills on demand.
- */
-export function createLoadSkillTool() {
-  return tool({
-    description: 'Load a skill to get detailed instructions for how to handle the current task. Use this when the user\'s request matches one of your available skills.',
-    inputSchema: z.object({
-      skillName: z.string().describe('The name of the skill to load'),
-    }),
-    execute: async ({ skillName }) => {
-      const skills = await loadSystemSkills();
-      const skill = skills.find(
-        (s) => s.name === skillName ||
-          s.name.replace(/-/g, ' ') === skillName.replace(/-/g, ' ') ||
-          s.name.toLowerCase() === skillName.toLowerCase()
-      );
-
-      if (!skill) {
-        return {
-          error: `Skill "${skillName}" not found. Available skills: ${skills.map((s) => s.name).join(', ')}`,
-        };
-      }
-
-      return { skill: skill.name, instructions: skill.content };
-    },
-  });
 }
