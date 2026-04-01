@@ -3,9 +3,23 @@ import { google } from '@ai-sdk/google';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { getToolsForOrg } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
-import { updateTaskAfterRun, createExecutionLog, updateScheduledTaskStatus } from './db';
+import { updateTaskAfterRun, createExecutionLog, updateScheduledTaskStatus, clearTaskLock, recordTaskFailure, resetTaskFailures } from './db';
 import { getNextRunTime } from './matcher';
 import type { ScheduledTask } from '@/lib/types';
+
+const TASK_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
+
+function withTimeout<T>(promise: Promise<T>, ms: number, taskId: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Task ${taskId} timed out after ${ms / 1000}s`));
+    }, ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
 
 const SYSTEM_PROMPT = `You are Cooper, an AI teammate executing a scheduled task.
 Complete the task described below. Be thorough but concise in your output.
@@ -54,13 +68,13 @@ export async function executeScheduledTask(
     };
     const allTools = { ...builtInTools, ...tools };
 
-    const result = await generateText({
+    const result = await withTimeout(generateText({
       model: google('gemini-2.5-flash'),
       system: systemPrompt,
       prompt: task.prompt,
       tools: allTools,
       stopWhen: stepCountIs(10),
-    });
+    }), TASK_TIMEOUT_MS, task.id);
 
     const durationMs = Date.now() - startTime;
 
@@ -90,6 +104,8 @@ export async function executeScheduledTask(
         })
         .eq('id', log.id);
     }
+
+    await resetTaskFailures(supabase, task.id);
   } catch (error) {
     const durationMs = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -107,7 +123,9 @@ export async function executeScheduledTask(
     }
 
     console.error(`[scheduler] Task ${task.id} failed:`, error);
+    await recordTaskFailure(supabase, task.id);
   } finally {
+    await clearTaskLock(supabase, task.id);
     const nextRun = getNextRunTime(task.cron);
     await updateTaskAfterRun(supabase, task.id, nextRun.toISOString());
   }
