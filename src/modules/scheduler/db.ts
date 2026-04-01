@@ -177,3 +177,106 @@ export async function getExecutionLogsForTask(
   }
   return data as ExecutionLog[];
 }
+
+/** Atomically claim due tasks by setting locked_until */
+export async function claimDueTasksForDispatch(
+  supabase: SupabaseClient,
+  lockDurationMinutes: number = 5
+): Promise<ScheduledTask[]> {
+  const now = new Date();
+  const lockUntil = new Date(now.getTime() + lockDurationMinutes * 60 * 1000);
+  
+  // Get due tasks that aren't locked
+  const { data: dueTasks, error: fetchError } = await supabase
+    .from('scheduled_tasks')
+    .select('*')
+    .eq('status', 'active')
+    .lte('next_run_at', now.toISOString())
+    .or(`locked_until.is.null,locked_until.lt.${now.toISOString()}`)
+    .order('next_run_at', { ascending: true })
+    .limit(20);
+
+  if (fetchError || !dueTasks || dueTasks.length === 0) {
+    if (fetchError) console.error('[scheduler] Failed to get due tasks:', fetchError);
+    return [];
+  }
+
+  // Lock them
+  const taskIds = dueTasks.map(t => t.id);
+  const { error: lockError } = await supabase
+    .from('scheduled_tasks')
+    .update({ locked_until: lockUntil.toISOString() })
+    .in('id', taskIds);
+
+  if (lockError) {
+    console.error('[scheduler] Failed to lock tasks:', lockError);
+    return [];
+  }
+
+  return dueTasks as ScheduledTask[];
+}
+
+/** Clear the lock on a task after execution */
+export async function clearTaskLock(
+  supabase: SupabaseClient,
+  taskId: string
+): Promise<void> {
+  await supabase
+    .from('scheduled_tasks')
+    .update({ locked_until: null })
+    .eq('id', taskId);
+}
+
+/** Record a failure and auto-pause after too many consecutive failures */
+export async function recordTaskFailure(
+  supabase: SupabaseClient,
+  taskId: string,
+  maxConsecutiveFailures: number = 3
+): Promise<boolean> {
+  // Increment consecutive_failures
+  const { data, error } = await supabase
+    .from('scheduled_tasks')
+    .select('consecutive_failures')
+    .eq('id', taskId)
+    .single();
+
+  if (error || !data) return false;
+
+  const newCount = (data.consecutive_failures || 0) + 1;
+  
+  if (newCount >= maxConsecutiveFailures) {
+    // Auto-pause the task
+    await supabase
+      .from('scheduled_tasks')
+      .update({
+        consecutive_failures: newCount,
+        status: 'paused',
+        locked_until: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', taskId);
+    console.warn(`[scheduler] Task ${taskId} auto-paused after ${newCount} consecutive failures`);
+    return true; // was paused
+  } else {
+    await supabase
+      .from('scheduled_tasks')
+      .update({
+        consecutive_failures: newCount,
+        locked_until: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', taskId);
+    return false; // not paused yet
+  }
+}
+
+/** Reset consecutive failures after a successful run */
+export async function resetTaskFailures(
+  supabase: SupabaseClient,
+  taskId: string
+): Promise<void> {
+  await supabase
+    .from('scheduled_tasks')
+    .update({ consecutive_failures: 0, locked_until: null })
+    .eq('id', taskId);
+}
