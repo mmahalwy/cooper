@@ -53,7 +53,6 @@ function formatToolName(raw: string): string {
     'COMPOSIO_REMOTE_BASH_TOOL': 'Running command',
     'COMPOSIO_REMOTE_WORKBENCH': 'Using workbench',
     'save_knowledge': 'Saving to memory',
-    'load_skill': 'Loading skill',
     'create_schedule': 'Creating schedule',
     'list_schedules': 'Listing schedules',
     'update_schedule': 'Updating schedule',
