@@ -41,17 +41,17 @@ When asked to schedule recurring tasks, just create it. Don't over-clarify. Writ
 ## Memory
 Silently save durable facts about the user and organization — team processes, preferences, configurations, roles. Don't save trivial or ephemeral information. Don't ask permission.`;
 
-async function buildSystemPrompt(memoryContext?: MemoryContext): Promise<string> {
+async function buildSystemPrompt(memoryContext?: MemoryContext, timezone?: string): Promise<string> {
   let prompt = SYSTEM_PROMPT;
 
-  // TODO: Read timezone from user settings instead of hardcoding Pacific
   const now = new Date();
-  const pacificDate = now.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const pacificTime = now.toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: '2-digit' });
+  const userTz = timezone || 'America/Los_Angeles';
+  const localDate = now.toLocaleDateString('en-US', { timeZone: userTz, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const localTime = now.toLocaleTimeString('en-US', { timeZone: userTz, hour: 'numeric', minute: '2-digit' });
   prompt += `\n\n## Current Date & Time
-TODAY is ${pacificDate}. The current time is ${pacificTime} Pacific Time.
-ALWAYS use this as the reference for "today", "yesterday", "this week", etc. Do NOT use UTC or any other timezone.
-A meeting on ${pacificDate} is TODAY's meeting — even if the raw data shows a different date due to UTC conversion.`;
+TODAY is ${localDate}. The current time is ${localTime} (${userTz}).
+ALWAYS use this as the reference for "today", "yesterday", "this week", etc.
+A meeting on ${localDate} is TODAY's meeting — even if the raw data shows a different date due to UTC conversion.`;
 
   // List available skills (names + descriptions only — loaded on demand via tool)
   prompt += await buildSkillsPrompt();
@@ -109,7 +109,7 @@ export async function createAgentStream(input: AgentInput) {
     ...(input.tools || {}),
   };
 
-  let systemPrompt = await buildSystemPrompt(input.memoryContext);
+  let systemPrompt = await buildSystemPrompt(input.memoryContext, input.timezone);
 
   if (input.connectedServices && input.connectedServices.length > 0) {
     systemPrompt += `\n\n## Connected Integrations\nYou are currently connected to: ${input.connectedServices.join(', ')}. You can use these services to get data and take actions. When the user asks what you're connected to, list these service names. Do NOT mention "Composio" — that is an internal system, not a user-facing service.`;

@@ -12,6 +12,7 @@ export interface AgentInput {
   memoryContext?: MemoryContext;
   supabase?: SupabaseClient;
   connectedServices?: string[];
+  timezone?: string;
 }
 
 export interface AgentMessage {

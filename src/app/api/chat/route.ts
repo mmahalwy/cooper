@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   // Get the user's org
   const { data: dbUser, error: dbError } = await supabase
     .from('users')
-    .select('org_id')
+    .select('org_id, timezone')
     .eq('id', user.id)
     .single();
 
@@ -114,6 +114,7 @@ export async function POST(req: Request) {
     memoryContext,
     supabase,
     connectedServices,
+    timezone: dbUser.timezone || 'America/Los_Angeles',
   });
 
   // Save the assistant response after streaming completes
