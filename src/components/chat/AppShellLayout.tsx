@@ -28,6 +28,7 @@ import {
   CalendarClockIcon,
   BarChart3Icon,
   ActivityIcon,
+  LinkIcon,
   LogOutIcon,
   SearchIcon,
   XIcon,
@@ -224,6 +225,12 @@ function AppSidebar() {
             <SidebarMenuButton onClick={() => router.push('/activity')}>
               <ActivityIcon />
               <span>Activity</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => router.push('/settings/webhooks')}>
+              <LinkIcon />
+              <span>Webhooks</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
