@@ -11,6 +11,7 @@ import { generateSuggestions } from '@/modules/agent/suggestions';
 import { generateThreadTitle } from '@/modules/agent/title-generator';
 import { evaluateAndLearnSkill } from '@/modules/skills/learner';
 import { evaluateSkillPerformance } from '@/modules/skills/improver';
+import { logActivity } from '@/modules/observability/activity';
 
 export const maxDuration = 60;
 
@@ -174,13 +175,21 @@ export async function POST(req: Request) {
             threadId: activeThreadId,
             modelId: modelUsed,
             modelProvider: 'google',
-            promptTokens: usage.promptTokens || 0,
-            completionTokens: usage.completionTokens || 0,
+            promptTokens: usage.inputTokens || 0,
+            completionTokens: usage.outputTokens || 0,
             latencyMs: undefined, // TODO: track request start time
             source: 'chat',
           }).catch(err => console.error('[chat] Usage tracking failed:', err));
         }
       } catch { /* non-critical */ }
+
+      // Log activity
+      logActivity(sb, dbUser.org_id, toolCallSummary.length > 0 ? 'tool_call' : 'thread_created',
+        toolCallSummary.length > 0
+          ? `Used ${toolCallSummary.length} tool(s): ${toolCallSummary.slice(0, 3).join(', ')}${toolCallSummary.length > 3 ? '...' : ''}`
+          : `Responded to: "${userText.slice(0, 80)}${userText.length > 80 ? '...' : ''}"`,
+        { threadId: activeThreadId, userId: user.id, toolName: toolCallSummary[0] }
+      ).catch(err => console.error('[chat] Activity logging failed:', err));
 
       // Background: self-reflect on complex responses
       if (toolCallSummary.length >= 3 && fullText) {

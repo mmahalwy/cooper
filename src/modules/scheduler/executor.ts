@@ -168,7 +168,7 @@ export async function executeScheduledTask(
           thread_id: thread?.id,
           completed_at: new Date().toISOString(),
           duration_ms: durationMs,
-          tokens_used: result.usage?.totalTokens,
+          tokens_used: (result.usage?.inputTokens || 0) + (result.usage?.outputTokens || 0),
         })
         .eq('id', log.id);
     }
@@ -180,8 +180,8 @@ export async function executeScheduledTask(
       threadId: thread?.id,
       modelId: schedulerModel.modelId,
       modelProvider: schedulerModel.provider,
-      promptTokens: result.usage?.promptTokens || 0,
-      completionTokens: result.usage?.completionTokens || 0,
+      promptTokens: result.usage?.inputTokens || 0,
+      completionTokens: result.usage?.outputTokens || 0,
       latencyMs: durationMs,
       source: 'scheduler',
     }).catch(err => console.error('[scheduler] Usage tracking failed:', err));
