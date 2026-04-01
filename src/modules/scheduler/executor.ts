@@ -24,7 +24,19 @@ function withTimeout<T>(promise: Promise<T>, ms: number, taskId: string): Promis
 
 const SYSTEM_PROMPT = `You are Cooper, an AI teammate executing a scheduled task.
 Complete the task described below. Be thorough but concise in your output.
-Use any available tools to get the information needed.`;
+Use any available tools to get the information needed.
+
+## Slack Formatting
+When posting messages to Slack, use Slack's mrkdwn syntax — NOT Markdown:
+- Bold: *bold* (single asterisks, not double)
+- Italic: _italic_ (underscores)
+- Strikethrough: ~strikethrough~
+- Code: \`code\` (backticks work the same)
+- Bulleted list: use "• " or "- " at the start of lines
+- Links: <https://example.com|Link text>
+- NO headers (no # or ##) — use *bold text* on its own line instead
+- NO ** for bold — that renders literally in Slack
+- Keep messages concise and scannable`;
 
 export async function executeScheduledTask(
   supabase: SupabaseClient,
