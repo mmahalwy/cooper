@@ -31,6 +31,7 @@ import {
   LogOutIcon,
   SearchIcon,
   XIcon,
+  SettingsIcon,
 } from 'lucide-react';
 import { searchThreadsAction } from '@/app/actions';
 import { Input } from '@/components/ui/input';
@@ -223,6 +224,12 @@ function AppSidebar() {
             <SidebarMenuButton onClick={() => router.push('/activity')}>
               <ActivityIcon />
               <span>Activity</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => router.push('/settings')}>
+              <SettingsIcon />
+              <span>Settings</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
