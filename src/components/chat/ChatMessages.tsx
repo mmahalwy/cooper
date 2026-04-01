@@ -28,8 +28,8 @@ import {
   SourcesContent,
   Source,
 } from '@/components/ai-elements/sources';
-import { useState } from 'react';
-import { BotIcon, UserIcon, ChevronRightIcon } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { BotIcon, UserIcon, ChevronRightIcon, ClockIcon, CheckCircle2Icon, XCircleIcon, CircleDotIcon, CircleDashedIcon, TargetIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Confirmation,
@@ -58,6 +58,8 @@ function formatToolName(raw: string): string {
     'list_schedules': 'Listing schedules',
     'update_schedule': 'Updating schedule',
     'delete_schedule': 'Deleting schedule',
+    'plan_task': 'Planning approach',
+    'update_plan_step': 'Updating progress',
   };
   if (map[raw]) return map[raw];
   // Clean up tool names: METABASE_POST_API_DATASET → "Metabase: Post API Dataset"
@@ -120,6 +122,77 @@ function ToolResultView({ output }: { output: unknown }) {
   );
 }
 
+const planStepStatusIcon: Record<string, React.ReactNode> = {
+  pending: <CircleDashedIcon className="size-3.5 text-muted-foreground/50" />,
+  active: <CircleDotIcon className="size-3.5 text-blue-500 animate-pulse" />,
+  complete: <CheckCircle2Icon className="size-3.5 text-green-500" />,
+  failed: <XCircleIcon className="size-3.5 text-red-500" />,
+  skipped: <CircleDashedIcon className="size-3.5 text-muted-foreground line-through" />,
+};
+
+function PlanView({ input, output, stepUpdates }: { input: any; output: any; stepUpdates: Map<string, { status: string; note?: string }> }) {
+  if (!input?.goal || !input?.steps) return null;
+
+  const steps = (output?.steps || input.steps) as Array<{
+    id: string;
+    action: string;
+    tool?: string;
+    dependsOn?: string[];
+    status?: string;
+  }>;
+
+  // Merge live step updates from update_plan_step calls
+  const mergedSteps = steps.map((step) => {
+    const update = stepUpdates.get(step.id);
+    return { ...step, status: update?.status || step.status || 'pending', note: update?.note };
+  });
+
+  const completedCount = mergedSteps.filter((s) => s.status === 'complete').length;
+  const totalCount = mergedSteps.length;
+
+  return (
+    <div className="mt-2 rounded-lg border bg-card p-3 space-y-3">
+      <div className="flex items-start gap-2">
+        <TargetIcon className="size-4 mt-0.5 text-primary shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">{input.goal}</p>
+          <div className="flex items-center gap-2 mt-1">
+            {input.estimatedTime && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <ClockIcon className="size-3" />
+                {input.estimatedTime}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {completedCount}/{totalCount} steps
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-1.5 ml-1">
+        {mergedSteps.map((step, idx) => (
+          <div
+            key={step.id}
+            className={cn(
+              'flex items-start gap-2 text-sm transition-opacity',
+              step.status === 'pending' && 'opacity-50',
+              step.status === 'skipped' && 'opacity-40 line-through',
+            )}
+          >
+            <span className="mt-0.5 shrink-0">{planStepStatusIcon[step.status] || planStepStatusIcon.pending}</span>
+            <div className="flex-1 min-w-0">
+              <span>{step.action}</span>
+              {step.tool && <span className="ml-1.5 text-xs text-muted-foreground">({step.tool})</span>}
+              {step.note && <p className="text-xs text-muted-foreground mt-0.5">{step.note}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprovalResponse }: { parts: any[]; role: string; isStreaming?: boolean; isLastMessage: boolean; addToolApprovalResponse?: (response: { id: string; approved: boolean }) => void }) {
   if (role === 'user') {
     return parts.map((part, i) => {
@@ -133,6 +206,18 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
   // Check if message has tool calls
   const toolParts = parts.filter((p) => p.type.startsWith('tool-') || p.type === 'dynamic-tool');
   const hasTools = toolParts.length > 0;
+
+  // Collect plan step updates from update_plan_step calls
+  const stepUpdates = useMemo(() => {
+    const updates = new Map<string, { status: string; note?: string }>();
+    for (const p of parts) {
+      const raw = p.type === 'dynamic-tool' ? p.toolName : p.type?.replace('tool-', '');
+      if (raw === 'update_plan_step' && p.input) {
+        updates.set(p.input.stepId, { status: p.input.status, note: p.input.note });
+      }
+    }
+    return updates;
+  }, [parts]);
 
   // Find the last text part (the final answer)
   const lastTextIdx = parts.reduce((acc: number, p: any, idx: number) => (p.type === 'text' && p.text) ? idx : acc, -1);
@@ -176,13 +261,19 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
         const isRunning = toolPart.state === 'input-streaming' || toolPart.state === 'input-available';
         const needsApproval = toolPart.approval && (toolPart.state === 'approval-requested' || toolPart.state === 'approval-responded' || toolPart.state === 'output-denied');
 
+        const isPlanTask = raw === 'plan_task';
+        const isUpdateStep = raw === 'update_plan_step';
+
         steps.push(
           <ChainOfThoughtStep
             key={`s-${i}`}
             label={friendly}
             status={isDone ? 'complete' : isRunning ? 'active' : 'pending'}
           >
-            {isDone && toolPart.output != null && (
+            {isPlanTask && isDone && (
+              <PlanView input={toolPart.input} output={toolPart.output} stepUpdates={stepUpdates} />
+            )}
+            {!isPlanTask && !isUpdateStep && isDone && toolPart.output != null && (
               <ToolResultView output={toolPart.output} />
             )}
             {needsApproval && (

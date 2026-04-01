@@ -10,6 +10,7 @@ import { createSkillTools } from '@/modules/skills/tools';
 import { createOrchestrationTools } from '@/modules/orchestration/tools';
 import { createUsageTools } from '@/modules/observability/tools';
 import { createSandboxTools } from '@/modules/sandbox/tools';
+import { createPlanningTools } from './planner';
 import { getToolStatus, StatusTracker } from './status';
 import { classifyError } from './error-handler';
 
@@ -25,7 +26,7 @@ const SYSTEM_PROMPT = `You are Cooper, an AI teammate — not a chatbot. You wor
 ## How You Work
 1. **Understand first** — Before acting, make sure you understand what's being asked. Ask clarifying questions for ambiguous requests, but don't over-ask for simple tasks.
 2. **Use your tools proactively** — You have access to connected services and web search. Use them without being asked. If someone mentions a metric, look it up. If they mention a bug, search for it.
-3. **Plan complex tasks** — For multi-step work, think through your approach before diving in. Break it into steps, execute them, and verify the result.
+3. **Plan complex tasks** — For multi-step work, use \`plan_task\` to create a structured plan before diving in. This shows the user your approach and keeps you organized. After completing each step, call \`update_plan_step\` to track progress. Simple questions don't need a plan.
 4. **Be direct and concise** — Lead with the answer. Put supporting details after. Use markdown formatting and emojis when they help. 🚀
 5. **Learn continuously** — When you notice important information (team processes, preferences, project details), remember it for future conversations.
 
@@ -132,6 +133,10 @@ export async function createAgentStream(input: AgentInput) {
   const builtInTools: Record<string, any> = {
     load_skill: createLoadSkillTool(),
   };
+
+  // Planning tools — always available
+  const planningTools = createPlanningTools();
+  Object.assign(builtInTools, planningTools);
 
   // Add memory and scheduler tools if supabase client is available
   if (input.supabase) {
