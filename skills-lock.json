@@ -206,6 +206,11 @@
       "sourceType": "github",
       "computedHash": "8e2ca1e7267fab10969f83a4ae6dbc15ce4082f35d8bc7fcd004b7af41ee9e4d"
     },
+    "slack-gif-creator": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "146d0f407e3f04aac0378b74bb238833b24bbd5e6387b932e82cfbf228f219b4"
+    },
     "slack-messaging": {
       "source": "anthropics/knowledge-work-plugins",
       "sourceType": "github",

@@ -339,18 +339,8 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
     parts.forEach((part, i) => {
       if (i === lastTextIdx) return; // skip final response — rendered outside
 
-      if (part.type === 'text' && part.text) {
-        // Intermediate thinking text
-        steps.push(
-          <ChainOfThoughtStep key={`t-${i}`} label={part.text} status="complete" />
-        );
-      }
-
-      if (part.type === 'reasoning' && part.text) {
-        steps.push(
-          <ChainOfThoughtStep key={`r-${i}`} label={`Thinking: ${part.text.slice(0, 80)}...`} status="complete" />
-        );
-      }
+      // Skip intermediate text and reasoning — only show tool steps in CoT
+      if (part.type === 'text' || part.type === 'reasoning') return;
 
       if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
         const toolPart = part as any;
