@@ -5,6 +5,7 @@ import type { MemoryContext } from '@/modules/memory/retriever';
 import { buildSkillsPrompt, createLoadSkillTool } from '@/modules/skills/system';
 import { createSaveKnowledgeTool } from '@/modules/memory/tools';
 import { createScheduleTools } from '@/modules/scheduler/tools';
+import { createSkillTools } from '@/modules/skills/tools';
 
 const MODELS: Record<string, string> = {
   'gemini-flash': 'gemini-2.5-flash',
@@ -103,6 +104,8 @@ export async function createAgentStream(input: AgentInput) {
     builtInTools.save_knowledge = createSaveKnowledgeTool(input.supabase, input.orgId);
     const scheduleTools = createScheduleTools(input.supabase, input.orgId, input.userId);
     Object.assign(builtInTools, scheduleTools);
+    const skillTools = createSkillTools(input.supabase, input.orgId);
+    Object.assign(builtInTools, skillTools);
   }
   const allTools = {
     ...builtInTools,
