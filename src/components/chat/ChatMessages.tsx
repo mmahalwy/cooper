@@ -42,7 +42,8 @@ import {
   ConfirmationAction,
 } from '@/components/ai-elements/confirmation';
 import { CopyMessageButton } from './CopyMessageButton';
-import { PlanView as DBPlanView } from './PlanView';
+import { ArtifactRenderer } from './ArtifactRenderer';
+import { isArtifactResult } from '@/modules/agent/artifacts';
 
 function formatToolName(raw: string): string {
   // Map internal tool names to friendly labels
@@ -54,6 +55,8 @@ function formatToolName(raw: string): string {
     'COMPOSIO_REMOTE_BASH_TOOL': 'Running command',
     'COMPOSIO_REMOTE_WORKBENCH': 'Using workbench',
     'save_knowledge': 'Saving to memory',
+    'load_skill': 'Loading skill',
+    'create_artifact': 'Creating artifact',
     'create_schedule': 'Creating schedule',
     'list_schedules': 'Listing schedules',
     'update_schedule': 'Updating schedule',
@@ -331,6 +334,17 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
         const isRunning = toolPart.state === 'input-streaming' || toolPart.state === 'input-available';
         const needsApproval = toolPart.approval && (toolPart.state === 'approval-requested' || toolPart.state === 'approval-responded' || toolPart.state === 'output-denied');
 
+        // If this is a completed create_artifact call, render inline artifact
+        // instead of the usual chain-of-thought step
+        if (raw === 'create_artifact' && isDone && isArtifactResult(toolPart.output)) {
+          steps.push(
+            <div key={`artifact-${i}`} className="py-1">
+              <ArtifactRenderer data={toolPart.output} />
+            </div>
+          );
+          return; // skip normal step rendering for this part
+        }
+
         const isPlanTask = raw === 'plan_task';
         const isUpdateStep = raw === 'update_plan_step';
 
@@ -354,9 +368,7 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
             {isPlanTask && isDone && (
               <PlanView input={toolPart.input} output={toolPart.output} stepUpdates={stepUpdates} />
             )}
-            {isPlanTask && isDone && toolPart.output?.planId && (
-              <DBPlanView planId={toolPart.output.planId} />
-            )}
+
             {!isPlanTask && !isUpdateStep && isDone && toolPart.output != null && (
               <ToolResultView output={toolPart.output} />
             )}

@@ -12,6 +12,7 @@ import { createUsageTools } from '@/modules/observability/tools';
 import { createSandboxTools } from '@/modules/sandbox/tools';
 import { createPlanningTools } from './planner';
 import { createWorkspaceTools } from '@/modules/workspace/tools';
+import { createArtifactTools } from './artifacts';
 import { getToolStatus, StatusTracker } from './status';
 import { classifyError } from './error-handler';
 
@@ -129,7 +130,9 @@ A meeting on ${localDate} is TODAY's meeting — even if the raw data shows a di
 
 export async function createAgentStream(input: AgentInput) {
   // Merge user-connected tools with built-in tools
-  const builtInTools: Record<string, any> = {};
+  const builtInTools: Record<string, any> = {
+    ...createArtifactTools(),
+  };
 
   // Planning tools need supabase + context — only register when available
 
