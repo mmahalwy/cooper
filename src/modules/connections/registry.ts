@@ -55,16 +55,32 @@ export async function getToolsForOrg(
 
       for (const [name, tool] of Object.entries(composioTools)) {
         if (name === 'COMPOSIO_MULTI_EXECUTE_TOOL' && !options?.skipApproval) {
+          const disabledSlugs = new Set(
+            Object.entries(toolPermissions)
+              .filter(([_, perm]) => perm === 'disabled')
+              .map(([slug]) => slug)
+          );
+
+          const originalExecute = tool.execute;
           allTools[name] = {
             ...tool,
+            execute: async (input: any) => {
+              // Block disabled slugs before execution
+              const inputTools: any[] = input?.tools || [];
+              const blocked = inputTools.filter((t: any) => disabledSlugs.has(t?.tool_slug));
+              if (blocked.length > 0) {
+                return {
+                  error: `The following actions are disabled: ${blocked.map((t: any) => t.tool_slug).join(', ')}. They can be re-enabled in the connection settings.`,
+                };
+              }
+              return originalExecute?.(input);
+            },
             needsApproval: (input: any) => {
               const inputTools: any[] = input?.tools || [];
               for (const t of inputTools) {
                 const slug = t?.tool_slug || '';
-                // Check saved permission for this specific tool slug
                 const perm = toolPermissions[slug];
                 console.log(`[registry] Approval check: slug=${slug} perm=${perm || 'none'}`);
-                if (perm === 'disabled') return true;
                 if (perm === 'confirm') return true;
                 if (perm === 'auto') continue;
                 // No saved permission — fall back to verb-based detection
