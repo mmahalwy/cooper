@@ -5,6 +5,7 @@ import { getToolsForOrg } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
 import { extractAndSaveMemories } from '@/modules/memory/extractor';
 import { summarizeAndStoreThread } from '@/modules/memory/thread-summary';
+import { trackUsage } from '@/modules/observability/usage';
 
 export const maxDuration = 60;
 
@@ -156,6 +157,24 @@ export async function POST(req: Request) {
         .from('threads')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', activeThreadId);
+
+      // Track token usage and costs
+      try {
+        const usage = await result.usage;
+        if (usage) {
+          trackUsage(sb, {
+            orgId: dbUser.org_id,
+            userId: user.id,
+            threadId: activeThreadId,
+            modelId: modelUsed,
+            modelProvider: 'google',
+            promptTokens: usage.promptTokens || 0,
+            completionTokens: usage.completionTokens || 0,
+            latencyMs: undefined, // TODO: track request start time
+            source: 'chat',
+          }).catch(err => console.error('[chat] Usage tracking failed:', err));
+        }
+      } catch { /* non-critical */ }
 
       // Background: extract and save memories from this exchange
       extractAndSaveMemories(
