@@ -28,6 +28,7 @@ import {
   CalendarClockIcon,
   BarChart3Icon,
   ActivityIcon,
+  UsersIcon,
   LogOutIcon,
   SearchIcon,
   XIcon,
@@ -212,6 +213,12 @@ function AppSidebar() {
             <SidebarMenuButton onClick={() => router.push('/schedules')}>
               <CalendarClockIcon />
               <span>Schedules</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => router.push('/settings/team')}>
+              <UsersIcon />
+              <span>Team</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

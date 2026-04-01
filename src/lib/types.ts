@@ -88,6 +88,18 @@ export interface ScheduledTask {
   updated_at: string;
 }
 
+export interface Invitation {
+  id: string;
+  org_id: string;
+  email: string;
+  role: 'admin' | 'member';
+  invited_by: string;
+  status: 'pending' | 'accepted' | 'expired';
+  token: string;
+  created_at: string;
+  expires_at: string;
+}
+
 export interface ExecutionLog {
   id: string;
   task_id: string;
