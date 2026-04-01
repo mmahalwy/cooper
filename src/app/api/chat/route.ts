@@ -6,6 +6,7 @@ import { retrieveContext } from '@/modules/memory/retriever';
 import { extractAndSaveMemories } from '@/modules/memory/extractor';
 import { summarizeAndStoreThread } from '@/modules/memory/thread-summary';
 import { trackUsage } from '@/modules/observability/usage';
+import { reflectOnResponse } from '@/modules/agent/reflection';
 
 export const maxDuration = 60;
 
@@ -176,6 +177,34 @@ export async function POST(req: Request) {
           }).catch(err => console.error('[chat] Usage tracking failed:', err));
         }
       } catch { /* non-critical */ }
+
+      // Background: self-reflect on complex responses
+      if (toolCallSummary.length >= 3 && fullText) {
+        reflectOnResponse(userText, fullText, toolCallSummary)
+          .then(async (reflection) => {
+            if (reflection && reflection.quality !== 'good') {
+              console.log(`[reflection] Quality: ${reflection.quality}`, reflection.issues);
+              // Store reflection as metadata on the message for future context
+              await sb.from('messages')
+                .update({
+                  metadata: {
+                    model: modelUsed,
+                    toolsUsed: toolCallSummary,
+                    reflection: {
+                      quality: reflection.quality,
+                      issues: reflection.issues,
+                      suggestion: reflection.suggestion,
+                    },
+                  },
+                })
+                .eq('thread_id', activeThreadId)
+                .eq('role', 'assistant')
+                .order('created_at', { ascending: false })
+                .limit(1);
+            }
+          })
+          .catch((err) => console.error('[reflection] Failed:', err));
+      }
 
       // Background: extract and save memories from this exchange
       extractAndSaveMemories(
