@@ -30,6 +30,7 @@ import {
 } from '@/components/ai-elements/sources';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { BotIcon, UserIcon, ChevronRightIcon, ClockIcon, CheckCircle2Icon, XCircleIcon, CircleDotIcon, CircleDashedIcon, TargetIcon } from 'lucide-react';
+import { BranchButton } from './BranchButton';
 import { cn } from '@/lib/utils';
 import { StreamingStatus } from './StreamingStatus';
 import {
@@ -450,10 +451,11 @@ interface ChatMessagesProps {
   messages: UIMessage[];
   isStreaming?: boolean;
   status?: string;
+  threadId?: string;
   addToolApprovalResponse?: (response: { id: string; approved: boolean }) => void;
 }
 
-export function ChatMessages({ messages, isStreaming, status, addToolApprovalResponse }: ChatMessagesProps) {
+export function ChatMessages({ messages, isStreaming, status, threadId, addToolApprovalResponse }: ChatMessagesProps) {
   // Derive the active tool name from the last assistant message's parts
   const lastMessage = messages[messages.length - 1];
   const currentTool =
@@ -482,6 +484,9 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
                 <MessageContent>
                   <AssistantParts parts={message.parts} role={message.role} isStreaming={isStreaming} isLastMessage={message.id === messages[messages.length - 1]?.id} addToolApprovalResponse={addToolApprovalResponse} />
                 </MessageContent>
+                {message.role !== 'user' && threadId && (
+                  <BranchButton threadId={threadId} messageId={message.id} />
+                )}
                 {message.role === 'user' && (
                   <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     <UserIcon className="size-4" />

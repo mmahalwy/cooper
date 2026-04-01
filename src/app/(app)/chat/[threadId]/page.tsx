@@ -81,7 +81,7 @@ function ChatThread({
 
   return (
     <div className="flex h-screen flex-col">
-      <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} />
+      <ChatMessages messages={messages} isStreaming={isStreaming} status={status} threadId={threadId} addToolApprovalResponse={addToolApprovalResponse} />
       <ChatInput
         onSend={({ text, files }) => sendMessage({ text, files })}
         onStop={stop}
