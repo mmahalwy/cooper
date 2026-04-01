@@ -9,6 +9,7 @@ import { createScheduleTools } from '@/modules/scheduler/tools';
 import { createSkillTools } from '@/modules/skills/tools';
 import { createOrchestrationTools } from '@/modules/orchestration/tools';
 import { createUsageTools } from '@/modules/observability/tools';
+import { createSandboxTools } from '@/modules/sandbox/tools';
 import { getToolStatus, StatusTracker } from './status';
 import { classifyError } from './error-handler';
 
@@ -66,7 +67,14 @@ Keep suggestions:
 - **Actionable** — Things you can actually do with your current tools
 - **Relevant** — Directly related to what was just discussed
 - **Brief** — One sentence each, as a bulleted list at the end
-- Don't suggest follow-ups for simple questions, greetings, or when the user is clearly done`;
+- Don't suggest follow-ups for simple questions, greetings, or when the user is clearly done
+
+## Code Execution
+You have a sandboxed code execution environment. When a task requires computation, data processing, file generation, or any complex logic — WRITE CODE. Don't try to do math in your head or manually process data.
+- Use execute_code for Python, JavaScript, or bash
+- Install packages first if needed with install_packages
+- Read/write files for persistent data within a session
+- Show the user your code and results`;
 
 async function buildSystemPrompt(memoryContext?: MemoryContext, timezone?: string): Promise<string> {
   let prompt = SYSTEM_PROMPT;
@@ -137,6 +145,13 @@ export async function createAgentStream(input: AgentInput) {
     const usageTools = createUsageTools(input.supabase, input.orgId);
     Object.assign(builtInTools, usageTools);
   }
+
+  // Register sandbox tools if E2B is configured
+  if (process.env.E2B_API_KEY) {
+    const sandboxTools = createSandboxTools(input.orgId, input.threadId);
+    Object.assign(builtInTools, sandboxTools);
+  }
+
   const allTools = {
     ...builtInTools,
     ...(input.tools || {}),
