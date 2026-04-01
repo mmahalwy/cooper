@@ -26,6 +26,7 @@ import {
   BrainIcon,
   ZapIcon,
   CalendarClockIcon,
+  BarChart3Icon,
   LogOutIcon,
 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
@@ -139,6 +140,12 @@ function AppSidebar() {
             <SidebarMenuButton onClick={() => router.push('/schedules')}>
               <CalendarClockIcon />
               <span>Schedules</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => router.push('/usage')}>
+              <BarChart3Icon />
+              <span>Usage</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
