@@ -4,6 +4,7 @@ import { getMcpTools } from './mcp/client';
 import type { McpServerConfig } from './mcp/types';
 import { getComposioTools } from './platform/composio';
 import type { Connection } from '@/lib/types';
+import { withRetry } from '@/modules/agent/error-handler';
 
 export async function getToolsForOrg(
   supabase: SupabaseClient,
@@ -20,7 +21,11 @@ export async function getToolsForOrg(
   const platformConnections = connections.filter(c => c.type === 'platform');
   if (platformConnections.length > 0) {
     try {
-      const composioTools = await getComposioTools('default');
+      const composioTools = await withRetry(
+        () => getComposioTools('default'),
+        'composio-tools',
+        { maxRetries: 2, baseDelayMs: 1000 }
+      );
       console.log(`[registry] Composio tools:`, Object.keys(composioTools));
 
       // Build a map of tool_slug → permission from all platform connections' config
@@ -68,7 +73,11 @@ export async function getToolsForOrg(
   const mcpConnections = connections.filter(c => c.type === 'mcp');
   const mcpPromises = mcpConnections.map(async (conn) => {
     try {
-      const tools = await getMcpTools(conn.id, conn.config as unknown as McpServerConfig);
+      const tools = await withRetry(
+        () => getMcpTools(conn.id, conn.config as unknown as McpServerConfig),
+        `mcp-tools:${conn.name}`,
+        { maxRetries: 1, baseDelayMs: 500 }
+      );
       for (const [name, tool] of Object.entries(tools)) {
         allTools[`${conn.provider}_${name}`] = tool;
       }

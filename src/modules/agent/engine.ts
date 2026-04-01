@@ -8,6 +8,7 @@ import { createScheduleTools } from '@/modules/scheduler/tools';
 import { createSkillTools } from '@/modules/skills/tools';
 import { createOrchestrationTools } from '@/modules/orchestration/tools';
 import { getToolStatus, StatusTracker } from './status';
+import { classifyError } from './error-handler';
 
 const MODELS: Record<string, string> = {
   'gemini-flash': 'gemini-2.5-flash',
@@ -147,7 +148,8 @@ export async function createAgentStream(input: AgentInput) {
       },
     },
     onError: ({ error }) => {
-      console.error('[agent] Stream error:', error);
+      const classified = classifyError(error);
+      console.error(`[agent] Stream error [${classified.type}]:`, classified.message);
     },
     onStepFinish: ({ toolCalls }) => {
       if (toolCalls && toolCalls.length > 0) {
