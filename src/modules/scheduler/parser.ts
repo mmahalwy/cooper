@@ -25,11 +25,12 @@ User's description:
 
 Generate:
 1. A short name for the task
-2. A valid cron expression (5 fields, UTC timezone)
+2. A valid cron expression (5 fields, UTC timezone). IMPORTANT: The minimum interval is 1 minute — cron does not support sub-minute (e.g., "every 30 seconds") schedules. Use "* * * * *" for the most frequent option (every minute).
 3. The prompt that should be sent to the AI agent each time the task runs
 4. A human-readable description of the schedule
 
 Examples of cron expressions:
+- "* * * * *" = Every minute (minimum interval)
 - "0 9 * * 1" = Every Monday at 9:00 AM UTC
 - "0 14 * * *" = Every day at 2:00 PM UTC
 - "30 8 * * 1-5" = Weekdays at 8:30 AM UTC

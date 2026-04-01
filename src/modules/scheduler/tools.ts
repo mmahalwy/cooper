@@ -11,12 +11,14 @@ import {
   updateScheduledTask,
   deleteScheduledTask,
 } from './db';
-import { getNextRunTime } from './matcher';
+import { getNextRunTime, isSubMinuteCron } from './matcher';
 
 export function createScheduleTools(supabase: SupabaseClient, orgId: string, userId: string) {
   return {
     create_schedule: tool({
       description: `Create a scheduled recurring task. Use this when the user asks you to do something on a regular cadence.
+
+MINIMUM INTERVAL: The scheduler supports a minimum interval of 1 minute. If the user requests something more frequent (e.g., "every 30 seconds", "every 10 seconds"), DO NOT create the schedule. Instead, inform the user that the minimum scheduling interval is 1 minute and ask if they'd like to proceed with a 1-minute interval instead.
 
 IMPORTANT: The "prompt" field is the FULL set of instructions that a future AI agent will follow when executing this task. The agent running the task will have NO other context — it won't know the original conversation. The prompt must be completely self-contained and highly detailed.
 
@@ -38,6 +40,13 @@ Think of it as writing a detailed runbook that someone could follow with zero co
       }),
       execute: async ({ name, cron, prompt, humanReadable, endsAt }) => {
         try {
+          if (isSubMinuteCron(cron)) {
+            return {
+              created: false,
+              error: 'The minimum scheduling interval is 1 minute. Please adjust the frequency to at least 1 minute.',
+            };
+          }
+
           const nextRunAt = getNextRunTime(cron).toISOString();
           const task = await createScheduledTask(supabase, {
             org_id: orgId,
@@ -105,6 +114,13 @@ When updating the cron, also recalculate and include the new next_run_at.`,
       }),
       execute: async ({ taskId, name, cron, prompt, status, humanReadable }) => {
         try {
+          if (cron && isSubMinuteCron(cron)) {
+            return {
+              updated: false,
+              error: 'The minimum scheduling interval is 1 minute. Please adjust the frequency to at least 1 minute.',
+            };
+          }
+
           const updates: Record<string, any> = {};
           if (name) updates.name = name;
           if (cron) {
