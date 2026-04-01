@@ -44,7 +44,7 @@ export default function ChatPage() {
         <EmptyState />
       )}
       <ChatInput
-        onSend={(text) => sendMessage({ text })}
+        onSend={({ text, files }) => sendMessage({ text, files })}
         onStop={stop}
         disabled={isStreaming}
         isStreaming={isStreaming}
