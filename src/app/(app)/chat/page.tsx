@@ -41,7 +41,7 @@ export default function ChatPage() {
       {hasMessages ? (
         <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} />
       ) : (
-        <EmptyState />
+        <EmptyState onSuggestionClick={(prompt) => sendMessage({ text: prompt })} />
       )}
       <ChatInput
         onSend={(text) => sendMessage({ text })}
