@@ -43,6 +43,7 @@ import {
 } from '@/components/ai-elements/confirmation';
 import { CopyMessageButton } from './CopyMessageButton';
 import { PlanView as DBPlanView } from './PlanView';
+import { MessageFeedback } from './MessageFeedback';
 
 function formatToolName(raw: string): string {
   // Map internal tool names to friendly labels
@@ -485,6 +486,9 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
                 )}
                 <MessageContent>
                   <AssistantParts parts={message.parts} role={message.role} isStreaming={isStreaming} isLastMessage={message.id === messages[messages.length - 1]?.id} addToolApprovalResponse={addToolApprovalResponse} />
+                  {message.role === 'assistant' && (
+                    <MessageFeedback messageId={message.id} />
+                  )}
                 </MessageContent>
                 {message.role === 'user' && (
                   <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
