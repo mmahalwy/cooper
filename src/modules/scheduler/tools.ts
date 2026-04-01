@@ -18,7 +18,7 @@ export function createScheduleTools(supabase: SupabaseClient, orgId: string, use
     create_schedule: tool({
       description: `Create a scheduled recurring task. Use this when the user asks you to do something on a regular cadence.
 
-MINIMUM INTERVAL: The scheduler supports a minimum interval of 1 minute. If the user requests something more frequent (e.g., "every 30 seconds", "every 10 seconds"), DO NOT create the schedule. Instead, inform the user that the minimum scheduling interval is 1 minute and ask if they'd like to proceed with a 1-minute interval instead.
+MINIMUM INTERVAL: The scheduler supports a minimum interval of 1 minute. If the user requests something more frequent (e.g., "every 30 seconds", "every 10 seconds"), use 1-minute interval instead and mention this in your response.
 
 IMPORTANT: The "prompt" field is the FULL set of instructions that a future AI agent will follow when executing this task. The agent running the task will have NO other context — it won't know the original conversation. The prompt must be completely self-contained and highly detailed.
 
