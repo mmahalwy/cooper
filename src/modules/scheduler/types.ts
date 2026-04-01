@@ -11,6 +11,8 @@ export interface ScheduledTask {
   last_run_at: string | null;
   next_run_at: string | null;
   ends_at: string | null;
+  locked_until: string | null;
+  consecutive_failures: number;
   created_at: string;
   updated_at: string;
 }

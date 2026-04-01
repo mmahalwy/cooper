@@ -3,13 +3,57 @@ import { google } from '@ai-sdk/google';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { getToolsForOrg } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
-import { updateTaskAfterRun, createExecutionLog, updateScheduledTaskStatus } from './db';
+import {
+  updateTaskAfterRun,
+  createExecutionLog,
+  updateScheduledTaskStatus,
+  clearTaskLock,
+  resetConsecutiveFailures,
+  recordTaskFailure,
+} from './db';
 import { getNextRunTime } from './matcher';
 import type { ScheduledTask } from '@/lib/types';
 
 const SYSTEM_PROMPT = `You are Cooper, an AI teammate executing a scheduled task.
 Complete the task described below. Be thorough but concise in your output.
 Use any available tools to get the information needed.`;
+
+/** Task execution timeout: 4 minutes (240s) to stay under Vercel's 5 min limit */
+const TASK_TIMEOUT_MS = 4 * 60 * 1000;
+
+class TaskTimeoutError extends Error {
+  constructor(taskId: string, timeoutMs: number) {
+    super(`Task ${taskId} timed out after ${timeoutMs / 1000}s`);
+    this.name = 'TaskTimeoutError';
+  }
+}
+
+/**
+ * Wrap a promise with a timeout. Rejects with TaskTimeoutError if the
+ * timeout elapses before the promise settles.
+ */
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  taskId: string
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new TaskTimeoutError(taskId, timeoutMs));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
 
 export async function executeScheduledTask(
   supabase: SupabaseClient,
@@ -19,6 +63,7 @@ export async function executeScheduledTask(
   if (task.ends_at && new Date(task.ends_at) <= new Date()) {
     console.log(`[scheduler] Task ${task.id} expired (ends_at: ${task.ends_at}), pausing`);
     await updateScheduledTaskStatus(supabase, task.id, 'paused');
+    await clearTaskLock(supabase, task.id);
     return;
   }
 
@@ -30,45 +75,13 @@ export async function executeScheduledTask(
   });
 
   try {
-    const { data: thread } = await supabase
-      .from('threads')
-      .insert({
-        org_id: task.org_id,
-        user_id: task.user_id,
-        title: `[Scheduled] ${task.name}`,
-      })
-      .select('id')
-      .single();
-
-    const tools = await getToolsForOrg(supabase, task.org_id);
-    const memoryContext = await retrieveContext(supabase, task.org_id, task.prompt);
-
-    let systemPrompt = SYSTEM_PROMPT;
-    if (memoryContext.knowledge.length) {
-      systemPrompt += `\n\n## Organization context:\n${memoryContext.knowledge.map((k) => `- ${k}`).join('\n')}`;
-    }
-
-    const builtInTools = {
-      google_search: google.tools.googleSearch({}),
-    };
-    const allTools = { ...builtInTools, ...tools };
-
-    const result = await generateText({
-      model: google('gemini-2.5-flash'),
-      system: systemPrompt,
-      prompt: task.prompt,
-      tools: allTools,
-      stopWhen: stepCountIs(10),
-    });
+    const result = await withTimeout(
+      executeTaskCore(supabase, task),
+      TASK_TIMEOUT_MS,
+      task.id
+    );
 
     const durationMs = Date.now() - startTime;
-
-    if (thread?.id) {
-      await supabase.from('messages').insert([
-        { thread_id: thread.id, role: 'user', content: task.prompt },
-        { thread_id: thread.id, role: 'assistant', content: result.text, metadata: { scheduled: true, task_id: task.id } },
-      ]);
-    }
 
     if (log?.id) {
       await supabase
@@ -76,15 +89,19 @@ export async function executeScheduledTask(
         .update({
           status: 'success',
           output: result.text,
-          thread_id: thread?.id,
+          thread_id: result.threadId,
           completed_at: new Date().toISOString(),
           duration_ms: durationMs,
-          tokens_used: result.usage?.totalTokens,
+          tokens_used: result.tokensUsed,
         })
         .eq('id', log.id);
     }
+
+    // Reset consecutive failures on success
+    await resetConsecutiveFailures(supabase, task.id);
   } catch (error) {
     const durationMs = Date.now() - startTime;
+    const isTimeout = error instanceof TaskTimeoutError;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
     if (log?.id) {
@@ -92,16 +109,85 @@ export async function executeScheduledTask(
         .from('execution_logs')
         .update({
           status: 'error',
-          error_message: errorMessage,
+          error_message: isTimeout ? `Timeout: ${errorMessage}` : errorMessage,
           completed_at: new Date().toISOString(),
           duration_ms: durationMs,
         })
         .eq('id', log.id);
     }
 
-    console.error(`[scheduler] Task ${task.id} failed:`, error);
+    console.error(
+      `[scheduler] Task ${task.id} ${isTimeout ? 'timed out' : 'failed'}:`,
+      error
+    );
+
+    // Track consecutive failures and auto-pause if threshold reached
+    const { paused, failures } = await recordTaskFailure(supabase, task.id);
+    if (paused) {
+      console.warn(
+        `[scheduler] Task ${task.id} (${task.name}) auto-paused after ${failures} consecutive failures`
+      );
+    }
   } finally {
     const nextRun = getNextRunTime(task.cron);
     await updateTaskAfterRun(supabase, task.id, nextRun.toISOString());
   }
+}
+
+/**
+ * Core task execution logic (AI generation), separated so it can be wrapped
+ * with a timeout.
+ */
+async function executeTaskCore(
+  supabase: SupabaseClient,
+  task: ScheduledTask
+): Promise<{ text: string; threadId: string | null; tokensUsed: number | null }> {
+  const { data: thread } = await supabase
+    .from('threads')
+    .insert({
+      org_id: task.org_id,
+      user_id: task.user_id,
+      title: `[Scheduled] ${task.name}`,
+    })
+    .select('id')
+    .single();
+
+  const tools = await getToolsForOrg(supabase, task.org_id);
+  const memoryContext = await retrieveContext(supabase, task.org_id, task.prompt);
+
+  let systemPrompt = SYSTEM_PROMPT;
+  if (memoryContext.knowledge.length) {
+    systemPrompt += `\n\n## Organization context:\n${memoryContext.knowledge.map((k) => `- ${k}`).join('\n')}`;
+  }
+
+  const builtInTools = {
+    google_search: google.tools.googleSearch({}),
+  };
+  const allTools = { ...builtInTools, ...tools };
+
+  const result = await generateText({
+    model: google('gemini-2.5-flash'),
+    system: systemPrompt,
+    prompt: task.prompt,
+    tools: allTools,
+    stopWhen: stepCountIs(10),
+  });
+
+  if (thread?.id) {
+    await supabase.from('messages').insert([
+      { thread_id: thread.id, role: 'user', content: task.prompt },
+      {
+        thread_id: thread.id,
+        role: 'assistant',
+        content: result.text,
+        metadata: { scheduled: true, task_id: task.id },
+      },
+    ]);
+  }
+
+  return {
+    text: result.text,
+    threadId: thread?.id ?? null,
+    tokensUsed: result.usage?.totalTokens ?? null,
+  };
 }
