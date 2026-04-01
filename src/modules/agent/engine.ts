@@ -7,6 +7,7 @@ import { createSaveKnowledgeTool } from '@/modules/memory/tools';
 import { createScheduleTools } from '@/modules/scheduler/tools';
 import { createSkillTools } from '@/modules/skills/tools';
 import { createOrchestrationTools } from '@/modules/orchestration/tools';
+import { getToolStatus, StatusTracker } from './status';
 
 const MODELS: Record<string, string> = {
   'gemini-flash': 'gemini-2.5-flash',
@@ -123,6 +124,8 @@ export async function createAgentStream(input: AgentInput) {
 
   const modelMessages = await convertToModelMessages(input.uiMessages);
 
+  const statusTracker = new StatusTracker();
+
   const result = streamText({
     model: google(modelName),
     system: systemPrompt,
@@ -136,6 +139,15 @@ export async function createAgentStream(input: AgentInput) {
     },
     onError: ({ error }) => {
       console.error('[agent] Stream error:', error);
+    },
+    onStepFinish: ({ toolCalls }) => {
+      if (toolCalls && toolCalls.length > 0) {
+        for (const tc of toolCalls) {
+          statusTracker.recordToolCall(tc.toolName);
+          const status = getToolStatus(tc.toolName, tc.args as Record<string, any>);
+          console.log(`[agent] Step ${statusTracker.getStepCount()}: ${status}`);
+        }
+      }
     },
   });
 
