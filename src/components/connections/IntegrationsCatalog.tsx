@@ -4,12 +4,12 @@ import { useEffect, useState, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { PlusIcon, SearchIcon } from 'lucide-react';
 import { IntegrationCard } from './IntegrationCard';
 import { AddConnectionModal } from './AddConnectionModal';
 import type { Integration } from '@/lib/integrations-catalog';
 import {
-  deleteConnectionAction,
   syncConnectionsAction,
   createConnectionAction,
 } from '@/app/actions';
@@ -24,24 +24,18 @@ interface IntegrationsCatalogProps {
 export function IntegrationsCatalog({ initialConnections = [], integrations }: IntegrationsCatalogProps) {
   const [connections, setConnections] = useState<Connection[]>(initialConnections);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState<string>('All');
+  const [tab, setTab] = useState<'all' | 'popular'>('all');
+  const [showConnectedOnly, setShowConnectedOnly] = useState(false);
   const [mcpModalOpened, setMcpModalOpened] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   useEffect(() => {
-    // Auto-sync from Composio on load
     startTransition(async () => {
       await syncConnectionsAction();
       router.refresh();
     });
   }, []);
-
-  const VISIBLE_CATEGORIES = [
-    'All', 'Connected', 'Analytics', 'CRM', 'Communication', 'Development',
-    'Project Management', 'Marketing', 'Finance', 'HR', 'Productivity',
-  ];
 
   const connectedIds = useMemo(() => {
     const ids = new Set<string>();
@@ -56,53 +50,17 @@ export function IntegrationsCatalog({ initialConnections = [], integrations }: I
 
   const filtered = useMemo(() => {
     return integrations.filter((i) => {
-      const matchesSearch = !search || i.name.toLowerCase().includes(search.toLowerCase()) || i.description.toLowerCase().includes(search.toLowerCase());
-      const matchesCategory = category === 'All' || (category === 'Connected' ? connectedIds.has(i.id) : i.category === category);
-      return matchesSearch && matchesCategory;
+      const matchesSearch = !search || i.name.toLowerCase().includes(search.toLowerCase());
+      const matchesConnected = !showConnectedOnly || connectedIds.has(i.id);
+      const matchesTab = tab === 'all' || (tab === 'popular' && i.toolCount > 15);
+      return matchesSearch && matchesConnected && matchesTab;
     }).sort((a, b) => {
       const aConnected = connectedIds.has(a.id) ? 0 : 1;
       const bConnected = connectedIds.has(b.id) ? 0 : 1;
       if (aConnected !== bConnected) return aConnected - bConnected;
       return a.name.localeCompare(b.name);
     });
-  }, [search, category, connectedIds, integrations]);
-
-  const handleConnect = async (integration: Integration) => {
-    const initiateRes = await fetch('/api/connections/initiate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ appName: integration.composioApp }),
-    });
-
-    if (!initiateRes.ok) return;
-    const data = await initiateRes.json();
-
-    if (data.redirectUrl) {
-      window.open(data.redirectUrl, '_blank');
-    }
-  };
-
-  const handleRefresh = () => {
-    setSyncing(true);
-    startTransition(async () => {
-      await syncConnectionsAction();
-      router.refresh();
-      setSyncing(false);
-    });
-  };
-
-  const handleDisconnect = (integrationId: string) => {
-    const conn = connections.find((c) => {
-      const match = integrations.find((i) => i.id === integrationId);
-      return match && (c.provider === match.composioApp || c.provider === match.id);
-    });
-    if (!conn) return;
-
-    startTransition(async () => {
-      await deleteConnectionAction(conn.id);
-      setConnections((prev) => prev.filter((c) => c.id !== conn.id));
-    });
-  };
+  }, [search, tab, showConnectedOnly, connectedIds, integrations]);
 
   const handleMcpAdd = async (connection: {
     name: string;
@@ -123,57 +81,60 @@ export function IntegrationsCatalog({ initialConnections = [], integrations }: I
             Connect the tools you use and let Cooper perform tasks across various apps.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefresh} disabled={syncing}>
-            {syncing ? 'Syncing...' : 'Refresh'}
-          </Button>
-          <Button variant="outline" onClick={() => setMcpModalOpened(true)}>
-            <PlusIcon className="size-4 mr-2" />
-            Add Custom MCP
-          </Button>
-        </div>
+        <Button variant="outline" onClick={() => setMcpModalOpened(true)}>
+          <PlusIcon className="size-4 mr-2" />
+          Add Custom MCP
+        </Button>
       </div>
 
       <div className="relative">
         <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search all integrations..."
+          placeholder={`Search from ${integrations.length} integrations...`}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-10"
         />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {VISIBLE_CATEGORIES.map((cat) => (
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1">
           <button
-            key={cat}
-            onClick={() => setCategory(cat)}
+            onClick={() => setTab('all')}
             className={cn(
-              'shrink-0 rounded-full border px-3 py-1 text-xs transition-colors',
-              category === cat
-                ? 'bg-primary text-primary-foreground'
-                : 'hover:bg-muted'
+              'rounded-md px-3 py-1.5 text-sm transition-colors',
+              tab === 'all' ? 'bg-muted font-medium' : 'hover:bg-muted/50'
             )}
           >
-            {cat}
+            All integrations
           </button>
-        ))}
+          <button
+            onClick={() => setTab('popular')}
+            className={cn(
+              'rounded-md px-3 py-1.5 text-sm transition-colors',
+              tab === 'popular' ? 'bg-muted font-medium' : 'hover:bg-muted/50'
+            )}
+          >
+            Popular integrations
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Show connected only</span>
+          <Switch checked={showConnectedOnly} onCheckedChange={setShowConnectedOnly} />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         {filtered.map((integration) => (
           <IntegrationCard
             key={integration.id}
             integration={integration}
             connected={connectedIds.has(integration.id)}
-            onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
           />
         ))}
         {filtered.length === 0 && (
-          <p className="col-span-2 text-center text-muted-foreground py-8">
-            No integrations found matching your search.
+          <p className="col-span-3 text-center text-muted-foreground py-8">
+            No integrations found.
           </p>
         )}
       </div>

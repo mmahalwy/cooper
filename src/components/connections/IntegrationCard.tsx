@@ -1,69 +1,42 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { SettingsIcon, UnplugIcon, PlugIcon } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 import type { Integration } from '@/lib/integrations-catalog';
 
 interface IntegrationCardProps {
   integration: Integration;
   connected: boolean;
-  onConnect: (integration: Integration) => void;
-  onDisconnect: (integrationId: string) => void;
 }
 
-export function IntegrationCard({ integration, connected, onConnect, onDisconnect }: IntegrationCardProps) {
+export function IntegrationCard({ integration, connected }: IntegrationCardProps) {
   const router = useRouter();
 
   return (
-    <Card className="flex flex-col">
-      <CardContent className="flex flex-1 flex-col p-5">
-        <div className="flex items-start justify-between">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-lg font-semibold">
-            {integration.name[0]}
-          </div>
-          <button
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => router.push(`/connections/${integration.composioApp}`)}
-          >
-            <SettingsIcon className="size-4" />
-          </button>
+    <Card
+      className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+      onClick={() => router.push(`/connections/${integration.composioApp}`)}
+    >
+      {integration.logo ? (
+        <img
+          src={integration.logo}
+          alt={integration.name}
+          className="size-10 rounded-lg object-contain"
+        />
+      ) : (
+        <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-lg font-semibold">
+          {integration.name[0]}
         </div>
-        <div className="mt-3">
-          <div className="flex items-center gap-2">
-            <p className="font-semibold text-sm">{integration.name}</p>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">{integration.description}</p>
-        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm truncate">{integration.name}</p>
         {connected && (
-          <div className="mt-3 flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 mt-0.5">
             <span className="size-2 rounded-full bg-green-500" />
-            <span className="text-xs text-muted-foreground">{integration.toolCount} tools enabled</span>
+            <span className="text-xs text-muted-foreground">1 account connected</span>
           </div>
         )}
-        <div className="mt-auto pt-4">
-          {connected ? (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => onDisconnect(integration.id)}
-            >
-              <UnplugIcon className="size-4 mr-2" />
-              Disconnect
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => onConnect(integration)}
-            >
-              <PlugIcon className="size-4 mr-2" />
-              Connect
-            </Button>
-          )}
-        </div>
-      </CardContent>
+      </div>
     </Card>
   );
 }
