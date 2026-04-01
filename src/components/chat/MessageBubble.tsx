@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { WrenchIcon, BotIcon, UserIcon, LightbulbIcon, GlobeIcon, ChevronDownIcon, LoaderIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CodeBlock } from './CodeBlock';
+import { CopyMessageButton } from './CopyMessageButton';
 
 type ToolState =
   | 'input-streaming'
@@ -55,15 +57,22 @@ function extractToolName(part: ToolPart): string {
 export function MessageBubble({ role, parts }: MessageBubbleProps) {
   const isUser = role === 'user';
 
+  // Extract plain text content for the copy button
+  const textContent = parts
+    .filter((p): p is TextPart => p.type === 'text')
+    .map((p) => p.text || '')
+    .join('\n')
+    .trim();
+
   return (
-    <div className={cn('flex gap-3 py-4', isUser && 'flex-row-reverse')}>
+    <div className={cn('group/msg flex gap-3 py-4', isUser && 'flex-row-reverse')}>
       <div className={cn(
         'flex size-8 shrink-0 items-center justify-center rounded-full',
         isUser ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
       )}>
         {isUser ? <UserIcon className="size-4" /> : <BotIcon className="size-4" />}
       </div>
-      <div className={cn('max-w-[80%]', isUser ? 'bg-muted rounded-lg px-4 py-2.5' : '')}>
+      <div className={cn('relative max-w-[80%]', isUser ? 'bg-muted rounded-lg px-4 py-2.5' : '')}>
         <div className="text-sm">
           {parts.map((part, i) => {
             if (part.type === 'text') {
@@ -72,8 +81,22 @@ export function MessageBubble({ role, parts }: MessageBubbleProps) {
               return isUser ? (
                 <p key={i} className="whitespace-pre-wrap">{textPart.text}</p>
               ) : (
-                <div key={i} className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2 prose-code:before:content-none prose-code:after:content-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <div key={i} className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-pre:my-0 prose-code:before:content-none prose-code:after:content-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        const isInline = !match && !String(children).includes('\n');
+
+                        if (isInline) {
+                          return <code className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono" {...props}>{children}</code>;
+                        }
+
+                        return <CodeBlock language={match?.[1]}>{String(children).replace(/\n$/, '')}</CodeBlock>;
+                      },
+                    }}
+                  >
                     {textPart.text}
                   </ReactMarkdown>
                 </div>
@@ -107,6 +130,11 @@ export function MessageBubble({ role, parts }: MessageBubbleProps) {
             return null;
           })}
         </div>
+        {textContent && (
+          <div className="absolute -bottom-2 right-0 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+            <CopyMessageButton content={textContent} />
+          </div>
+        )}
       </div>
     </div>
   );
