@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from '@/components/ui/select';
-import { ArrowLeftIcon, UnplugIcon, SearchIcon } from 'lucide-react';
+import { ArrowLeftIcon, UnplugIcon, SearchIcon, CheckIcon } from 'lucide-react';
 import { saveToolPermissionAction } from '@/app/actions';
 import type { ConnectionTool } from '@/app/actions';
 
@@ -46,12 +46,16 @@ export function ConnectionDetail({ appName, connectionId, displayName, descripti
     return initial;
   });
 
-  const setPermission = (toolName: string, permission: ToolPermission) => {
+  const [savedTool, setSavedTool] = useState<string | null>(null);
+
+  const setPermission = useCallback((toolName: string, permission: ToolPermission) => {
     setPermissions((prev) => ({ ...prev, [toolName]: permission }));
     if (connectionId) {
       saveToolPermissionAction(connectionId, toolName, permission);
+      setSavedTool(toolName);
+      setTimeout(() => setSavedTool((prev) => prev === toolName ? null : prev), 1500);
     }
-  };
+  }, [connectionId]);
 
   // Deduplicate tools by name
   const uniqueTools = tools.filter((t, i, arr) => arr.findIndex((x) => x.name === t.name) === i);
@@ -126,6 +130,7 @@ export function ConnectionDetail({ appName, connectionId, displayName, descripti
                 tool={tool}
                 permission={permissions[tool.name] || 'auto'}
                 onPermissionChange={(p) => setPermission(tool.name, p)}
+                justSaved={savedTool === tool.name}
               />
             ))}
           </div>
@@ -142,6 +147,7 @@ export function ConnectionDetail({ appName, connectionId, displayName, descripti
                 tool={tool}
                 permission={permissions[tool.name] || 'confirm'}
                 onPermissionChange={(p) => setPermission(tool.name, p)}
+                justSaved={savedTool === tool.name}
               />
             ))}
           </div>
@@ -155,10 +161,11 @@ export function ConnectionDetail({ appName, connectionId, displayName, descripti
   );
 }
 
-function ToolRow({ tool, permission, onPermissionChange }: {
+function ToolRow({ tool, permission, onPermissionChange, justSaved }: {
   tool: ConnectionTool;
   permission: ToolPermission;
   onPermissionChange: (p: ToolPermission) => void;
+  justSaved?: boolean;
 }) {
   return (
     <div className="flex items-start justify-between gap-4 p-4">
@@ -166,16 +173,24 @@ function ToolRow({ tool, permission, onPermissionChange }: {
         <p className="font-medium text-sm">{tool.displayName}</p>
         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{tool.description}</p>
       </div>
-      <Select value={permission} onValueChange={(v) => onPermissionChange(v as ToolPermission)}>
-        <SelectTrigger className="w-[180px] shrink-0 text-xs h-8">
-          {permission === 'auto' ? 'Run automatically' : permission === 'confirm' ? 'Ask for confirmation' : 'Off'}
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="disabled">Off</SelectItem>
-          <SelectItem value="auto">Run automatically</SelectItem>
-          <SelectItem value="confirm">Ask for confirmation</SelectItem>
-        </SelectContent>
-      </Select>
+      <div className="flex items-center gap-2 shrink-0">
+        {justSaved && (
+          <span className="flex items-center gap-1 text-xs text-green-600 animate-in fade-in slide-in-from-right-2">
+            <CheckIcon className="size-3" />
+            Saved
+          </span>
+        )}
+        <Select value={permission} onValueChange={(v) => onPermissionChange(v as ToolPermission)}>
+          <SelectTrigger className="w-[180px] text-xs h-8">
+            {permission === 'auto' ? 'Run automatically' : permission === 'confirm' ? 'Ask for confirmation' : 'Off'}
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="disabled">Off</SelectItem>
+            <SelectItem value="auto">Run automatically</SelectItem>
+            <SelectItem value="confirm">Ask for confirmation</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }
