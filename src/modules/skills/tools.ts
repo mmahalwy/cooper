@@ -23,7 +23,7 @@ The skill should capture the PROCESS, not the specific data. Think of it as a re
         steps: z.array(z.object({
           action: z.string().describe('What to do in this step'),
           toolName: z.string().optional().describe('Which tool to use (if applicable)'),
-          params: z.record(z.unknown()).optional().describe('Key parameter patterns (not hardcoded values)'),
+          params: z.record(z.string(), z.unknown()).optional().describe('Key parameter patterns (not hardcoded values)'),
           condition: z.string().optional().describe('When to execute this step (if conditional)'),
         })).describe('Ordered steps to complete the workflow'),
         tools: z.array(z.string()).describe('List of tool names this skill uses'),
