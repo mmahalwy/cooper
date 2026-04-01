@@ -9,6 +9,7 @@ import { createSkillTools } from '@/modules/skills/tools';
 import { createOrchestrationTools } from '@/modules/orchestration/tools';
 import { getToolStatus, StatusTracker } from './status';
 import { classifyError } from './error-handler';
+import { createSandboxTools } from '@/modules/sandbox/tools';
 
 const MODELS: Record<string, string> = {
   'gemini-flash': 'gemini-2.5-flash',
@@ -133,6 +134,9 @@ export async function createAgentStream(input: AgentInput) {
     const orchestrationTools = createOrchestrationTools(input.supabase, input.orgId);
     Object.assign(builtInTools, orchestrationTools);
   }
+  const sandboxTools = createSandboxTools();
+  Object.assign(builtInTools, sandboxTools);
+
   const allTools = {
     ...builtInTools,
     ...(input.tools || {}),
