@@ -1,5 +1,6 @@
 import { streamText, stepCountIs, convertToModelMessages } from 'ai';
 import { google } from '@ai-sdk/google';
+import { manageContextWindow } from './context-manager';
 import type { AgentInput } from './types';
 import type { MemoryContext } from '@/modules/memory/retriever';
 import { buildSkillsPrompt, createLoadSkillTool } from '@/modules/skills/system';
@@ -144,7 +145,13 @@ export async function createAgentStream(input: AgentInput) {
     systemPrompt += `\n\n## Connected Integrations\nYou are currently connected to: ${input.connectedServices.join(', ')}. You can use these services to get data and take actions. When the user asks what you're connected to, list these service names. Do NOT mention "Composio" — that is an internal system, not a user-facing service.`;
   }
 
-  const modelMessages = await convertToModelMessages(input.uiMessages);
+  // Manage context window — summarize old messages for long conversations
+  const managedContext = await manageContextWindow(input.uiMessages);
+  if (managedContext.wasSummarized && managedContext.conversationSummary) {
+    systemPrompt += `\n\n## Earlier in this conversation:\n${managedContext.conversationSummary}`;
+  }
+
+  const modelMessages = await convertToModelMessages(managedContext.recentMessages);
 
   const statusTracker = new StatusTracker();
 
