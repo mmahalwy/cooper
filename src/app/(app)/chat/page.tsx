@@ -44,7 +44,7 @@ export default function ChatPage() {
         <EmptyState onSuggestionClick={(prompt) => sendMessage({ text: prompt })} />
       )}
       <ChatInput
-        onSend={(text) => sendMessage({ text })}
+        onSend={({ text, files }) => sendMessage({ text, files })}
         onStop={stop}
         disabled={isStreaming}
         isStreaming={isStreaming}

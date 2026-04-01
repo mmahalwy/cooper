@@ -1,6 +1,7 @@
 'use client';
 
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
+import type { FileUIPart } from 'ai';
 import {
   Attachment,
   AttachmentPreview,
@@ -37,7 +38,7 @@ import {
   PromptInputTools,
   usePromptInputAttachments,
 } from '@/components/ai-elements/prompt-input';
-import { CheckIcon, GlobeIcon } from 'lucide-react';
+import { CheckIcon, GlobeIcon, Loader2Icon } from 'lucide-react';
 
 const models = [
   {
@@ -57,11 +58,43 @@ const models = [
 ];
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: { text: string; files?: FileUIPart[] }) => void;
   onStop?: () => void;
   disabled?: boolean;
   isStreaming?: boolean;
   status?: string;
+}
+
+/**
+ * Uploads a single file to Supabase Storage via the /api/upload endpoint.
+ * Returns a FileUIPart with a signed URL or null on failure.
+ */
+async function uploadFileToStorage(file: FileUIPart): Promise<FileUIPart | null> {
+  // Convert data URL back to a File for FormData upload
+  if (!file.url) return null;
+
+  try {
+    const response = await fetch(file.url);
+    const blob = await response.blob();
+    const fileObj = new File([blob], file.filename || 'attachment', { type: file.mediaType });
+
+    const formData = new FormData();
+    formData.append('file', fileObj);
+
+    const uploadResponse = await fetch('/api/upload', { method: 'POST', body: formData });
+    const result = await uploadResponse.json();
+
+    if (result.error || !result.url) return null;
+
+    return {
+      type: 'file',
+      url: result.url,
+      mediaType: result.type || file.mediaType,
+      filename: result.name || file.filename,
+    };
+  } catch {
+    return null;
+  }
 }
 
 const AttachmentItem = memo(({ attachment, onRemove }: {
@@ -121,6 +154,7 @@ function PromptInputAttachmentsDisplay() {
 export function ChatInput({ onSend, onStop, disabled, isStreaming, status }: ChatInputProps) {
   const [model, setModel] = useState(models[0].id);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const selectedModelData = models.find((m) => m.id === model);
 
@@ -129,9 +163,31 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming, status }: Cha
     setModelSelectorOpen(false);
   }, []);
 
-  const handleSubmit = useCallback((message: PromptInputMessage) => {
-    if (!message.text?.trim()) return;
-    onSend(message.text.trim());
+  const handleSubmit = useCallback(async (message: PromptInputMessage) => {
+    if (!message.text?.trim() && message.files.length === 0) return;
+
+    // If there are files, upload them to storage first
+    if (message.files.length > 0) {
+      setUploading(true);
+      try {
+        const uploadedFiles = await Promise.all(
+          message.files.map((file) => uploadFileToStorage(file))
+        );
+
+        const successfulUploads = uploadedFiles.filter(
+          (f): f is FileUIPart => f !== null
+        );
+
+        onSend({
+          text: message.text?.trim() || '',
+          files: successfulUploads.length > 0 ? successfulUploads : undefined,
+        });
+      } finally {
+        setUploading(false);
+      }
+    } else {
+      onSend({ text: message.text.trim() });
+    }
   }, [onSend]);
 
   const chatStatus = (status || 'ready') as 'submitted' | 'streaming' | 'ready' | 'error';
@@ -154,8 +210,14 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming, status }: Cha
                     <PromptInputActionAddScreenshot />
                   </PromptInputActionMenuContent>
                 </PromptInputActionMenu>
+                {uploading && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                    <Loader2Icon className="size-3 animate-spin" />
+                    <span>Uploading…</span>
+                  </div>
+                )}
               </PromptInputTools>
-              <PromptInputSubmit status={chatStatus} />
+              <PromptInputSubmit status={uploading ? 'submitted' : chatStatus} />
             </PromptInputFooter>
           </PromptInput>
         </PromptInputProvider>
