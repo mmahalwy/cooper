@@ -308,8 +308,22 @@ export async function POST(req: Request) {
           );
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[chat] Failed to persist assistant response:', err);
+      console.error('[chat] Error name:', err?.name, 'message:', err?.message);
+      // Save error to thread so the user sees feedback
+      if (activeThreadId) {
+        try {
+          const { createClient: createServerClient } = await import('@/lib/supabase/server');
+          const sb = await createServerClient();
+          await sb.from('messages').insert({
+            thread_id: activeThreadId,
+            role: 'assistant',
+            content: `Sorry, I ran into an issue while processing your request. Please try again! 🔄\n\n_Error: ${err?.message || 'Unknown error'}_`,
+            metadata: { error: true },
+          });
+        } catch { /* last resort, nothing we can do */ }
+      }
     }
   });
 
