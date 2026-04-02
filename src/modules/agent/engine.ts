@@ -261,6 +261,35 @@ export async function createAgentStream(input: AgentInput) {
 
   const modelMessages = await convertToModelMessages(managedContext.recentMessages);
 
+  // === TOKEN BUDGET BREAKDOWN ===
+  // Estimate ~4 chars per token for logging purposes
+  const estimateTokens = (s: string) => Math.round(s.length / 4);
+  const toolNames = Object.keys(allTools);
+  const toolSchemaSize = toolNames.reduce((sum, name) => {
+    const t = allTools[name];
+    const desc = t?.description || '';
+    const schema = JSON.stringify(t?.inputSchema || t?.parameters || {});
+    return sum + desc.length + schema.length;
+  }, 0);
+  const messagesSize = JSON.stringify(modelMessages).length;
+
+  console.log(`[agent] === TOKEN BUDGET ===`);
+  console.log(`[agent]   System prompt: ~${estimateTokens(systemPrompt)} tokens (${systemPrompt.length} chars)`);
+  console.log(`[agent]   Messages: ~${estimateTokens(JSON.stringify(modelMessages))} tokens (${messagesSize} chars, ${modelMessages.length} messages)`);
+  console.log(`[agent]   Tools: ${toolNames.length} tools, ~${Math.round(toolSchemaSize / 4)} tokens in schemas`);
+  console.log(`[agent]   Tool breakdown:`);
+  for (const name of toolNames) {
+    const t = allTools[name];
+    const desc = (t?.description || '').length;
+    const schema = JSON.stringify(t?.inputSchema || t?.parameters || {}).length;
+    const total = Math.round((desc + schema) / 4);
+    if (total > 100) { // Only log tools > 100 tokens
+      console.log(`[agent]     ${name}: ~${total} tokens (desc: ${desc} chars, schema: ${schema} chars)`);
+    }
+  }
+  console.log(`[agent]   Estimated total: ~${estimateTokens(systemPrompt) + estimateTokens(JSON.stringify(modelMessages)) + Math.round(toolSchemaSize / 4)} tokens`);
+  console.log(`[agent] === END BUDGET ===`);
+
   const statusTracker = new StatusTracker();
 
   const result = streamText({
