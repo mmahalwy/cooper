@@ -1,4 +1,5 @@
 import { UIMessage } from 'ai';
+import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAgentStream } from '@/modules/agent/engine';
 import { getToolsForOrg } from '@/modules/connections/registry';
@@ -125,10 +126,14 @@ export async function POST(req: Request) {
     timezone: dbUser.timezone || 'America/Los_Angeles',
   });
 
-  // Save the assistant response after streaming completes
+  // Use Next.js after() to run background work after response is sent.
+  // This keeps the serverless function alive until all work completes.
   const modelUsed = 'gemini-flash';
-  Promise.resolve(result.text).then(async (fullText) => {
-    if (activeThreadId) {
+  after(async () => {
+    try {
+      const fullText = await result.text;
+      if (!activeThreadId) return;
+
       const { createClient: createServerClient } = await import(
         '@/lib/supabase/server'
       );
@@ -174,21 +179,24 @@ export async function POST(req: Request) {
 
       // Track token usage and costs
       try {
-        const usage = await result.usage;
-        if (usage) {
-          trackUsage(sb, {
+        const totalUsage = await result.totalUsage;
+        console.log('[chat] Token usage:', JSON.stringify(totalUsage));
+        if (totalUsage && (totalUsage.inputTokens || totalUsage.outputTokens)) {
+          await trackUsage(sb, {
             orgId: dbUser.org_id,
             userId: user.id,
             threadId: activeThreadId,
             modelId: modelUsed,
             modelProvider: 'google',
-            promptTokens: usage.inputTokens || 0,
-            completionTokens: usage.outputTokens || 0,
-            latencyMs: undefined, // TODO: track request start time
+            promptTokens: totalUsage.inputTokens || 0,
+            completionTokens: totalUsage.outputTokens || 0,
+            latencyMs: undefined,
             source: 'chat',
-          }).catch(err => console.error('[chat] Usage tracking failed:', err));
+          });
         }
-      } catch { /* non-critical */ }
+      } catch (err) {
+        console.error('[chat] Usage tracking failed:', err);
+      }
 
       // Log activity
       logActivity(sb, dbUser.org_id, toolCallSummary.length > 0 ? 'tool_call' : 'thread_created',
@@ -300,9 +308,9 @@ export async function POST(req: Request) {
           );
         }
       }
+    } catch (err) {
+      console.error('[chat] Failed to persist assistant response:', err);
     }
-  }).catch((err) => {
-    console.error('[chat] Failed to persist assistant response:', err);
   });
 
   return result.toUIMessageStreamResponse({
