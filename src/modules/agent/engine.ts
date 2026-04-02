@@ -273,8 +273,17 @@ export async function createAgentStream(input: AgentInput) {
       google: { thinkingConfig: { thinkingBudget: 1024 } },
     } : undefined,
     onError: ({ error }) => {
+      // Log the FULL error — not just the classified message
+      console.error(`[agent] Stream error (full):`, error);
+      if (error && typeof error === 'object') {
+        const err = error as any;
+        if (err.cause) console.error(`[agent] Stream error cause:`, err.cause);
+        if (err.responseBody) console.error(`[agent] Response body:`, err.responseBody);
+        if (err.statusCode) console.error(`[agent] Status code:`, err.statusCode);
+        if (err.url) console.error(`[agent] URL:`, err.url);
+      }
       const classified = classifyError(error);
-      console.error(`[agent] Stream error [${classified.type}]:`, classified.message);
+      console.error(`[agent] Classified [${classified.type}]:`, classified.message);
     },
     onStepFinish: ({ toolCalls }) => {
       if (toolCalls && toolCalls.length > 0) {
