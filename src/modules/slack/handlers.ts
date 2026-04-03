@@ -24,6 +24,7 @@ import { createWorkspaceTools } from '@/modules/workspace/tools';
 import { createCodeTools } from '@/modules/code/tools';
 import { createIntegrationTool } from '@/modules/agent/integration-subagent';
 import { buildSlackSystemPrompt } from './system-prompt';
+import { createSlackInteractiveTools } from './tools';
 
 interface HandlerContext {
   supabase: SupabaseClient;
@@ -59,10 +60,13 @@ async function removeReaction(
 
 async function buildTools(
   supabase: SupabaseClient,
+  slackClient: WebClient,
   orgId: string,
   userId: string,
   threadId: string,
-  connectedServices: string[]
+  connectedServices: string[],
+  slackChannel: string,
+  slackThreadTs: string
 ): Promise<Record<string, any>> {
   const builtInTools: Record<string, any> = {};
 
@@ -74,6 +78,12 @@ async function buildTools(
   Object.assign(builtInTools, createWorkspaceTools(supabase, orgId, threadId));
   Object.assign(builtInTools, createPlanningTools(supabase, orgId, threadId));
   Object.assign(builtInTools, createBackgroundTools(supabase, orgId, userId, threadId, connectedServices));
+
+  // Slack-specific interactive tools (approval requests, etc.)
+  Object.assign(
+    builtInTools,
+    createSlackInteractiveTools(slackClient, supabase, slackChannel, slackThreadTs, orgId, threadId)
+  );
 
   if (process.env.E2B_API_KEY) {
     Object.assign(builtInTools, createSandboxTools(orgId, threadId));
@@ -196,10 +206,13 @@ async function processEvent(
     // 8. Build tools and system prompt
     const tools = await buildTools(
       supabase,
+      slackClient,
       installation.org_id,
       resolvedUser.userId,
       threadId,
-      connectedServices
+      connectedServices,
+      channel,
+      replyThreadTs
     );
 
     const systemPrompt = await buildSlackSystemPrompt(
