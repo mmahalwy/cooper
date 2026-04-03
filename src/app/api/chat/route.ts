@@ -45,6 +45,7 @@ export async function POST(req: Request) {
   };
 
   // Create or reuse thread
+  const requestStartTime = Date.now();
   let activeThreadId = threadId;
   if (!activeThreadId || activeThreadId === 'new') {
     const lastUserMessage = messages[messages.length - 1];
@@ -128,7 +129,7 @@ export async function POST(req: Request) {
 
   // Use Next.js after() to run background work after response is sent.
   // This keeps the serverless function alive until all work completes.
-  const modelUsed = 'gemini-flash';
+  const modelUsed = 'gemini-2.5-flash';
   after(async () => {
     try {
       const fullText = await result.text;
@@ -190,7 +191,7 @@ export async function POST(req: Request) {
             modelProvider: 'google',
             promptTokens: totalUsage.inputTokens || 0,
             completionTokens: totalUsage.outputTokens || 0,
-            latencyMs: undefined,
+            latencyMs: Date.now() - requestStartTime,
             source: 'chat',
           });
         }
