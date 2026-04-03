@@ -5,7 +5,6 @@ import type { AppMentionEvent, MessageImEvent, SlackInstallation } from './types
 import { resolveSlackUser } from './users';
 import { findOrCreateThreadMapping, getSlackThreadHistory } from './threads';
 import { markdownToSlack } from './format';
-import { postWithBlocks } from './blocks';
 import { uploadFilesToSlack, extractFileArtifacts } from './files';
 import { getToolsForOrg } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
@@ -26,6 +25,7 @@ import { createCodeTools } from '@/modules/code/tools';
 import { createIntegrationTool } from '@/modules/agent/integration-subagent';
 import { buildSlackSystemPrompt } from './system-prompt';
 import { createSlackInteractiveTools } from './tools';
+import { generateThreadTitle } from '@/modules/agent/title-generator';
 
 interface HandlerContext {
   supabase: SupabaseClient;
@@ -107,6 +107,25 @@ async function buildTools(
 
 const MAX_SLACK_LENGTH = 39000;
 
+async function postMessageWithAutoJoin(
+  slackClient: WebClient,
+  channel: string,
+  thread_ts: string,
+  text: string
+): Promise<void> {
+  try {
+    await slackClient.chat.postMessage({ channel, thread_ts, text, unfurl_links: false });
+  } catch (err: any) {
+    if (err?.data?.error === 'not_in_channel' || err?.data?.error === 'channel_not_a_member') {
+      console.log(`[slack] Not in channel ${channel} — attempting auto-join`);
+      await slackClient.conversations.join({ channel });
+      await slackClient.chat.postMessage({ channel, thread_ts, text, unfurl_links: false });
+    } else {
+      throw err;
+    }
+  }
+}
+
 function splitMessage(text: string): string[] {
   if (text.length <= MAX_SLACK_LENGTH) return [text];
 
@@ -158,13 +177,16 @@ async function processEvent(
     const replyThreadTs = threadTs || messageTs;
 
     // 4. Find or create Cooper thread mapping
-    const { threadId } = await findOrCreateThreadMapping(
+    const { threadId, isNew } = await findOrCreateThreadMapping(
       supabase,
       channel,
       replyThreadTs,
       installation.org_id,
       resolvedUser.userId
     );
+
+    // First DM: threadTs is undefined (no existing thread) and this is a brand-new mapping
+    const isFirstDm = isNew && threadTs === undefined;
 
     // 5. Build conversation context from Slack thread history
     let messages;
@@ -221,7 +243,8 @@ async function processEvent(
       installation.org_id,
       memoryContext,
       connectedServices,
-      cleanUserText
+      cleanUserText,
+      { isFirstMessage: isFirstDm }
     );
 
     // 9. Generate response
@@ -246,7 +269,14 @@ async function processEvent(
     // 10. Post response to Slack
     const chunks = splitMessage(slackText);
     for (const chunk of chunks) {
-      await postWithBlocks(slackClient, channel, replyThreadTs, chunk);
+      await postMessageWithAutoJoin(slackClient, channel, replyThreadTs, chunk);
+    }
+
+    // 10a. Generate a smart thread title in the background for new threads
+    if (isNew) {
+      generateThreadTitle(supabase, threadId, cleanUserText, responseText).catch((err) =>
+        console.error('[slack] Title generation failed:', err)
+      );
     }
 
     // 11. Upload file artifacts if any
@@ -322,11 +352,12 @@ async function processEvent(
     // Try to post error message
     const replyThreadTs = threadTs || messageTs;
     try {
-      await slackClient.chat.postMessage({
+      await postMessageWithAutoJoin(
+        slackClient,
         channel,
-        thread_ts: replyThreadTs,
-        text: "Sorry, I hit a snag processing that. Try again! :wrench:",
-      });
+        replyThreadTs,
+        "Sorry, I hit a snag processing that. Try again! :wrench:"
+      );
     } catch {
       // Nothing we can do
     }

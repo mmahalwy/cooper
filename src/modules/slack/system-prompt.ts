@@ -46,7 +46,8 @@ export async function buildSlackSystemPrompt(
   orgId: string,
   memoryContext: MemoryContext,
   connectedServices: string[],
-  userMessage: string
+  userMessage: string,
+  options?: { isFirstMessage?: boolean }
 ): Promise<string> {
   let prompt = SLACK_SYSTEM_PROMPT;
 
@@ -95,6 +96,10 @@ export async function buildSlackSystemPrompt(
 
   if (connectedServices.length > 0) {
     prompt += `\n\n## Connected Integrations\nYou are connected to: ${connectedServices.join(', ')}. Do NOT mention "Composio".`;
+  }
+
+  if (options?.isFirstMessage) {
+    prompt += `\n\n## First Interaction\nThis is the first time this user has messaged you. After responding to their request (or if they just said hello), add a brief 1-sentence intro about what you can help with.`;
   }
 
   return prompt;
