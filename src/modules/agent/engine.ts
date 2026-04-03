@@ -234,9 +234,11 @@ export async function createAgentStream(input: AgentInput) {
     Object.assign(builtInTools, sandboxTools);
   }
 
-  // Register code tools when GitHub is connected and sandbox is available
+  // Register code tools when GitHub is connected
+  // Investigation tools (explore, read, search) work without E2B
+  // Development tools (clone, edit, run, PR) need E2B sandbox
   const hasGitHub = input.connectedServices?.some(s => s.toLowerCase().includes('github'));
-  if (hasGitHub && input.supabase && process.env.E2B_API_KEY) {
+  if (hasGitHub && input.supabase) {
     const codeTools = createCodeTools(input.supabase, input.orgId, input.threadId);
     Object.assign(builtInTools, codeTools);
   }

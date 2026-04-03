@@ -126,6 +126,9 @@ export function createCodeTools(
       },
     }),
 
+    // Development tools — only available when E2B sandbox is configured
+    ...(process.env.E2B_API_KEY ? {
+
     clone_repo: tool({
       description: `Clone a GitHub repository into the sandbox for making changes. Sets up git identity and auth. Call this before edit_file or run_command.`,
       inputSchema: z.object({
@@ -266,5 +269,7 @@ export function createCodeTools(
         }
       },
     }),
+
+    } : {}), // end E2B-only tools
   };
 }
