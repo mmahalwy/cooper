@@ -13,7 +13,12 @@ vi.mock('./embeddings', () => ({
 import { addKnowledge } from './knowledge';
 
 function makeSupabase({
-  similar = [],
+  similar = [] as Array<{
+    id: string;
+    similarity: number;
+    content: string;
+    source: string;
+  }>,
   insertResult = {
     id: 'knowledge-1',
     org_id: 'org-1',
@@ -33,14 +38,12 @@ function makeSupabase({
     updated_at: '2026-04-03T00:00:00.000Z',
   },
 } = {}) {
-  const singleMock = vi
-    .fn()
-    .mockResolvedValueOnce({ data: insertResult, error: null })
-    .mockResolvedValueOnce({ data: updateResult, error: null });
-
-  const selectMock = vi.fn(() => ({ single: singleMock }));
-  const insertMock = vi.fn(() => ({ select: selectMock }));
-  const updateEqMock = vi.fn(() => ({ select: selectMock }));
+  const insertSingleMock = vi.fn().mockResolvedValue({ data: insertResult, error: null });
+  const updateSingleMock = vi.fn().mockResolvedValue({ data: updateResult, error: null });
+  const insertSelectMock = vi.fn(() => ({ single: insertSingleMock }));
+  const updateSelectMock = vi.fn(() => ({ single: updateSingleMock }));
+  const insertMock = vi.fn(() => ({ select: insertSelectMock }));
+  const updateEqMock = vi.fn(() => ({ select: updateSelectMock }));
   const updateMock = vi.fn(() => ({ eq: updateEqMock }));
 
   return {
@@ -52,8 +55,10 @@ function makeSupabase({
     __mocks: {
       insertMock,
       updateMock,
-      selectMock,
-      singleMock,
+      insertSelectMock,
+      updateSelectMock,
+      insertSingleMock,
+      updateSingleMock,
     },
   } as const;
 }

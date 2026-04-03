@@ -45,3 +45,4 @@ next-env.d.ts
 
 # screenshots (development artifacts)
 *.png
+.devtools

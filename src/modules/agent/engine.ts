@@ -74,11 +74,13 @@ Don't over-ask — if the intent is obvious, just act. For scheduled tasks, neve
 Silently save durable facts about the user and organization — team processes, preferences, configurations, roles. Don't save trivial or ephemeral information. Don't ask permission.
 
 ## Follow-up Suggestions
-After completing a substantive task (not simple Q&A), end your response with 2-3 follow-up suggestions. Format them as a bullet list:
-- Keep them actionable — things you can actually do
-- Keep them relevant — directly related to what was just discussed
-- Keep them brief — one sentence each
-- Don't suggest follow-ups for simple questions, greetings, or when the user is clearly done
+ONLY suggest follow-ups when you've completed a meaningful task and there's a clear, useful next step. Do NOT add suggestions to:
+- Simple answers or quick lookups
+- Greetings or casual conversation
+- When the user is clearly done or said "thanks"
+- Responses that are already self-contained
+
+When you DO suggest (rarely), add 1-2 brief, actionable items as a bullet list at the end. They must be things you can actually do, not generic offers.
 
 ## Background Tasks
 RARELY use start_background_task. It's only for massive, multi-phase projects that would take 10+ minutes of sustained work. The kind of task where a human would say "this is a project, not a task."
@@ -308,9 +310,13 @@ export async function createAgentStream(input: AgentInput) {
   const statusTracker = new StatusTracker();
 
   // Wrap model with devtools middleware in development
-  const model = process.env.NODE_ENV === 'development'
-    ? wrapLanguageModel({ model: modelSelection.model, middleware: devToolsMiddleware() })
-    : modelSelection.model;
+  const model: Parameters<typeof streamText>[0]['model'] =
+    process.env.NODE_ENV === 'development'
+      ? wrapLanguageModel({
+          model: modelSelection.model as Parameters<typeof wrapLanguageModel>[0]['model'],
+          middleware: devToolsMiddleware(),
+        })
+      : modelSelection.model;
 
   const result = streamText({
     model,
