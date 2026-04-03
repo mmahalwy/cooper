@@ -16,10 +16,16 @@ export default function ChatPage() {
     dataPartSchemas: { suggestions: suggestionsPartSchema },
     transport: new DefaultChatTransport({
       api: '/api/chat',
-      // Include threadId in body once we have it — otherwise subsequent
-      // messages create new threads instead of continuing the conversation
-      get body() { return threadIdRef.current ? { threadId: threadIdRef.current } : undefined; },
       fetch: async (url, options) => {
+        // Inject threadId into the request body for follow-up messages
+        if (threadIdRef.current && options?.body) {
+          try {
+            const body = JSON.parse(options.body as string);
+            body.threadId = threadIdRef.current;
+            options = { ...options, body: JSON.stringify(body) };
+          } catch { /* body isn't JSON, skip */ }
+        }
+
         const response = await fetch(url, options);
         const tid = response.headers.get('X-Thread-Id');
         if (tid && !threadIdRef.current) {
