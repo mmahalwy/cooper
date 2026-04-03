@@ -85,22 +85,25 @@ export function createIntegrationTool(
             },
           });
 
-          // Log all steps for debugging
+          // Extract output — AI SDK tool results use .output (not .result)
           const steps = result.steps || [];
+
+          // Log steps for debugging
           for (let i = 0; i < steps.length; i++) {
             const step = steps[i];
             const calls = step.toolCalls?.map((tc: any) => tc.toolName) || [];
-            const results = step.toolResults?.map((tr: any) => {
-              const val = (tr as any)?.result;
+            const outputs = step.toolResults?.map((tr: any) => {
+              const val = tr.output;
               const str = typeof val === 'string' ? val : JSON.stringify(val);
-              return `${tr.toolName}: ${(str || '').slice(0, 200)}`;
+              return `${tr.toolName}: ${(str || '(empty)').slice(0, 200)}`;
             }) || [];
-            console.log(`[integration-subagent] Step ${i}: tools=[${calls.join(', ')}] text="${(step.text || '').slice(0, 100)}" results=[${results.join(' | ')}]`);
+            console.log(`[integration-subagent] Step ${i}: tools=[${calls.join(', ')}] text="${(step.text || '').slice(0, 100)}" outputs=[${outputs.join(' | ')}]`);
           }
 
-          // Get output — check text first, then fall back to last tool result
+          // Get output: prefer result.text, then last tool output, then concatenated texts
           let output = result.text || '';
           if (!output) {
+            // Walk backwards through steps to find the last meaningful output
             for (let i = steps.length - 1; i >= 0; i--) {
               const step = steps[i];
               if (step.text?.trim()) {
@@ -108,20 +111,17 @@ export function createIntegrationTool(
                 break;
               }
               if (step.toolResults?.length) {
-                const lastResult = step.toolResults[step.toolResults.length - 1];
-                // Try multiple paths — AI SDK result shape varies
-                const raw = lastResult as any;
-                const resultVal = raw?.result ?? raw?.output ?? raw;
-                console.log(`[integration-subagent] Tool result keys: ${Object.keys(raw || {}).join(', ')}`);
-                output = typeof resultVal === 'string'
-                  ? resultVal
-                  : JSON.stringify(resultVal)?.slice(0, 2000) || '';
-                if (output && output !== '{}' && output !== 'undefined') break;
-                output = ''; // reset if empty
+                // AI SDK uses .output on tool results
+                const lastResult = step.toolResults[step.toolResults.length - 1] as any;
+                const val = lastResult?.output;
+                if (val != null) {
+                  output = typeof val === 'string' ? val : JSON.stringify(val, null, 2);
+                  if (output && output !== '{}' && output !== 'null') break;
+                  output = '';
+                }
               }
             }
           }
-          // Last resort: concatenate all step texts
           if (!output) {
             output = steps.map(s => s.text?.trim()).filter(Boolean).join('\n\n');
           }
