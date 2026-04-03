@@ -4,9 +4,11 @@ import { verifySlackRequest } from '@/modules/slack/verify';
 import { getInstallationByTeamId } from '@/modules/slack/installations';
 import { getSlackClient } from '@/modules/slack/client';
 import { handleAppMention, handleDirectMessage, handleReactionAdded } from '@/modules/slack/handlers';
+import { handleAppHomeOpened } from '@/modules/slack/home';
 import type {
   SlackEventEnvelope,
   AppMentionEvent,
+  AppHomeOpenedEvent,
   MessageImEvent,
   ReactionAddedEvent,
 } from '@/modules/slack/types';
@@ -101,6 +103,10 @@ export async function POST(request: Request) {
 
       if (event.type === 'reaction_added') {
         await handleReactionAdded(ctx, event as ReactionAddedEvent);
+      }
+
+      if (event.type === 'app_home_opened') {
+        await handleAppHomeOpened(ctx, event as AppHomeOpenedEvent);
       }
     } catch (err) {
       console.error('[slack] Event processing error:', err);
