@@ -5,7 +5,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { createSkill, getSkillsForOrg, deleteSkill } from './db';
+import { createSkill, getSkillsForOrg, deleteSkill, updateSkill } from './db';
 
 export function createSkillTools(supabase: SupabaseClient, orgId: string) {
   return {
@@ -37,8 +37,9 @@ The skill should capture the PROCESS, not the specific data. Think of it as a re
           if (duplicate) {
             return {
               created: false,
-              error: `A skill named "${name}" already exists. Use a different name or update the existing one.`,
+              alreadyExists: true,
               existingSkillId: duplicate.id,
+              message: `Skill "${name}" already exists (ID: ${duplicate.id}). Use update_skill to improve it instead.`,
             };
           }
 
@@ -63,6 +64,54 @@ The skill should capture the PROCESS, not the specific data. Think of it as a re
           };
         } catch (error) {
           return { created: false, error: String(error) };
+        }
+      },
+    }),
+
+    update_skill: tool({
+      description: `Update an existing skill with improved steps, description, or trigger conditions.
+Use this when:
+- You completed a task more efficiently than the skill described and want to improve it
+- The skill's trigger conditions need to be refined
+- You discovered a better approach to the workflow
+- The user asks you to update or improve a skill
+
+List skills first to get the skill ID, then update it.`,
+      inputSchema: z.object({
+        skillId: z.string().describe('The ID of the skill to update (get from list_skills)'),
+        description: z.string().optional().describe('Updated description of what this skill does'),
+        trigger: z.string().optional().describe('Updated trigger conditions'),
+        steps: z.array(z.object({
+          action: z.string(),
+          toolName: z.string().optional(),
+          params: z.record(z.string(), z.unknown()).optional(),
+          condition: z.string().optional(),
+        })).optional().describe('Updated ordered steps'),
+        tools: z.array(z.string()).optional().describe('Updated list of tool names'),
+        outputFormat: z.string().optional().describe('Updated output format'),
+        reason: z.string().describe('Why you are updating this skill — what improved'),
+      }),
+      execute: async ({ skillId, description, trigger, steps, tools, outputFormat, reason }) => {
+        try {
+          const skill = await updateSkill(supabase, skillId, {
+            description,
+            trigger,
+            steps,
+            tools,
+            output_format: outputFormat,
+          });
+
+          if (!skill) return { updated: false, error: 'Failed to update skill' };
+
+          return {
+            updated: true,
+            skillId: skill.id,
+            name: skill.name,
+            version: skill.version,
+            message: `Updated skill "${skill.name}" to v${skill.version}. Reason: ${reason}`,
+          };
+        } catch (error) {
+          return { updated: false, error: String(error) };
         }
       },
     }),
