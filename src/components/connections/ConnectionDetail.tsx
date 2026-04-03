@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,6 @@ interface ConnectionDetailProps {
   connectionId: string | null;
   displayName: string;
   description: string;
-  tools: ConnectionTool[];
   savedPermissions: Record<string, ToolPermission>;
   scope: string;
 }
@@ -33,20 +32,36 @@ function isReadTool(name: string) {
   return /GET|LIST|SEARCH|QUERY|RETRIEVE|FETCH/.test(name);
 }
 
-export function ConnectionDetail({ appName, connectionId, displayName, description, tools, savedPermissions, scope }: ConnectionDetailProps) {
+export function ConnectionDetail({ appName, connectionId, displayName, description, savedPermissions, scope }: ConnectionDetailProps) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [enabled, setEnabled] = useState(true);
   const [savedScope, setSavedScope] = useState<string>(scope);
+  const [tools, setTools] = useState<ConnectionTool[]>([]);
+  const [toolsLoading, setToolsLoading] = useState(true);
+
+  // Load tools client-side to avoid blocking the page
+  useEffect(() => {
+    import('@/app/actions').then(({ getConnectionToolsAction }) => {
+      getConnectionToolsAction(appName).then((t) => {
+        setTools(t);
+        setToolsLoading(false);
+      });
+    });
+  }, [appName]);
 
   // Initialize from saved permissions, falling back to defaults
-  const [permissions, setPermissions] = useState<Record<string, ToolPermission>>(() => {
-    const initial: Record<string, ToolPermission> = {};
-    for (const tool of tools) {
-      initial[tool.name] = savedPermissions[tool.name] ?? (isReadTool(tool.name) ? 'auto' : 'confirm');
+  const [permissions, setPermissions] = useState<Record<string, ToolPermission>>({});
+
+  useEffect(() => {
+    if (tools.length > 0) {
+      const initial: Record<string, ToolPermission> = {};
+      for (const tool of tools) {
+        initial[tool.name] = savedPermissions[tool.name] ?? (isReadTool(tool.name) ? 'auto' : 'confirm');
+      }
+      setPermissions(initial);
     }
-    return initial;
-  });
+  }, [tools, savedPermissions]);
 
   const [savedTool, setSavedTool] = useState<string | null>(null);
 
@@ -153,7 +168,7 @@ export function ConnectionDetail({ appName, connectionId, displayName, descripti
 
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold">Tools</h2>
-        <Badge variant="secondary">{tools.length} total</Badge>
+        <Badge variant="secondary">{toolsLoading ? '...' : `${tools.length} total`}</Badge>
       </div>
 
       <div className="relative mb-6">

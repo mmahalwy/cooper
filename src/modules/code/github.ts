@@ -43,9 +43,13 @@ export async function getGitHubToken(orgId: string): Promise<string | null> {
     console.log('[code/github] Auth header prefix:', authHeader.slice(0, 20) + '...');
     console.log('[code/github] Auth header matches access_token:', authHeader.includes(params.access_token?.slice(0, 10) || 'NONE'));
 
-    // Prefer the Authorization header token — Composio may refresh it there
-    const headerToken = (params.headers?.Authorization || params.headers?.authorization || '').replace('Bearer ', '').trim();
+    // Prefer the Authorization header — Composio may refresh it there
+    const authRaw = params.headers?.Authorization || params.headers?.authorization || '';
+    const headerToken = authRaw.replace(/^Bearer\s+/i, '').trim();
     const token = headerToken || params.access_token || params.token || null;
+
+    const source = headerToken ? 'Authorization header' : params.access_token ? 'access_token' : 'unknown';
+    console.log(`[code/github] Using token from: ${source}, prefix: ${(token || '').slice(0, 10)}...`);
 
     if (!token) {
       console.error('[code/github] Token not found. Full connectionParams:', JSON.stringify(params).slice(0, 500));

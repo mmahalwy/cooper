@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { getConnectionToolsAction } from '@/app/actions';
 import { getIntegrations } from '@/lib/integrations-catalog.server';
 import { ConnectionDetail } from '@/components/connections/ConnectionDetail';
 
@@ -15,7 +14,6 @@ export default async function ConnectionDetailPage({ params }: { params: Promise
     .from('users').select('org_id').eq('id', user.id).single();
   if (!dbUser) redirect('/auth/login');
 
-  // Find the connection record for this app
   const { data: connection } = await supabase
     .from('connections')
     .select('id, config, scope')
@@ -24,21 +22,17 @@ export default async function ConnectionDetailPage({ params }: { params: Promise
     .eq('status', 'active')
     .single();
 
-  const [integrations, tools] = await Promise.all([
-    getIntegrations(),
-    getConnectionToolsAction(appName),
-  ]);
-
+  const integrations = await getIntegrations();
   const integration = integrations.find((i) => i.composioApp === appName || i.id === appName);
   const savedPermissions = (connection?.config as any)?.toolPermissions || {};
 
+  // Tools are loaded client-side in ConnectionDetail to avoid blocking the page
   return (
     <ConnectionDetail
       appName={appName}
       connectionId={connection?.id || null}
       displayName={integration?.name || appName}
       description={integration?.description || ''}
-      tools={tools}
       savedPermissions={savedPermissions}
       scope={connection?.scope || 'shared'}
     />
