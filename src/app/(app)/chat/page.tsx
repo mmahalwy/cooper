@@ -18,8 +18,11 @@ export default function ChatPage() {
       fetch: async (url, options) => {
         const response = await fetch(url, options);
         const tid = response.headers.get('X-Thread-Id');
+        console.log('[chat] X-Thread-Id from response:', tid);
         if (tid && !threadIdRef.current) {
           threadIdRef.current = tid;
+          // Update URL immediately when we get the thread ID, not on finish
+          window.history.replaceState(null, '', `/chat/${tid}`);
         }
         return response;
       },
