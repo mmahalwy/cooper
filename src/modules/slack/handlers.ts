@@ -230,27 +230,86 @@ async function processEvent(
       `[slack] Generating response with ${modelSelection.modelId} for thread ${threadId}`
     );
 
+    // Post working message immediately so user knows Cooper is active
+    let workingMessageTs: string | undefined;
+    try {
+      const workingMsg = await slackClient.chat.postMessage({
+        channel,
+        thread_ts: replyThreadTs,
+        text: '_Working on it..._',
+        unfurl_links: false,
+      });
+      workingMessageTs = workingMsg.ts || undefined;
+    } catch (err) {
+      console.error('[slack] Failed to post working message:', err);
+    }
+
     const result = await generateText({
       model: modelSelection.model,
       system: systemPrompt,
       messages,
       tools,
       stopWhen: stepCountIs(25),
+      onStepFinish: async (step) => {
+        // After each step that used tools, update the working message
+        if (step.toolCalls && step.toolCalls.length > 0 && workingMessageTs) {
+          const toolNames = step.toolCalls.map((tc) => tc.toolName).join(', ');
+          const statusText = `_Working... (used: ${toolNames})_`;
+          try {
+            await slackClient.chat.update({
+              channel,
+              ts: workingMessageTs,
+              text: statusText,
+            });
+          } catch {
+            // Non-critical — ignore update failures
+          }
+        }
+      },
     });
 
     const responseText =
       result.text || "I wasn't able to generate a response. Try again!";
     const slackText = markdownToSlack(responseText);
 
-    // 10. Post response to Slack
+    // 10. Post response to Slack (update working message in-place when possible)
     const chunks = splitMessage(slackText);
-    for (const chunk of chunks) {
-      await slackClient.chat.postMessage({
-        channel,
-        thread_ts: replyThreadTs,
-        text: chunk,
-        unfurl_links: false,
-      });
+
+    if (workingMessageTs && chunks.length === 1) {
+      // Update the working message in-place with the final response
+      try {
+        await slackClient.chat.update({
+          channel,
+          ts: workingMessageTs,
+          text: chunks[0],
+          unfurl_links: false,
+        });
+      } catch {
+        // Fallback: post new message
+        await slackClient.chat.postMessage({
+          channel,
+          thread_ts: replyThreadTs,
+          text: chunks[0],
+          unfurl_links: false,
+        });
+      }
+    } else {
+      // Multiple chunks or no working message — delete working message and post fresh
+      if (workingMessageTs) {
+        try {
+          await slackClient.chat.delete({ channel, ts: workingMessageTs });
+        } catch {
+          // Non-critical — ignore delete failures
+        }
+      }
+      for (const chunk of chunks) {
+        await slackClient.chat.postMessage({
+          channel,
+          thread_ts: replyThreadTs,
+          text: chunk,
+          unfurl_links: false,
+        });
+      }
     }
 
     // 11. Upload file artifacts if any
