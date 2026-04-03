@@ -1,56 +1,48 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { getConnectionsForOrg, updateConnectionStatus } from './db';
+import { getConnectionsForUser, updateConnectionStatus } from './db';
 import { getMcpTools } from './mcp/client';
 import type { McpServerConfig } from './mcp/types';
-import { getComposioTools } from './platform/composio';
-import { createActionTools } from './platform/action-resolver';
-import type { ResolvedAction } from './platform/action-resolver';
-import type { Connection } from '@/lib/types';
+import { getComposioToolsForEntity } from './platform/composio';
 import { withRetry } from '@/modules/agent/error-handler';
 
-export async function getToolsForOrg(
+export async function getToolsForUser(
   supabase: SupabaseClient,
   orgId: string,
-  userId?: string,
+  userId: string,
   options?: { skipApproval?: boolean }
 ): Promise<Record<string, any>> {
-  const connections = await getConnectionsForOrg(supabase, orgId);
-  console.log(`[registry] Found ${connections.length} active connections:`, connections.map(c => `${c.name}(${c.type}:${c.id.slice(0, 8)})`));
+  const connections = await getConnectionsForUser(supabase, orgId, userId);
+  console.log(`[registry] Found ${connections.length} connections for user ${userId.slice(0, 8)}`);
 
   const allTools: Record<string, any> = {};
 
-  // Load Composio tools once (uses 'default' entity)
+  // Group platform connections by composio_entity_id
   const platformConnections = connections.filter(c => c.type === 'platform');
-  if (platformConnections.length > 0) {
+  const entitiesMap = new Map<string, typeof platformConnections>();
+  for (const conn of platformConnections) {
+    const entityId = (conn as any).composio_entity_id || conn.user_id || userId;
+    if (!entitiesMap.has(entityId)) entitiesMap.set(entityId, []);
+    entitiesMap.get(entityId)!.push(conn);
+  }
+
+  // Load Composio tools per entity
+  for (const [entityId, entityConnections] of entitiesMap) {
     try {
       const composioTools = await withRetry(
-        () => getComposioTools('default'),
-        'composio-tools',
+        () => getComposioToolsForEntity(entityId),
+        `composio-tools:${entityId}`,
         { maxRetries: 2, baseDelayMs: 1000 }
       );
-      console.log(`[registry] Composio tools:`, Object.keys(composioTools));
 
-      // Build a map of tool_slug → permission from all platform connections' config
       const toolPermissions: Record<string, string> = {};
-      for (const conn of platformConnections) {
+      for (const conn of entityConnections) {
         const perms = (conn.config as any)?.toolPermissions;
-        if (perms) {
-          Object.assign(toolPermissions, perms);
-        }
+        if (perms) Object.assign(toolPermissions, perms);
       }
 
-      // Create direct tool wrappers from pre-resolved actions
-      const composioExecuteTool = composioTools['COMPOSIO_MULTI_EXECUTE_TOOL'];
-      for (const conn of platformConnections) {
-        const resolvedActions = (conn.config as any)?.resolvedActions as ResolvedAction[] | undefined;
-        if (resolvedActions?.length && composioExecuteTool) {
-          const actionTools = createActionTools(resolvedActions, composioExecuteTool, toolPermissions);
-          Object.assign(allTools, actionTools);
-          console.log(`[registry] Created ${Object.keys(actionTools).length} direct tools for ${conn.name}`);
-        }
-      }
+      // Note: pre-resolved actions are NOT registered as individual tools
+      // (too many tools degrades model performance). Meta-tools handle all actions.
 
-      // Keep meta-tools as fallback for rare actions
       const READ_VERBS = /^(GET|LIST|SEARCH|FIND|FETCH|READ|RETRIEVE|QUERY|CHECK|SHOW|VIEW|DESCRIBE|COUNT|LOOKUP|DOWNLOAD)/i;
 
       for (const [name, tool] of Object.entries(composioTools)) {
@@ -65,13 +57,10 @@ export async function getToolsForOrg(
           allTools[name] = {
             ...tool,
             execute: async (input: any) => {
-              // Block disabled slugs before execution
               const inputTools: any[] = input?.tools || [];
               const blocked = inputTools.filter((t: any) => disabledSlugs.has(t?.tool_slug));
               if (blocked.length > 0) {
-                return {
-                  error: `The following actions are disabled: ${blocked.map((t: any) => t.tool_slug).join(', ')}. They can be re-enabled in the connection settings.`,
-                };
+                return { error: `Disabled actions: ${blocked.map((t: any) => t.tool_slug).join(', ')}` };
               }
               return originalExecute?.(input);
             },
@@ -83,23 +72,22 @@ export async function getToolsForOrg(
                 console.log(`[registry] Approval check: slug=${slug} perm=${perm || 'none'}`);
                 if (perm === 'confirm') return true;
                 if (perm === 'auto') continue;
-                // No saved permission — fall back to verb-based detection
                 const action = slug.split('_').slice(1).join('_');
                 if (action && !READ_VERBS.test(action)) return true;
               }
               return false;
             },
           };
-        } else {
+        } else if (!allTools[name]) {
           allTools[name] = tool;
         }
       }
     } catch (error) {
-      console.error('[registry] Failed to load Composio tools:', error);
+      console.error(`[registry] Failed to load Composio tools for entity ${entityId}:`, error);
     }
   }
 
-  // Load MCP tools per connection
+  // Load MCP tools (unchanged logic)
   const mcpConnections = connections.filter(c => c.type === 'mcp');
   const mcpPromises = mcpConnections.map(async (conn) => {
     try {
@@ -112,11 +100,10 @@ export async function getToolsForOrg(
         allTools[`${conn.provider}_${name}`] = tool;
       }
     } catch (error) {
-      console.error(`[registry] Failed to load MCP tools for ${conn.name} (${conn.id.slice(0, 8)}):`, error);
+      console.error(`[registry] Failed to load MCP tools for ${conn.name}:`, error);
       await updateConnectionStatus(supabase, conn.id, 'error', String(error)).catch(() => {});
     }
   });
-
   await Promise.all(mcpPromises);
 
   return allTools;

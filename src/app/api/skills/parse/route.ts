@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { parseSkillFromNL } from '@/modules/skills/parser';
-import { getToolsForOrg } from '@/modules/connections/registry';
+import { getToolsForUser } from '@/modules/connections/registry';
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const { description } = await req.json();
   if (!description) return new Response('Missing description', { status: 400 });
 
-  const tools = await getToolsForOrg(supabase, dbUser.org_id);
+  const tools = await getToolsForUser(supabase, dbUser.org_id, user.id);
   const toolNames = Object.keys(tools);
 
   const parsed = await parseSkillFromNL(description, toolNames);

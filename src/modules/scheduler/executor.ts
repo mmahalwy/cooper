@@ -1,7 +1,7 @@
 import { generateText, stepCountIs } from 'ai';
 import { selectSchedulerModel } from '@/modules/agent/model-router';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { getToolsForOrg } from '@/modules/connections/registry';
+import { getToolsForUser } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
 import { updateTaskAfterRun, createExecutionLog, updateScheduledTaskStatus, clearTaskLock, recordTaskFailure, resetTaskFailures } from './db';
 import { getNextRunTime } from './matcher';
@@ -99,7 +99,7 @@ export async function executeScheduledTask(
       .select('id')
       .single();
 
-    const tools = await getToolsForOrg(supabase, task.org_id, undefined, { skipApproval: true });
+    const tools = await getToolsForUser(supabase, task.org_id, task.user_id, { skipApproval: true });
     const memoryContext = await retrieveContext(supabase, task.org_id, task.prompt);
 
     let systemPrompt = SYSTEM_PROMPT;

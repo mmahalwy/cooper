@@ -7,7 +7,7 @@ import { resolveSlackUser } from './users';
 import { findOrCreateThreadMapping, getSlackThreadHistory } from './threads';
 import { markdownToSlack } from './format';
 import { uploadFilesToSlack, extractFileArtifacts } from './files';
-import { getToolsForOrg } from '@/modules/connections/registry';
+import { getToolsForUser } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
 import { extractAndSaveMemories } from '@/modules/memory/extractor';
 import { summarizeAndStoreThread } from '@/modules/memory/thread-summary';
@@ -93,7 +93,7 @@ async function buildTools(
   }
 
   // Load Composio tools via subagent pattern
-  const composioTools = await getToolsForOrg(supabase, orgId, userId);
+  const composioTools = await getToolsForUser(supabase, orgId, userId);
   if (Object.keys(composioTools).length > 0 && connectedServices.length > 0) {
     const integrationTool = createIntegrationTool(composioTools, connectedServices);
     Object.assign(builtInTools, integrationTool);

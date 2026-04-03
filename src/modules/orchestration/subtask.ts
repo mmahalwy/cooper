@@ -9,7 +9,7 @@
 import { generateText, stepCountIs } from 'ai';
 import { google } from '@ai-sdk/google';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { getToolsForOrg } from '@/modules/connections/registry';
+import { getToolsForUser } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
 
 export interface SubtaskDefinition {
@@ -29,6 +29,7 @@ export interface SubtaskResult {
 
 export interface SubtaskOptions {
   connectedServices?: string[];
+  userId?: string;
   persona?: {
     name?: string;
     instructions?: string;
@@ -60,8 +61,9 @@ async function executeSubtask(
   const startTime = Date.now();
 
   try {
+    const effectiveUserId = options?.userId || orgId;
     const [tools, memoryContext] = await Promise.all([
-      getToolsForOrg(supabase, orgId, undefined, { skipApproval: true }),
+      getToolsForUser(supabase, orgId, effectiveUserId, { skipApproval: true }),
       retrieveContext(supabase, orgId, subtask.prompt),
     ]);
 

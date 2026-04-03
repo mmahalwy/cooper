@@ -2,7 +2,7 @@ import { UIMessage } from 'ai';
 import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAgentStream } from '@/modules/agent/engine';
-import { getToolsForOrg } from '@/modules/connections/registry';
+import { getToolsForUser } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
 import { extractAndSaveMemories } from '@/modules/memory/extractor';
 import { summarizeAndStoreThread } from '@/modules/memory/thread-summary';
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
   };
 
   // Load tools and connection names
-  const tools = await getToolsForOrg(supabase, dbUser.org_id, user.id);
+  const tools = await getToolsForUser(supabase, dbUser.org_id, user.id);
   console.log(`[chat] Loaded ${Object.keys(tools).length} connection tools:`, Object.keys(tools).slice(0, 10));
 
   // Get connected service names for the system prompt

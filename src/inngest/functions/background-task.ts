@@ -8,7 +8,7 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { getBackgroundJob, updateJobStep, updateJobStatus } from '@/modules/background/db';
 import { generateText, stepCountIs } from 'ai';
 import { selectModel } from '@/modules/agent/model-router';
-import { getComposioTools } from '@/modules/connections/platform/composio';
+import { getComposioToolsForEntity } from '@/modules/connections/platform/composio';
 
 const STEP_SYSTEM_PROMPT = `You are Cooper executing a background task step. Complete the instruction using your available tools. Be thorough but concise. Return just the result.
 
@@ -22,9 +22,10 @@ Never show raw API URLs, curl commands, or internal tool names in your output.`;
 async function executeStep(
   action: string,
   integration: string | null,
-  connectedServices: string[]
+  connectedServices: string[],
+  userId: string
 ): Promise<string> {
-  const tools = integration ? await getComposioTools() : {};
+  const tools = integration ? await getComposioToolsForEntity(userId) : {};
   const modelSelection = selectModel(action, connectedServices);
 
   const result = await generateText({
@@ -78,7 +79,8 @@ export const backgroundTask = inngest.createFunction(
           const output = await executeStep(
             stepDef.action,
             stepDef.integration,
-            connectedServices || []
+            connectedServices || [],
+            userId
           );
 
           // Mark step as done
