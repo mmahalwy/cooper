@@ -5,6 +5,7 @@ import type { AppMentionEvent, MessageImEvent, SlackInstallation } from './types
 import { resolveSlackUser } from './users';
 import { findOrCreateThreadMapping, getSlackThreadHistory } from './threads';
 import { markdownToSlack } from './format';
+import { postWithBlocks } from './blocks';
 import { uploadFilesToSlack, extractFileArtifacts } from './files';
 import { getToolsForOrg } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
@@ -231,12 +232,7 @@ async function processEvent(
     // 10. Post response to Slack
     const chunks = splitMessage(slackText);
     for (const chunk of chunks) {
-      await slackClient.chat.postMessage({
-        channel,
-        thread_ts: replyThreadTs,
-        text: chunk,
-        unfurl_links: false,
-      });
+      await postWithBlocks(slackClient, channel, replyThreadTs, chunk);
     }
 
     // 11. Upload file artifacts if any
