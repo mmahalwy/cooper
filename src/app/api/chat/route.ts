@@ -17,7 +17,7 @@ import { trackMatchedSkills } from '@/modules/skills/tracker';
 import { logActivity } from '@/modules/observability/activity';
 import type { ChatMessage, SuggestionData, StatusData } from '@/lib/chat-types';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function extractText(parts: UIMessage['parts'] | undefined): string {
   return parts
@@ -220,7 +220,7 @@ export async function POST(req: Request) {
       }
 
       // Log activity
-      logActivity(sb, dbUser.org_id, toolCallSummary.length > 0 ? 'tool_call' : 'thread_created',
+      logActivity(sb, dbUser.org_id, toolCallSummary.length > 0 ? 'tool_call' : 'agent_response',
         toolCallSummary.length > 0
           ? `Used ${toolCallSummary.length} tool(s): ${toolCallSummary.slice(0, 3).join(', ')}${toolCallSummary.length > 3 ? '...' : ''}`
           : `Responded to: "${userText.slice(0, 80)}${userText.length > 80 ? '...' : ''}"`,
