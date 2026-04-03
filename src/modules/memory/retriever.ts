@@ -54,6 +54,7 @@ export async function retrieveContext(
         match_org_id: orgId,
         match_count: 3,
         match_threshold: 0.60,
+        match_user_id: userId || null,
       }),
     ]);
 

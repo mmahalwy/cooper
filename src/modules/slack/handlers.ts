@@ -375,7 +375,7 @@ async function processEvent(
       memoryContext.knowledge
     ).catch((err) => console.error('[slack] Memory extraction failed:', err));
 
-    summarizeAndStoreThread(supabase, threadId, installation.org_id).catch(
+    summarizeAndStoreThread(supabase, threadId, installation.org_id, resolvedUser.userId).catch(
       (err) => console.error('[slack] Thread summarization failed:', err)
     );
   } catch (err) {
