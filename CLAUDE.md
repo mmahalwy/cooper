@@ -12,6 +12,10 @@
 - The `use_integration` tool is the standard way Cooper interacts with connected services — it delegates to Composio under the hood.
 - Only build custom integration code if Composio explicitly cannot handle a specific use case.
 
+## Arrow Functions
+- Always use arrow functions: `const myFunc = () => {}`, `const MyComponent = () => {}`.
+- Do NOT use `function` declarations (`function myFunc() {}`) unless required (e.g., hoisting, generator functions, or when `this` binding is needed).
+
 ## Avoid useEffect
 - Do NOT use `useEffect` for data fetching. Use React Server Components, server actions, or React Suspense with async components instead.
 - Do NOT use `useEffect` for derived state. Use `useMemo` or compute during render.
