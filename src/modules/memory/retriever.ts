@@ -21,6 +21,7 @@ export interface MemoryContext {
 export async function retrieveContext(
   supabase: SupabaseClient,
   orgId: string,
+  userId: string | undefined,
   userMessage: string
 ): Promise<MemoryContext> {
   const context: MemoryContext = {
@@ -33,11 +34,14 @@ export async function retrieveContext(
     const queryEmbedding = await embeddingProvider.embed(userMessage);
 
     const [knowledgeResult, skillsResult, threadResult] = await Promise.all([
+      // Pass userId so the query returns both user-specific and org-wide facts.
+      // When userId is undefined (e.g. scheduled tasks), falls back to org-wide only.
       supabase.rpc('match_knowledge', {
         query_embedding: queryEmbedding,
         match_org_id: orgId,
         match_count: 5,
         match_threshold: 0.65,
+        match_user_id: userId || null,
       }),
       supabase.rpc('match_skills', {
         query_embedding: queryEmbedding,

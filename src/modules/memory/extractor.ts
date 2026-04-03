@@ -13,16 +13,22 @@ const extractionSchema = z.object({
   facts: z.array(z.object({
     content: z.string().describe('A clear, standalone factual statement'),
     category: z.enum(['process', 'preference', 'team', 'tool', 'project', 'context']).describe('Category of the fact'),
+    scope: z.enum(['org', 'user']).describe('Is this fact about the whole org, or specific to this user?'),
   })).describe('Facts worth remembering. Empty array if nothing new to learn.'),
 });
 
 /**
  * Extract learnable facts from a conversation exchange.
  * Runs in the background after each assistant response.
+ *
+ * Facts scoped to 'user' are stored with userId so they can be retrieved
+ * and personalized per individual. Facts scoped to 'org' are shared across
+ * the whole organization.
  */
 export async function extractAndSaveMemories(
   supabase: SupabaseClient,
   orgId: string,
+  userId: string,
   userMessage: string,
   assistantResponse: string,
   existingKnowledge: string[]
@@ -31,7 +37,7 @@ export async function extractAndSaveMemories(
     const result = await generateObject({
       model: google('gemini-2.5-flash'),
       schema: extractionSchema,
-      prompt: `You are a highly selective memory system for an AI teammate. Extract ONLY organizational facts that would help the AI work better with this user in FUTURE conversations.
+      prompt: `You are a highly selective memory system for an AI teammate. Extract ONLY facts that would help the AI work better with this user in FUTURE conversations.
 
 ## Already known:
 ${existingKnowledge.length > 0 ? existingKnowledge.map((k) => `- ${k}`).join('\n') : '(none yet)'}
@@ -41,11 +47,12 @@ User: ${userMessage}
 Assistant: ${assistantResponse}
 
 ## ONLY extract facts about:
-- Organization structure (team names, roles, who reports to whom)
-- Processes and workflows ("deploys require 2 PR approvals", "sprint is 2 weeks")
-- Tool preferences ("we use Linear for issues", "main repo is acme/core")
-- Naming conventions, technical stack, infrastructure details
-- User preferences for how they like work delivered
+- Organization structure (team names, roles, who reports to whom) → scope: org
+- Processes and workflows ("deploys require 2 PR approvals", "sprint is 2 weeks") → scope: org
+- Tool preferences shared across the team ("we use Linear for issues") → scope: org
+- Naming conventions, technical stack, infrastructure details → scope: org
+- THIS USER's personal preferences ("prefers bullet points", "works in Pacific time") → scope: user
+- THIS USER's individual habits or working style → scope: user
 
 ## NEVER extract:
 - What the user asked or what the assistant responded (that's conversation history, not knowledge)
@@ -66,11 +73,14 @@ Assistant: ${assistantResponse}
     );
 
     // Save each extracted fact — addKnowledge handles deduplication via
-    // semantic similarity so duplicates are skipped or merged automatically
+    // semantic similarity so duplicates are skipped or merged automatically.
+    // User-scoped facts are tagged with userId for per-user retrieval.
     for (const fact of result.object.facts) {
-      const saved = await addKnowledge(supabase, orgId, fact.content, 'conversation');
+      const factUserId = fact.scope === 'user' ? userId : undefined;
+      const saved = await addKnowledge(supabase, orgId, fact.content, 'conversation', factUserId);
       if (saved) {
-        console.log(`[memory] Saved fact: "${fact.content.slice(0, 60)}..."`);
+        const scopeLabel = fact.scope === 'user' ? `[user:${userId.slice(0, 8)}]` : '[org]';
+        console.log(`[memory] Saved ${scopeLabel} fact: "${fact.content.slice(0, 60)}..."`);
       }
     }
   } catch (error) {

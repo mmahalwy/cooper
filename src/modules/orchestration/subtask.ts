@@ -64,7 +64,7 @@ async function executeSubtask(
     const effectiveUserId = options?.userId || orgId;
     const [tools, memoryContext] = await Promise.all([
       getToolsForUser(supabase, orgId, effectiveUserId, { skipApproval: true }),
-      retrieveContext(supabase, orgId, subtask.prompt),
+      retrieveContext(supabase, orgId, undefined, subtask.prompt),
     ]);
 
     const personaName = options?.persona?.name || 'Cooper';

@@ -115,7 +115,7 @@ export async function POST(req: Request) {
     .join('') || '';
 
   const memoryContext = userText.trim()
-    ? await retrieveContext(supabase, dbUser.org_id, userText)
+    ? await retrieveContext(supabase, dbUser.org_id, user.id, userText)
     : { knowledge: [], matchedSkills: [], threadSummaries: [] };
 
   const result = await createAgentStream({
@@ -239,6 +239,7 @@ export async function POST(req: Request) {
       extractAndSaveMemories(
         sb,
         dbUser.org_id,
+        user.id,
         userText,
         fullText || '',
         memoryContext.knowledge
