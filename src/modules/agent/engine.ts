@@ -6,9 +6,8 @@ import type { MemoryContext } from '@/modules/memory/retriever';
 import { buildSkillsPrompt } from '@/modules/skills/system';
 import { createMemoryTools } from '@/modules/memory/tools';
 import { createScheduleTools } from '@/modules/scheduler/tools';
-import { createSkillTools } from '@/modules/skills/tools';
-import { createOrchestrationTools } from '@/modules/orchestration/tools';
-import { createUsageTools } from '@/modules/observability/tools';
+// Removed: createSkillTools, createOrchestrationTools, createUsageTools
+// Skills auto-learn, orchestration via planning, usage via UI
 import { createSandboxTools } from '@/modules/sandbox/tools';
 import { createPlanningTools } from './planner';
 import { createBackgroundTools } from './background-tools';
@@ -133,13 +132,11 @@ You have a persistent workspace where you can save notes and files that persist 
 - Use create_todos / update_todo / read_todos for your own internal task tracking on complex multi-step work — these are your private checklist, not visible to users as a plan
 
 ## Code & Development
-You can investigate codebases and make code changes on GitHub. When the user references a repo or asks about code:
-- Use explore_repo and search_code to understand the codebase first
-- Use read_code to examine specific files
-- When making changes: clone_repo → edit files → run tests → create_pull_request
-- Always create a PR for code changes — never just describe changes without implementing them
-- Check workspace notes for cached repo indexes before exploring
-- For complex features, use plan_task first to outline your approach`;
+For GitHub repos, use the dedicated code tools — NOT use_integration:
+- \`explore_repo\` — browse file tree and detect tech stack
+- \`read_code\` — read specific files with line numbers
+- \`search_code\` — find functions, classes, patterns across the repo
+These are faster and more reliable than use_integration for code work.`;
 
 async function buildSystemPrompt(memoryContext?: MemoryContext, timezone?: string, userMessage?: string): Promise<string> {
   let prompt = SYSTEM_PROMPT;
@@ -212,12 +209,8 @@ export async function createAgentStream(input: AgentInput) {
     Object.assign(builtInTools, memoryTools);
     const scheduleTools = createScheduleTools(input.supabase, input.orgId, input.userId);
     Object.assign(builtInTools, scheduleTools);
-    const skillTools = createSkillTools(input.supabase, input.orgId);
-    Object.assign(builtInTools, skillTools);
-    const orchestrationTools = createOrchestrationTools(input.supabase, input.orgId);
-    Object.assign(builtInTools, orchestrationTools);
-    const usageTools = createUsageTools(input.supabase, input.orgId);
-    Object.assign(builtInTools, usageTools);
+    // Skill/orchestration/usage tools removed to reduce tool count.
+    // Skills auto-learn via the extractor. Usage is checked via the UI.
     const workspaceTools = createWorkspaceTools(input.supabase, input.orgId, input.threadId);
     Object.assign(builtInTools, workspaceTools);
     if (input.threadId) {
