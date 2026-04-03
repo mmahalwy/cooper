@@ -13,7 +13,7 @@ export async function resolveSlackUser(
   slackTeamId: string,
   orgId: string
 ): Promise<ResolvedUser | null> {
-  // Check existing mapping
+  // 1. Check existing Slack → Cooper user mapping
   const { data: existing } = await supabase
     .from('slack_user_mappings')
     .select('user_id, org_id')
@@ -25,53 +25,64 @@ export async function resolveSlackUser(
     return { userId: existing.user_id, orgId: existing.org_id };
   }
 
-  // Auto-provision: fetch Slack profile and create Cooper user
-  let email: string;
-  let name: string;
+  // 2. Fetch Slack profile to get email
+  let email: string | null = null;
+  let name: string = slackUserId;
   try {
     const profile = await slackClient.users.info({ user: slackUserId });
-    email = profile.user?.profile?.email || `${slackUserId}@slack.local`;
+    email = profile.user?.profile?.email || null;
     name = profile.user?.real_name || profile.user?.name || slackUserId;
   } catch (err) {
     console.error('[slack] Failed to fetch user profile:', slackUserId, err);
-    email = `${slackUserId}@slack.local`;
-    name = slackUserId;
   }
 
-  // Generate a deterministic UUID from the Slack identity
-  const { createHash } = await import('crypto');
-  const hash = createHash('sha256').update(`slack:${slackTeamId}:${slackUserId}`).digest('hex');
-  const syntheticUserId = [
-    hash.slice(0, 8),
-    hash.slice(8, 12),
-    '4' + hash.slice(13, 16),
-    '8' + hash.slice(17, 20),
-    hash.slice(20, 32),
-  ].join('-');
+  // 3. Try to match by email to an existing Cooper user
+  if (email) {
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id, org_id')
+      .eq('email', email)
+      .eq('org_id', orgId)
+      .single();
 
-  // Insert into users table (ignore conflict if already exists)
-  const { error: userError } = await supabase
+    if (existingUser) {
+      // Found a match — create the mapping for next time
+      await supabase.from('slack_user_mappings').insert({
+        slack_user_id: slackUserId,
+        slack_team_id: slackTeamId,
+        user_id: existingUser.id,
+        org_id: existingUser.org_id,
+      }).catch(() => {}); // ignore if mapping already exists
+
+      console.log(`[slack] Mapped Slack user ${slackUserId} (${email}) to existing user ${existingUser.id}`);
+      return { userId: existingUser.id, orgId: existingUser.org_id };
+    }
+  }
+
+  // 4. No existing user found — fall back to the org's first admin
+  // We can't create auth.users entries directly, so we use an existing user
+  // as the actor for this Slack interaction.
+  const { data: fallbackUser } = await supabase
     .from('users')
-    .upsert({
-      id: syntheticUserId,
-      org_id: orgId,
-      email,
-      name,
-      role: 'member',
-    }, { onConflict: 'id' });
+    .select('id, org_id')
+    .eq('org_id', orgId)
+    .eq('role', 'admin')
+    .limit(1)
+    .single();
 
-  if (userError) {
-    console.error('[slack] Failed to create user:', userError);
-    return null;
+  if (fallbackUser) {
+    // Create mapping so this Slack user is associated with the admin for now
+    await supabase.from('slack_user_mappings').insert({
+      slack_user_id: slackUserId,
+      slack_team_id: slackTeamId,
+      user_id: fallbackUser.id,
+      org_id: fallbackUser.org_id,
+    }).catch(() => {});
+
+    console.log(`[slack] Mapped Slack user ${slackUserId} to org admin ${fallbackUser.id} (no email match found)`);
+    return { userId: fallbackUser.id, orgId: fallbackUser.org_id };
   }
 
-  // Create the mapping
-  await supabase.from('slack_user_mappings').insert({
-    slack_user_id: slackUserId,
-    slack_team_id: slackTeamId,
-    user_id: syntheticUserId,
-    org_id: orgId,
-  });
-
-  return { userId: syntheticUserId, orgId };
+  console.error(`[slack] No users found in org ${orgId} for Slack user ${slackUserId}`);
+  return null;
 }
