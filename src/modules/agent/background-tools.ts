@@ -17,14 +17,11 @@ export function createBackgroundTools(
 ) {
   return {
     start_background_task: tool({
-      description: `Start a complex task in the background. Use when the task has 3+ steps, involves multiple integrations, or will take more than a minute. You'll respond to the user immediately, and post progress updates to this conversation as each step completes.
+      description: `Start a massive, multi-phase project in the background. RARELY use this — only for work that would take 10+ minutes with many steps. Think "project, not task."
 
-Examples of tasks to background:
-- "Analyze PostHog data and post a report to Slack"
-- "Research competitors across multiple sources"
-- "Check all integrations and summarize status"
+Examples: full competitive analysis across 10 companies, quarterly data audit with visualizations, company-wide status report from all channels.
 
-Do NOT background simple single-step tasks — just do those inline.`,
+Do NOT use for anything that can be done with a few tool calls — fetching data, sending messages, creating documents, or quick summaries should all run inline.`,
       inputSchema: z.object({
         goal: z.string().describe('What the user wants accomplished'),
         steps: z.array(z.object({
