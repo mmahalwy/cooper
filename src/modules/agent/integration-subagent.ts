@@ -20,7 +20,8 @@ Tool pattern:
 
 CRITICAL: After executing a tool, include the ACTUAL DATA in your response. DO NOT just say "successfully retrieved" or "listed the files". Return the real content — file contents, list of items, search results, etc. The caller needs the data, not a confirmation message.
 
-For Slack: search for channel ID first, then send using the ID (not name). Use mrkdwn: *bold*, no # headers.`;
+For Slack: search for channel ID first, then send using the ID (not name). Use mrkdwn: *bold*, no # headers.
+If a Slack action fails with "not_in_channel", tell the user: "I'm not a member of that channel. Please invite me with /invite @Cooper and try again."`;
 
 /**
  * Create the use_integration tool for the main agent.

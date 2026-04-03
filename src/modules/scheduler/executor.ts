@@ -171,27 +171,48 @@ export async function executeScheduledTask(
           const slackClient = getSlackClient(installation.bot_token);
           const slackText = markdownToSlack(result.text);
           const headerText = `*🤖 Scheduled task: ${task.name}*\n_Completed at ${new Date().toUTCString()}_\n\n`;
-
-          // Split if needed (39k char limit)
           const fullText = headerText + slackText;
-          if (fullText.length <= 39000) {
+          const postText = fullText.length <= 39000
+            ? fullText
+            : headerText + slackText.slice(0, 38000) + '\n_(truncated)_';
+
+          try {
             await slackClient.chat.postMessage({
               channel: channelConfig.destination,
-              text: fullText,
+              text: postText,
               unfurl_links: false,
             });
-          } else {
-            // Post header + truncated result
-            await slackClient.chat.postMessage({
-              channel: channelConfig.destination,
-              text: headerText + slackText.slice(0, 38000) + '\n_(truncated)_',
-              unfurl_links: false,
-            });
+          } catch (postErr: any) {
+            if (postErr?.data?.error === 'not_in_channel') {
+              // Try to auto-join the channel, then retry
+              console.log(`[scheduler] Not in channel ${channelConfig.destination}, attempting to join...`);
+              try {
+                await slackClient.conversations.join({ channel: channelConfig.destination });
+                await slackClient.chat.postMessage({
+                  channel: channelConfig.destination,
+                  text: postText,
+                  unfurl_links: false,
+                });
+                console.log(`[scheduler] Joined and posted to ${channelConfig.destination}`);
+              } catch (joinErr: any) {
+                console.error(`[scheduler] Failed to join channel ${channelConfig.destination}:`, joinErr);
+                // Post to thread instead so user knows
+                if (thread?.id) {
+                  await supabase.from('messages').insert({
+                    thread_id: thread.id,
+                    role: 'assistant',
+                    content: `⚠️ I couldn't post to the Slack channel "${channelConfig.destination}" — I'm not a member and couldn't auto-join. Please invite me to the channel with \`/invite @Cooper\` and I'll be able to post there next time.`,
+                    metadata: { system_notification: true },
+                  });
+                }
+              }
+            } else {
+              throw postErr;
+            }
           }
         }
       } catch (err) {
         console.error(`[scheduler] Failed to deliver results to Slack for task ${task.id}:`, err);
-        // Non-fatal — task still succeeded
       }
     }
 
