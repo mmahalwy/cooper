@@ -2,7 +2,9 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { embeddingProvider } from './embeddings';
 
 export interface MemoryContext {
-  knowledge: string[];
+  knowledge: string[];        // ALL knowledge combined (backward compat for existing callers)
+  orgKnowledge: string[];     // org-wide facts only (user_id IS NULL)
+  userKnowledge: string[];    // user-specific facts only (user_id IS NOT NULL)
   matchedSkills: Array<{
     id: string;
     name: string;
@@ -26,6 +28,8 @@ export async function retrieveContext(
 ): Promise<MemoryContext> {
   const context: MemoryContext = {
     knowledge: [],
+    orgKnowledge: [],
+    userKnowledge: [],
     matchedSkills: [],
     threadSummaries: [],
   };
@@ -58,7 +62,11 @@ export async function retrieveContext(
     ]);
 
     if (knowledgeResult.data) {
-      context.knowledge = knowledgeResult.data.map((k: any) => k.content);
+      const orgFacts = knowledgeResult.data.filter((k: any) => !k.user_id).map((k: any) => k.content);
+      const userFacts = knowledgeResult.data.filter((k: any) => k.user_id).map((k: any) => k.content);
+      context.orgKnowledge = orgFacts;
+      context.userKnowledge = userFacts;
+      context.knowledge = [...userFacts, ...orgFacts]; // user facts first (more personalized)
     }
 
     if (skillsResult.data) {

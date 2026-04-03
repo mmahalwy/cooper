@@ -67,9 +67,13 @@ export async function buildSlackSystemPrompt(
     prompt += `\n\n## Earlier Conversation Summary\nThe following is a summary of the earlier part of this Slack thread (older messages were compressed to save context):\n${options.conversationSummary}`;
   }
 
-  if (memoryContext.knowledge.length) {
+  if (memoryContext.userKnowledge?.length) {
+    prompt += `\n\n## Your personal context for this user:\n`;
+    prompt += memoryContext.userKnowledge.map((k) => `- ${k}`).join('\n');
+  }
+  if (memoryContext.orgKnowledge?.length) {
     prompt += `\n\n## Things you know about this organization:\n`;
-    prompt += memoryContext.knowledge.map((k) => `- ${k}`).join('\n');
+    prompt += memoryContext.orgKnowledge.map((k) => `- ${k}`).join('\n');
   }
 
   if (memoryContext.matchedSkills.length) {

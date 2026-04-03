@@ -19,6 +19,7 @@ export async function getKnowledgeForOrg(
     .from('knowledge')
     .select('id, org_id, user_id, content, source, created_at, updated_at')
     .eq('org_id', orgId)
+    .is('user_id', null)           // only org-wide facts
     .order('created_at', { ascending: false })
     .limit(100);
 
@@ -27,6 +28,26 @@ export async function getKnowledgeForOrg(
     return [];
   }
 
+  return data as KnowledgeFact[];
+}
+
+export async function getKnowledgeForUser(
+  supabase: SupabaseClient,
+  orgId: string,
+  userId: string
+): Promise<KnowledgeFact[]> {
+  const { data, error } = await supabase
+    .from('knowledge')
+    .select('id, org_id, user_id, content, source, created_at, updated_at')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    console.error('[knowledge] Failed to load user knowledge:', error);
+    return [];
+  }
   return data as KnowledgeFact[];
 }
 

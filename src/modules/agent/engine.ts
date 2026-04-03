@@ -148,9 +148,13 @@ A meeting on ${localDate} is TODAY's meeting — even if the raw data shows a di
   // List available skills (names + descriptions only — loaded on demand via tool)
   prompt += await buildSkillsPrompt(userMessage);
 
-  if (memoryContext?.knowledge.length) {
+  if (memoryContext?.userKnowledge?.length) {
+    prompt += `\n\n## Your personal context for this user:\n`;
+    prompt += memoryContext.userKnowledge.map((k) => `- ${k}`).join('\n');
+  }
+  if (memoryContext?.orgKnowledge?.length) {
     prompt += `\n\n## Things you know about this organization:\n`;
-    prompt += memoryContext.knowledge.map((k) => `- ${k}`).join('\n');
+    prompt += memoryContext.orgKnowledge.map((k) => `- ${k}`).join('\n');
   }
 
   if (memoryContext?.matchedSkills.length) {
@@ -200,7 +204,7 @@ export async function createAgentStream(input: AgentInput) {
 
   // Add memory and scheduler tools if supabase client is available
   if (input.supabase) {
-    const memoryTools = createMemoryTools(input.supabase, input.orgId);
+    const memoryTools = createMemoryTools(input.supabase, input.orgId, input.userId);
     Object.assign(builtInTools, memoryTools);
     const scheduleTools = createScheduleTools(input.supabase, input.orgId, input.userId);
     Object.assign(builtInTools, scheduleTools);
