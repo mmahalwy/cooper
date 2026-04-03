@@ -524,30 +524,7 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
           );
         })}
 
-        {!isStreaming && onSuggestionClick && (() => {
-          const derivedSuggestions = suggestions && suggestions.length > 0
-            ? suggestions
-            : [...messages]
-              .reverse()
-              .find((message) => message.role === 'assistant')
-              ?.parts.find(
-                (p): p is { type: 'data-suggestions'; data: SuggestionData[] } =>
-                  p.type === 'data-suggestions'
-              )?.data;
-
-          if (!derivedSuggestions?.length) return null;
-          return (
-            <div className="mx-auto max-w-3xl px-4 pb-2 pt-1">
-              <Suggestions>
-                {derivedSuggestions.map((s, i) => (
-                  <Suggestion key={i} suggestion={s.prompt} onClick={onSuggestionClick}>
-                    {s.text}
-                  </Suggestion>
-                ))}
-              </Suggestions>
-            </div>
-          );
-        })()}
+        {/* Suggestion chips removed — suggestions now come from the model's response text */}
 
         {isStreaming && (
           <Message from="assistant">
