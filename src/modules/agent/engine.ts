@@ -12,7 +12,6 @@ import { createSandboxTools } from '@/modules/sandbox/tools';
 import { createPlanningTools } from './planner';
 import { createBackgroundTools } from './background-tools';
 import { createWorkspaceTools } from '@/modules/workspace/tools';
-import { createCodeTools } from '@/modules/code/tools';
 import { createIntegrationTool } from './integration-subagent';
 import { getToolStatus, StatusTracker } from './status';
 import { classifyError } from './error-handler';
@@ -132,11 +131,7 @@ You have a persistent workspace where you can save notes and files that persist 
 - Use create_todos / update_todo / read_todos for your own internal task tracking on complex multi-step work — these are your private checklist, not visible to users as a plan
 
 ## Code & Development
-For GitHub repos, use the dedicated code tools — NOT use_integration:
-- \`explore_repo\` — browse file tree and detect tech stack
-- \`read_code\` — read specific files with line numbers
-- \`search_code\` — find functions, classes, patterns across the repo
-These are faster and more reliable than use_integration for code work.`;
+For GitHub interactions (reading files, exploring repos, creating PRs), use \`use_integration\` — it handles auth automatically via Composio.`;
 
 async function buildSystemPrompt(memoryContext?: MemoryContext, timezone?: string, userMessage?: string): Promise<string> {
   let prompt = SYSTEM_PROMPT;
@@ -225,15 +220,6 @@ export async function createAgentStream(input: AgentInput) {
   if (process.env.E2B_API_KEY) {
     const sandboxTools = createSandboxTools(input.orgId, input.threadId);
     Object.assign(builtInTools, sandboxTools);
-  }
-
-  // Register code tools when GitHub is connected
-  // Investigation tools (explore, read, search) work without E2B
-  // Development tools (clone, edit, run, PR) need E2B sandbox
-  const hasGitHub = input.connectedServices?.some(s => s.toLowerCase().includes('github'));
-  if (hasGitHub && input.supabase) {
-    const codeTools = createCodeTools(input.supabase, input.orgId, input.threadId);
-    Object.assign(builtInTools, codeTools);
   }
 
   // Instead of loading Composio tools directly (50K+ tokens in schemas),
