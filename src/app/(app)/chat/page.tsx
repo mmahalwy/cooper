@@ -6,11 +6,14 @@ import { ChatMessages } from '@/components/chat/ChatMessages';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { EmptyState } from '@/components/chat/EmptyState';
 import { useRef } from 'react';
+import type { ChatMessage } from '@/lib/chat-types';
+import { suggestionsPartSchema } from '@/lib/chat-types';
 
 export default function ChatPage() {
   const threadIdRef = useRef<string | null>(null);
 
-  const { messages, sendMessage, stop, status, addToolApprovalResponse } = useChat({
+  const { messages, sendMessage, stop, status, addToolApprovalResponse } = useChat<ChatMessage>({
+    dataPartSchemas: { suggestions: suggestionsPartSchema },
     transport: new DefaultChatTransport({
       api: '/api/chat',
       fetch: async (url, options) => {
