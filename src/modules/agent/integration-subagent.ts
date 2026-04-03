@@ -131,6 +131,19 @@ export function createIntegrationTool(
           }
           if (!output) output = 'The integration completed but returned no readable output.';
 
+          // Detect common Slack errors in tool outputs and surface them
+          const allOutputs = steps.flatMap(s => (s.toolResults || []).map((tr: any) => {
+            const val = tr?.output;
+            return typeof val === 'string' ? val : JSON.stringify(val || '');
+          })).join(' ');
+          if (allOutputs.includes('not_in_channel')) {
+            output = "I'm not a member of that Slack channel. Please invite me with `/invite @Cooper` in the channel, then try again.";
+          } else if (allOutputs.includes('channel_not_found')) {
+            output = "I couldn't find that Slack channel. Please check the channel name and try again.";
+          } else if (allOutputs.includes('missing_scope')) {
+            output = "I don't have the right permissions for that action. The Slack app may need to be reinstalled with updated scopes.";
+          }
+
           const toolsUsed = result.steps
             ?.flatMap(s => s.toolCalls?.map(tc => tc.toolName) || [])
             .filter(Boolean) || [];
