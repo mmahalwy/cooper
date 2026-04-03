@@ -5,7 +5,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { saveNote, readNote, listNotes, deleteNote, saveFile, listFiles } from './db';
+import { saveNote, readNote, listNotes, deleteNote, saveFile, readFile, listFiles } from './db';
 
 export function createWorkspaceTools(
   supabase: SupabaseClient,
@@ -155,6 +155,32 @@ If a file with the same name already exists in the same scope, it is overwritten
           };
         } catch (error) {
           return { files: [], error: String(error) };
+        }
+      },
+    }),
+
+    read_workspace_file: tool({
+      description: `Read the content of a saved workspace file by filename. Use after list_workspace_files to inspect a specific file's full content.`,
+      inputSchema: z.object({
+        filename: z.string().describe('File name to read, e.g. "report.md", "data.csv"'),
+        threadScoped: z.boolean().default(false).describe('If true, look in thread-scoped files first. Default: org-wide.'),
+      }),
+      execute: async ({ filename, threadScoped }) => {
+        try {
+          const file = await readFile(supabase, orgId, filename, threadScoped ? threadId : undefined);
+          if (!file) return { found: false, message: `No file found with name "${filename}"${threadScoped ? ' (thread-scoped)' : ' (org-wide)'}.` };
+          return {
+            found: true,
+            fileId: file.id,
+            filename: file.filename,
+            content: file.content,
+            mimeType: file.mime_type,
+            sizeBytes: file.size_bytes,
+            scope: file.thread_id ? 'thread' : 'org',
+            updatedAt: file.updated_at,
+          };
+        } catch (error) {
+          return { found: false, error: String(error) };
         }
       },
     }),
