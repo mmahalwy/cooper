@@ -1,12 +1,13 @@
 import { generateText, stepCountIs } from 'ai';
 import type { WebClient } from '@slack/web-api';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AppMentionEvent, MessageImEvent, MessageChangedEvent, ReactionAddedEvent, SlackInstallation } from './types';
+import type { AppMentionEvent, MessageImEvent, MessageChannelEvent, MessageChangedEvent, ReactionAddedEvent, SlackInstallation } from './types';
+import { getMonitoredChannel, shouldTrigger } from './monitored-channels';
 import { addKnowledge } from '@/modules/memory/knowledge';
 import { resolveSlackUser } from './users';
 import { findOrCreateThreadMapping, getSlackThreadHistory } from './threads';
 import { markdownToSlack } from './format';
-import { uploadFilesToSlack, extractFileArtifacts } from './files';
+import { uploadFilesToSlack, extractFileArtifacts, buildFileContext } from './files';
 import { getToolsForUser } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
 import { extractAndSaveMemories } from '@/modules/memory/extractor';
@@ -421,6 +422,22 @@ export async function handleDirectMessage(
 ): Promise<void> {
   if (event.bot_id || event.bot_profile || event.subtype) return;
 
+  let userText = event.text || '';
+
+  // If the message includes attached files, download them and prepend context
+  if (event.files && event.files.length > 0) {
+    try {
+      const fileContext = await buildFileContext(event.files, ctx.installation.bot_token);
+      if (fileContext) {
+        userText = userText
+          ? fileContext + '\n\n' + userText
+          : fileContext;
+      }
+    } catch (err) {
+      console.error('[slack] handleDirectMessage: failed to build file context:', err);
+    }
+  }
+
   await processEvent(
     ctx,
     event.user,
@@ -428,7 +445,7 @@ export async function handleDirectMessage(
     event.channel,
     event.ts,
     event.thread_ts,
-    event.text
+    userText
   );
 }
 
@@ -653,4 +670,57 @@ export async function handleReactionAdded(
     default:
       break;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Opt-in channel message monitoring
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle a non-DM channel message for the opt-in monitoring feature.
+ *
+ * Steps:
+ * 1. Look up `slack_monitored_channels` for org_id + channel_id.
+ * 2. If not found, silently return — we don't watch this channel.
+ * 3. Check whether the message matches any configured trigger.
+ * 4. If triggered, run through the full `processEvent()` pipeline and always
+ *    reply inside the thread (never as a top-level message).
+ */
+export async function handleChannelMessage(
+  ctx: HandlerContext,
+  event: MessageChannelEvent
+): Promise<void> {
+  // Ignore bot messages and subtypes (edits, joins, etc.)
+  if (event.bot_id || event.bot_profile || event.subtype) return;
+  if (!event.user || !event.text) return;
+
+  const { supabase, installation } = ctx;
+
+  // 1. Is this channel being monitored?
+  const monitored = await getMonitoredChannel(
+    supabase,
+    installation.org_id,
+    event.channel
+  );
+  if (!monitored) return;
+
+  // 2. Does the message match the configured triggers?
+  if (!shouldTrigger(event.text, monitored.triggers)) return;
+
+  console.log(
+    `[slack] Channel monitoring triggered in ${event.channel} (org ${installation.org_id})`
+  );
+
+  // 3. Route through normal pipeline.
+  //    Always reply in-thread: use event.thread_ts if already in a thread,
+  //    otherwise use the message's own ts as the thread anchor.
+  await processEvent(
+    ctx,
+    event.user,
+    event.team || installation.team_id,
+    event.channel,
+    event.ts,                       // messageTs — used for reactions
+    event.thread_ts ?? event.ts,    // threadTs  — forces an in-thread reply
+    event.text
+  );
 }
