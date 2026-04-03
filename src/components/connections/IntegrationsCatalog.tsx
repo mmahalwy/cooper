@@ -55,11 +55,19 @@ export function IntegrationsCatalog({ initialConnections = [], integrations, use
     window.history.replaceState(null, '', `/connections${qs ? `?${qs}` : ''}`);
   }, []);
 
-  useEffect(() => {
+  const doSync = () => {
     startTransition(async () => {
       await syncConnectionsAction();
       router.refresh();
     });
+  };
+
+  useEffect(() => {
+    doSync();
+    // Re-sync when user comes back from OAuth tab
+    const onFocus = () => doSync();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, []);
 
   const connectedIds = useMemo(() => {
