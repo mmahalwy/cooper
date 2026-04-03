@@ -1,0 +1,53 @@
+{
+    "display_information": {
+        "name": "Cooper",
+        "description": "Your sharp, witty AI teammate — right in Slack",
+        "background_color": "#1a1a2e",
+        "long_description": "Cooper is your AI-powered teammate that lives in Slack. DM Cooper or @mention it in any channel to get help with tasks, look up data from your connected tools, run code, schedule recurring reports, and more. Cooper remembers your team's context across conversations."
+    },
+    "features": {
+        "app_home": {
+            "home_tab_enabled": false,
+            "messages_tab_enabled": true,
+            "messages_tab_read_only_enabled": false
+        },
+        "bot_user": {
+            "display_name": "Cooper",
+            "always_online": true
+        }
+    },
+    "oauth_config": {
+        "scopes": {
+            "bot": [
+                "app_mentions:read",
+                "channels:join",
+                "channels:read",
+                "channels:history",
+                "chat:write",
+                "files:read",
+                "files:write",
+                "groups:history",
+                "im:history",
+                "im:read",
+                "im:write",
+                "reactions:read",
+                "reactions:write",
+                "users:read",
+                "users:read.email"
+            ]
+        },
+        "pkce_enabled": false
+    },
+    "settings": {
+        "event_subscriptions": {
+            "request_url": "https://28d8-2601-645-c680-6db0-3019-228b-f5ed-cff1.ngrok-free.app/api/slack/events",
+            "bot_events": [
+                "app_mention",
+                "message.im"
+            ]
+        },
+        "org_deploy_enabled": false,
+        "socket_mode_enabled": false,
+        "token_rotation_enabled": false
+    }
+}
