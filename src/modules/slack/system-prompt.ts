@@ -47,7 +47,7 @@ export async function buildSlackSystemPrompt(
   memoryContext: MemoryContext,
   connectedServices: string[],
   userMessage: string,
-  options?: { isFirstMessage?: boolean }
+  options?: { isFirstMessage?: boolean; conversationSummary?: string | null }
 ): Promise<string> {
   let prompt = SLACK_SYSTEM_PROMPT;
 
@@ -61,6 +61,11 @@ export async function buildSlackSystemPrompt(
   prompt += `\n\nTODAY is ${localDate}.`;
 
   prompt += await buildSkillsPrompt(userMessage);
+
+  // Inject earlier conversation summary when context compression was applied
+  if (options?.conversationSummary) {
+    prompt += `\n\n## Earlier Conversation Summary\nThe following is a summary of the earlier part of this Slack thread (older messages were compressed to save context):\n${options.conversationSummary}`;
+  }
 
   if (memoryContext.knowledge.length) {
     prompt += `\n\n## Things you know about this organization:\n`;
