@@ -3,12 +3,13 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { verifySlackRequest } from '@/modules/slack/verify';
 import { getInstallationByTeamId } from '@/modules/slack/installations';
 import { getSlackClient } from '@/modules/slack/client';
-import { handleAppMention, handleDirectMessage, handleReactionAdded } from '@/modules/slack/handlers';
+import { handleAppMention, handleDirectMessage, handleReactionAdded, handleMessageChanged } from '@/modules/slack/handlers';
 import type {
   SlackEventEnvelope,
   AppMentionEvent,
   MessageImEvent,
   ReactionAddedEvent,
+  MessageChangedEvent,
 } from '@/modules/slack/types';
 
 export const maxDuration = 300;
@@ -101,6 +102,15 @@ export async function POST(request: Request) {
 
       if (event.type === 'reaction_added') {
         await handleReactionAdded(ctx, event as ReactionAddedEvent);
+      }
+
+      // Handle message edits
+      if (event.type === 'message' && (event as MessageChangedEvent).subtype === 'message_changed') {
+        const changedEvent = event as MessageChangedEvent;
+        // Only handle if it's a user message (not bot message edits)
+        if (changedEvent.message?.user && !changedEvent.message?.bot_id) {
+          await handleMessageChanged(ctx, changedEvent);
+        }
       }
     } catch (err) {
       console.error('[slack] Event processing error:', err);
