@@ -22,7 +22,7 @@ export interface UsageEntry {
   promptTokens: number;
   completionTokens: number;
   latencyMs?: number;
-  source: 'chat' | 'scheduler' | 'memory_extraction' | 'thread_summary';
+  source: 'chat' | 'slack' | 'scheduler' | 'memory_extraction' | 'thread_summary';
 }
 
 function estimateCost(modelId: string, promptTokens: number, completionTokens: number): number {

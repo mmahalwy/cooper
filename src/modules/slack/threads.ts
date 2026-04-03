@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { WebClient } from '@slack/web-api';
-import type { ModelMessage } from 'ai';
 
 export interface SlackMessage {
   user: string;
@@ -93,5 +92,3 @@ export async function findOrCreateThreadMapping(
   return { threadId: thread.id, isNew: true };
 }
 
-// Re-export ModelMessage for consumers who need the AI SDK type
-export type { ModelMessage };

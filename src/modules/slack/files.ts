@@ -44,14 +44,14 @@ export async function uploadFilesToSlack(
  * Returns files that should be uploaded to Slack.
  */
 export function extractFileArtifacts(
-  steps: Array<{ toolResults?: Array<{ result: any }> }>
+  steps: Array<{ toolResults?: Array<Record<string, any>> }>
 ): FileToUpload[] {
   const files: FileToUpload[] = [];
 
   for (const step of steps) {
     if (!step.toolResults) continue;
     for (const tr of step.toolResults) {
-      const result = tr.result;
+      const result = (tr as any).result;
       if (!result || typeof result !== 'object') continue;
 
       if (result.artifacts && Array.isArray(result.artifacts)) {
