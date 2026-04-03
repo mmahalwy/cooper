@@ -233,12 +233,22 @@ async function processEvent(
     });
 
     // 7. Load org context
-    const { data: activeConnections } = await supabase
-      .from('connections')
-      .select('name')
-      .eq('org_id', installation.org_id)
-      .eq('status', 'active');
+    const [{ data: activeConnections }, { data: orgData }] = await Promise.all([
+      supabase
+        .from('connections')
+        .select('name')
+        .eq('org_id', installation.org_id)
+        .eq('status', 'active'),
+      supabase
+        .from('organizations')
+        .select('model_preference')
+        .eq('id', installation.org_id)
+        .single(),
+    ]);
     const connectedServices = (activeConnections || []).map((c: any) => c.name);
+    const orgModelPreference = orgData?.model_preference && orgData.model_preference !== 'auto'
+      ? orgData.model_preference
+      : undefined;
 
     const memoryContext = cleanUserText.trim()
       ? await retrieveContext(supabase, installation.org_id, resolvedUser.userId, cleanUserText)
@@ -282,7 +292,7 @@ async function processEvent(
 
     // 9. Generate response
     const requestStartTime = Date.now();
-    const modelSelection = selectModel(cleanUserText, connectedServices);
+    const modelSelection = selectModel(cleanUserText, connectedServices, { orgModelPreference });
     console.log(
       `[slack] Generating response with ${modelSelection.modelId} for thread ${threadId}`
     );
