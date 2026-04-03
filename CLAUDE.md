@@ -16,6 +16,13 @@
 - Always use arrow functions: `const myFunc = () => {}`, `const MyComponent = () => {}`.
 - Do NOT use `function` declarations (`function myFunc() {}`) unless required (e.g., hoisting, generator functions, or when `this` binding is needed).
 
+## Chat Threading — CRITICAL
+- The `/chat` page uses `replaceState` to update the URL to `/chat/[threadId]` after the first message, but the component does NOT remount — it's still the `/chat/page.tsx` component.
+- `DefaultChatTransport` captures `body` at construction time. A getter or ref on `body` does NOT work for dynamic values.
+- The threadId MUST be injected into the fetch body by intercepting the `fetch` call and parsing/modifying the JSON body. See `src/app/(app)/chat/page.tsx` for the pattern.
+- DO NOT remove or "simplify" the fetch body injection — without it, every follow-up message creates a new thread instead of continuing the conversation.
+- If you change anything about how chat messages are sent or threads are created, verify that multi-message conversations persist to the SAME thread.
+
 ## Avoid useEffect
 - Do NOT use `useEffect` for data fetching. Use React Server Components, server actions, or React Suspense with async components instead.
 - Do NOT use `useEffect` for derived state. Use `useMemo` or compute during render.

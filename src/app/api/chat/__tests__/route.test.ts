@@ -90,36 +90,73 @@ describe('chat message persistence', () => {
     });
   });
 
-  describe('threadId body parameter', () => {
-    it('first request has no threadId', () => {
+  describe('threadId fetch body injection (CRITICAL — prevents duplicate threads)', () => {
+    /**
+     * This simulates the exact fetch interception pattern from /chat/page.tsx.
+     * DefaultChatTransport captures body at construction time, so we CANNOT
+     * use a getter or ref on the body config. Instead we intercept fetch()
+     * and inject threadId into the JSON body.
+     *
+     * If these tests break, multi-message conversations will create new
+     * threads for every message.
+     */
+
+    const simulateFetchInterception = (threadIdRef: { current: string | null }, originalBody: string) => {
+      let options: any = { body: originalBody };
+
+      // This is the exact logic from /chat/page.tsx fetch interceptor
+      if (threadIdRef.current && options?.body) {
+        try {
+          const body = JSON.parse(options.body as string);
+          body.threadId = threadIdRef.current;
+          options = { ...options, body: JSON.stringify(body) };
+        } catch { /* body isn't JSON, skip */ }
+      }
+
+      return JSON.parse(options.body);
+    };
+
+    it('first request has no threadId in body', () => {
       const threadIdRef = { current: null as string | null };
-      const body = threadIdRef.current ? { threadId: threadIdRef.current } : undefined;
-      expect(body).toBeUndefined();
+      const originalBody = JSON.stringify({ messages: [{ role: 'user' }] });
+      const result = simulateFetchInterception(threadIdRef, originalBody);
+      expect(result.threadId).toBeUndefined();
+      expect(result.messages).toBeDefined();
     });
 
-    it('subsequent requests include threadId after first response', () => {
-      const threadIdRef = { current: null as string | null };
-
-      // Simulate first response setting the threadId
-      threadIdRef.current = 'thread-abc-123';
-
-      const body = threadIdRef.current ? { threadId: threadIdRef.current } : undefined;
-      expect(body).toEqual({ threadId: 'thread-abc-123' });
+    it('injects threadId into body after first response sets the ref', () => {
+      const threadIdRef = { current: 'thread-abc-123' };
+      const originalBody = JSON.stringify({ messages: [{ role: 'user' }] });
+      const result = simulateFetchInterception(threadIdRef, originalBody);
+      expect(result.threadId).toBe('thread-abc-123');
+      expect(result.messages).toBeDefined();
     });
 
-    it('threadId persists across multiple messages', () => {
+    it('preserves all original body fields when injecting threadId', () => {
+      const threadIdRef = { current: 'thread-abc-123' };
+      const originalBody = JSON.stringify({
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }],
+        someOtherField: 'value',
+      });
+      const result = simulateFetchInterception(threadIdRef, originalBody);
+      expect(result.threadId).toBe('thread-abc-123');
+      expect(result.messages).toHaveLength(1);
+      expect(result.someOtherField).toBe('value');
+    });
+
+    it('third message still has the same threadId', () => {
       const threadIdRef = { current: 'thread-abc-123' };
 
       // Second message
-      const body1 = threadIdRef.current ? { threadId: threadIdRef.current } : undefined;
-      expect(body1).toEqual({ threadId: 'thread-abc-123' });
+      const result2 = simulateFetchInterception(threadIdRef, JSON.stringify({ messages: [] }));
+      expect(result2.threadId).toBe('thread-abc-123');
 
       // Third message — same threadId
-      const body2 = threadIdRef.current ? { threadId: threadIdRef.current } : undefined;
-      expect(body2).toEqual({ threadId: 'thread-abc-123' });
+      const result3 = simulateFetchInterception(threadIdRef, JSON.stringify({ messages: [] }));
+      expect(result3.threadId).toBe('thread-abc-123');
     });
 
-    it('does not overwrite threadId on subsequent responses', () => {
+    it('does not overwrite threadId ref on subsequent responses', () => {
       const threadIdRef = { current: null as string | null };
 
       // First response sets threadId
@@ -129,12 +166,12 @@ describe('chat message persistence', () => {
       }
       expect(threadIdRef.current).toBe('thread-first');
 
-      // Second response tries to set a different threadId — should be ignored
+      // Second response with different ID — should NOT overwrite
       const tid2 = 'thread-second';
       if (tid2 && !threadIdRef.current) {
         threadIdRef.current = tid2;
       }
-      expect(threadIdRef.current).toBe('thread-first'); // unchanged
+      expect(threadIdRef.current).toBe('thread-first');
     });
   });
 
