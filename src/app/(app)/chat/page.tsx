@@ -16,13 +16,14 @@ export default function ChatPage() {
     dataPartSchemas: { suggestions: suggestionsPartSchema },
     transport: new DefaultChatTransport({
       api: '/api/chat',
+      // Include threadId in body once we have it — otherwise subsequent
+      // messages create new threads instead of continuing the conversation
+      get body() { return threadIdRef.current ? { threadId: threadIdRef.current } : undefined; },
       fetch: async (url, options) => {
         const response = await fetch(url, options);
         const tid = response.headers.get('X-Thread-Id');
         if (tid && !threadIdRef.current) {
           threadIdRef.current = tid;
-          // Use replaceState to update URL without triggering navigation.
-          // router.replace() would remount the page and kill the active stream.
           window.history.replaceState(null, '', `/chat/${tid}`);
         }
         return response;
