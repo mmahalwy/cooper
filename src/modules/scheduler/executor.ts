@@ -7,6 +7,9 @@ import { updateTaskAfterRun, createExecutionLog, updateScheduledTaskStatus, clea
 import { getNextRunTime } from './matcher';
 import type { ScheduledTask } from '@/lib/types';
 import { trackUsage } from '@/modules/observability/usage';
+import { getInstallationByOrgId } from '@/modules/slack/installations';
+import { getSlackClient } from '@/modules/slack/client';
+import { markdownToSlack } from '@/modules/slack/format';
 
 const TASK_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
 
@@ -157,6 +160,39 @@ export async function executeScheduledTask(
       }
 
       await supabase.from('messages').insert(messages);
+    }
+
+    // Deliver results to Slack if configured
+    const channelConfig = task.channel_config;
+    if (channelConfig?.channel === 'slack' && channelConfig?.destination && result.text) {
+      try {
+        const installation = await getInstallationByOrgId(supabase, task.org_id);
+        if (installation) {
+          const slackClient = getSlackClient(installation.bot_token);
+          const slackText = markdownToSlack(result.text);
+          const headerText = `*🤖 Scheduled task: ${task.name}*\n_Completed at ${new Date().toUTCString()}_\n\n`;
+
+          // Split if needed (39k char limit)
+          const fullText = headerText + slackText;
+          if (fullText.length <= 39000) {
+            await slackClient.chat.postMessage({
+              channel: channelConfig.destination,
+              text: fullText,
+              unfurl_links: false,
+            });
+          } else {
+            // Post header + truncated result
+            await slackClient.chat.postMessage({
+              channel: channelConfig.destination,
+              text: headerText + slackText.slice(0, 38000) + '\n_(truncated)_',
+              unfurl_links: false,
+            });
+          }
+        }
+      } catch (err) {
+        console.error(`[scheduler] Failed to deliver results to Slack for task ${task.id}:`, err);
+        // Non-fatal — task still succeeded
+      }
     }
 
     if (log?.id) {
