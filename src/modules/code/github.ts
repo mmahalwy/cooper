@@ -30,14 +30,23 @@ export async function getGitHubToken(orgId: string): Promise<string | null> {
     );
     const tokenData = await tokenResp.json();
 
+    // Log the full structure to debug
+    const params = tokenData?.connectionParams || {};
+    console.log('[code/github] connectionParams keys:', Object.keys(params));
+    console.log('[code/github] connectionParams.headers keys:', Object.keys(params.headers || {}));
+    console.log('[code/github] Has access_token:', !!params.access_token);
+    console.log('[code/github] Has token:', !!params.token);
+    console.log('[code/github] Token prefix:', (params.access_token || params.token || '').slice(0, 10) + '...');
+
     // Try multiple paths — Composio stores tokens differently per auth scheme
-    const token = tokenData?.connectionParams?.access_token
-      || tokenData?.connectionParams?.token
-      || tokenData?.connectionParams?.headers?.Authorization?.replace('Bearer ', '')
+    const token = params.access_token
+      || params.token
+      || params.headers?.Authorization?.replace('Bearer ', '')
+      || params.headers?.authorization?.replace('Bearer ', '')
       || null;
 
     if (!token) {
-      console.error('[code/github] Token not found in connectionParams. Keys:', Object.keys(tokenData?.connectionParams || {}));
+      console.error('[code/github] Token not found. Full connectionParams:', JSON.stringify(params).slice(0, 500));
     }
 
     return token;
