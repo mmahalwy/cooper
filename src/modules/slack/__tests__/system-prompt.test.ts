@@ -21,6 +21,8 @@ function makeSupabase(orgSettings: Record<string, unknown> | null = null) {
 
 const baseMemory = {
   knowledge: [],
+  orgKnowledge: [],
+  userKnowledge: [],
   matchedSkills: [],
   threadSummaries: [],
 };
@@ -127,6 +129,7 @@ describe('buildSlackSystemPrompt', () => {
     const memory = {
       ...baseMemory,
       knowledge: ['The team uses Notion for docs', 'Deploys happen on Fridays'],
+      orgKnowledge: ['The team uses Notion for docs', 'Deploys happen on Fridays'],
     };
     const result = await buildSlackSystemPrompt(
       makeSupabase(),
