@@ -37,13 +37,15 @@ export async function getGitHubToken(orgId: string): Promise<string | null> {
     console.log('[code/github] Has access_token:', !!params.access_token);
     console.log('[code/github] Has token:', !!params.token);
     console.log('[code/github] Token prefix:', (params.access_token || params.token || '').slice(0, 10) + '...');
+    console.log('[code/github] scope:', params.scope);
+    console.log('[code/github] status:', params.status);
+    const authHeader = params.headers?.Authorization || params.headers?.authorization || '';
+    console.log('[code/github] Auth header prefix:', authHeader.slice(0, 20) + '...');
+    console.log('[code/github] Auth header matches access_token:', authHeader.includes(params.access_token?.slice(0, 10) || 'NONE'));
 
-    // Try multiple paths — Composio stores tokens differently per auth scheme
-    const token = params.access_token
-      || params.token
-      || params.headers?.Authorization?.replace('Bearer ', '')
-      || params.headers?.authorization?.replace('Bearer ', '')
-      || null;
+    // Prefer the Authorization header token — Composio may refresh it there
+    const headerToken = (params.headers?.Authorization || params.headers?.authorization || '').replace('Bearer ', '').trim();
+    const token = headerToken || params.access_token || params.token || null;
 
     if (!token) {
       console.error('[code/github] Token not found. Full connectionParams:', JSON.stringify(params).slice(0, 500));
