@@ -356,3 +356,198 @@ export async function handleDirectMessage(
     event.text
   );
 }
+
+interface SlashCommandPayload {
+  userId: string;
+  teamId: string;
+  channelId: string;
+  text: string;
+  responseUrl: string;
+}
+
+/**
+ * Handles a /cooper slash command invocation.
+ *
+ * Unlike event-driven handlers, slash commands don't have a `messageTs` we can
+ * add reactions to.  Instead the final response is posted back via the Slack
+ * `response_url` as an in-channel message so the whole team can see the answer.
+ */
+export async function processSlashCommand(
+  ctx: HandlerContext,
+  payload: SlashCommandPayload
+): Promise<void> {
+  const { supabase, slackClient, installation } = ctx;
+  const { userId, teamId, channelId, text, responseUrl } = payload;
+
+  const postToResponseUrl = async (message: string, ephemeral = false) => {
+    await fetch(responseUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        response_type: ephemeral ? 'ephemeral' : 'in_channel',
+        text: message,
+      }),
+    });
+  };
+
+  try {
+    // 1. Resolve user
+    const resolvedUser = await resolveSlackUser(
+      supabase,
+      slackClient,
+      userId,
+      teamId,
+      installation.org_id
+    );
+    if (!resolvedUser) {
+      await postToResponseUrl(
+        '⚠️ Could not resolve your Slack account. Make sure you\'re connected to Cooper in Settings.',
+        true
+      );
+      return;
+    }
+
+    // 2. Find or create a Cooper thread for this channel
+    const { threadId } = await findOrCreateThreadMapping(
+      supabase,
+      channelId,
+      channelId, // use channelId as thread anchor for slash commands
+      installation.org_id,
+      resolvedUser.userId
+    );
+
+    // 3. Persist user message
+    await supabase.from('messages').insert({
+      thread_id: threadId,
+      role: 'user',
+      content: text,
+    });
+
+    // 4. Org context
+    const { data: activeConnections } = await supabase
+      .from('connections')
+      .select('name')
+      .eq('org_id', installation.org_id)
+      .eq('status', 'active');
+    const connectedServices = (activeConnections || []).map((c: any) => c.name);
+
+    const memoryContext = text.trim()
+      ? await retrieveContext(supabase, installation.org_id, text)
+      : { knowledge: [], matchedSkills: [], threadSummaries: [] };
+
+    // 5. Build tools and system prompt
+    const tools = await buildTools(
+      supabase,
+      installation.org_id,
+      resolvedUser.userId,
+      threadId,
+      connectedServices
+    );
+
+    const systemPrompt = await buildSlackSystemPrompt(
+      supabase,
+      installation.org_id,
+      memoryContext,
+      connectedServices,
+      text
+    );
+
+    // 6. Generate response
+    const modelSelection = selectModel(text, connectedServices);
+    console.log(
+      `[slack/commands] Generating response with ${modelSelection.modelId} for thread ${threadId}`
+    );
+
+    const result = await generateText({
+      model: modelSelection.model,
+      system: systemPrompt,
+      messages: [{ role: 'user' as const, content: text }],
+      tools,
+      stopWhen: stepCountIs(25),
+    });
+
+    const responseText =
+      result.text || "I wasn't able to generate a response. Try again!";
+    const slackText = markdownToSlack(responseText);
+
+    // 7. Post back via response_url (in_channel so others can see)
+    const chunks = splitMessage(slackText);
+    for (const chunk of chunks) {
+      await postToResponseUrl(chunk);
+    }
+
+    // 8. Upload file artifacts if any
+    try {
+      const fileArtifacts = extractFileArtifacts(result.steps);
+      if (fileArtifacts.length > 0) {
+        // No thread anchor for slash commands — upload to the channel root
+        await uploadFilesToSlack(slackClient, channelId, channelId, fileArtifacts);
+      }
+    } catch (err) {
+      console.error('[slack/commands] File extraction failed:', err);
+    }
+
+    // 9. Persist assistant message
+    const toolCallSummary: string[] = [];
+    for (const step of result.steps) {
+      for (const tc of step.toolCalls || []) {
+        toolCallSummary.push(tc.toolName);
+      }
+    }
+
+    await supabase.from('messages').insert({
+      thread_id: threadId,
+      role: 'assistant',
+      content: responseText,
+      tool_calls: toolCallSummary.length > 0 ? toolCallSummary : null,
+      metadata: {
+        model: modelSelection.modelId,
+        toolsUsed: toolCallSummary,
+        source: 'slack_command',
+      },
+    });
+
+    // 10. Track usage
+    try {
+      const totalUsage = result.totalUsage;
+      if (totalUsage) {
+        await trackUsage(supabase, {
+          orgId: installation.org_id,
+          userId: resolvedUser.userId,
+          threadId,
+          modelId: modelSelection.modelId,
+          modelProvider: modelSelection.provider,
+          promptTokens: totalUsage.inputTokens || 0,
+          completionTokens: totalUsage.outputTokens || 0,
+          latencyMs: undefined,
+          source: 'slack_command',
+        });
+      }
+    } catch (err) {
+      console.error('[slack/commands] Usage tracking failed:', err);
+    }
+
+    // 11. Background memory + thread summary
+    extractAndSaveMemories(
+      supabase,
+      installation.org_id,
+      text,
+      responseText,
+      memoryContext.knowledge
+    ).catch((err) => console.error('[slack/commands] Memory extraction failed:', err));
+
+    summarizeAndStoreThread(supabase, threadId, installation.org_id).catch(
+      (err) => console.error('[slack/commands] Thread summarization failed:', err)
+    );
+  } catch (err) {
+    console.error('[slack/commands] Command processing failed:', err);
+    await fetch(responseUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        response_type: 'ephemeral',
+        text: '❌ Something went wrong processing your request. Please try again.',
+      }),
+    }).catch(() => {});
+  }
+}
