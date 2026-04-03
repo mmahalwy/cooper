@@ -18,6 +18,16 @@ export interface SystemSkill {
 }
 
 let _cachedSkills: SystemSkill[] | null = null;
+let _cacheLoadedAt: number | null = null;
+const SKILL_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes — refreshes on new skill deployments
+
+/**
+ * Force a cache reset. Useful in tests or when skills are known to have changed.
+ */
+export function resetSkillsCache(): void {
+  _cachedSkills = null;
+  _cacheLoadedAt = null;
+}
 
 function parseFrontmatter(raw: string): { name: string; description: string; content: string } {
   const match = raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
@@ -53,7 +63,9 @@ function cosineSimilarity(a: number[], b: number[]): number {
  * Load all system skills from .agents/skills/ and embed their descriptions.
  */
 export async function loadSystemSkills(): Promise<SystemSkill[]> {
-  if (_cachedSkills) return _cachedSkills;
+  if (_cachedSkills && _cacheLoadedAt && Date.now() - _cacheLoadedAt < SKILL_CACHE_TTL_MS) {
+    return _cachedSkills;
+  }
 
   try {
     const fs = await import('fs');
@@ -98,6 +110,7 @@ export async function loadSystemSkills(): Promise<SystemSkill[]> {
 
     console.log(`[skills] Loaded ${skills.length} system skills: ${skills.map((s) => s.name).join(', ')}`);
     _cachedSkills = skills;
+    _cacheLoadedAt = Date.now();
     return skills;
   } catch (error) {
     console.error('[skills] Failed to load system skills:', error);
