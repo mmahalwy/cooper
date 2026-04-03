@@ -5,11 +5,9 @@ import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalRespons
 import { ChatMessages } from '@/components/chat/ChatMessages';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { EmptyState } from '@/components/chat/EmptyState';
-import { useRouter } from 'next/navigation';
 import { useRef } from 'react';
 
 export default function ChatPage() {
-  const router = useRouter();
   const threadIdRef = useRef<string | null>(null);
 
   const { messages, sendMessage, stop, status, addToolApprovalResponse } = useChat({
@@ -18,10 +16,11 @@ export default function ChatPage() {
       fetch: async (url, options) => {
         const response = await fetch(url, options);
         const tid = response.headers.get('X-Thread-Id');
-        console.log('[chat] X-Thread-Id from response:', tid);
         if (tid && !threadIdRef.current) {
           threadIdRef.current = tid;
-          router.replace(`/chat/${tid}`);
+          // Use replaceState to update URL without triggering navigation.
+          // router.replace() would remount the page and kill the active stream.
+          window.history.replaceState(null, '', `/chat/${tid}`);
         }
         return response;
       },
