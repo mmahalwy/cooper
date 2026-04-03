@@ -15,7 +15,13 @@ export function markdownToSlack(text: string): string {
         // Bold **text** -> *text*
         .replace(/\*\*(.+?)\*\*/g, '*$1*')
         // Links [text](url) -> <url|text>
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<$2|$1>');
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<$2|$1>')
+        // Strikethrough ~~text~~ -> ~text~
+        .replace(/~~(.+?)~~/g, '~$1~')
+        // Remove horizontal rules
+        .replace(/^-{3,}$/gm, '')
+        // Collapse 3+ consecutive newlines to max 2
+        .replace(/\n{3,}/g, '\n\n');
     })
     .join('');
 }

@@ -32,22 +32,33 @@ export async function getSlackThreadHistory(
   slackClient: WebClient,
   channel: string,
   threadTs: string,
-  botUserId: string
+  botUserId: string,
+  maxMessages = 100
 ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
-  const response = await slackClient.conversations.replies({
-    channel,
-    ts: threadTs,
-    limit: 50,
-  });
+  const allMessages: SlackMessage[] = [];
+  let cursor: string | undefined;
 
-  const messages = (response.messages || []).map((m) => ({
-    user: m.user || '',
-    text: m.text || '',
-    ts: m.ts || '',
-    bot_id: m.bot_id,
-  }));
+  do {
+    const response = await slackClient.conversations.replies({
+      channel,
+      ts: threadTs,
+      limit: Math.min(50, maxMessages - allMessages.length),
+      cursor,
+    });
 
-  return convertSlackHistoryToMessages(messages, botUserId);
+    const msgs = (response.messages || []).map((m) => ({
+      user: m.user || '',
+      text: m.text || '',
+      ts: m.ts || '',
+      bot_id: m.bot_id,
+    }));
+    allMessages.push(...msgs);
+
+    cursor = response.response_metadata?.next_cursor;
+    if (allMessages.length >= maxMessages) break;
+  } while (cursor);
+
+  return convertSlackHistoryToMessages(allMessages, botUserId);
 }
 
 export async function findOrCreateThreadMapping(

@@ -79,7 +79,7 @@ export async function resolveSlackUser(
       org_id: fallbackUser.org_id,
     }).catch(() => {});
 
-    console.log(`[slack] Mapped Slack user ${slackUserId} to org admin ${fallbackUser.id} (no email match found)`);
+    console.warn(`[slack] WARN: Mapping external Slack user ${slackUserId} (${email || 'no email'}) to org admin ${fallbackUser.id} — they don't have a Cooper account`);
     return { userId: fallbackUser.id, orgId: fallbackUser.org_id };
   }
 
