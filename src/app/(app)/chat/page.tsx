@@ -39,7 +39,7 @@ export default function ChatPage() {
     },
   }), [modelOverride, threadId]);
 
-  const { messages, sendMessage, stop, status, addToolApprovalResponse } = useChat<ChatMessage>({
+  const { messages, sendMessage, stop, status, error, clearError, addToolApprovalResponse } = useChat<ChatMessage>({
     dataPartSchemas: { suggestions: suggestionsPartSchema, status: statusPartSchema },
     transport,
     onData: (part) => {
@@ -62,6 +62,14 @@ export default function ChatPage() {
         <ChatMessages messages={messages} suggestions={suggestions} liveStatus={streamStatus} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} onSuggestionClick={(prompt) => sendMessage({ text: prompt })} />
       ) : (
         <EmptyState onSuggestionClick={(prompt) => sendMessage({ text: prompt })} />
+      )}
+      {error && (
+        <div className="mx-auto max-w-3xl w-full px-4 pb-2">
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive flex items-center justify-between">
+            <span>Something went wrong: {error.message}</span>
+            <button onClick={clearError} className="text-xs underline ml-4 shrink-0">Dismiss</button>
+          </div>
+        </div>
       )}
       <ChatInput
         onSend={({ text, files, modelOverride }) => {
