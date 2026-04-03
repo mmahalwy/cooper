@@ -42,13 +42,13 @@ export async function addKnowledge(
     query_embedding: embedding,
     match_org_id: orgId,
     match_count: 1,
-    match_threshold: 0.80,
+    match_threshold: 0.70,
   });
 
   if (similar && similar.length > 0) {
     const topMatch = similar[0];
 
-    if (topMatch.similarity >= 0.90) {
+    if (topMatch.similarity >= 0.85) {
       // Near-duplicate — skip insert, return existing
       console.log(
         `[knowledge] Skipping duplicate (${topMatch.similarity.toFixed(2)} similarity): "${content.slice(0, 50)}..."`

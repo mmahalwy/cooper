@@ -4,7 +4,7 @@ import { manageContextWindow } from './context-manager';
 import type { AgentInput } from './types';
 import type { MemoryContext } from '@/modules/memory/retriever';
 import { buildSkillsPrompt } from '@/modules/skills/system';
-import { createSaveKnowledgeTool } from '@/modules/memory/tools';
+import { createMemoryTools } from '@/modules/memory/tools';
 import { createScheduleTools } from '@/modules/scheduler/tools';
 import { createSkillTools } from '@/modules/skills/tools';
 import { createOrchestrationTools } from '@/modules/orchestration/tools';
@@ -207,7 +207,8 @@ export async function createAgentStream(input: AgentInput) {
 
   // Add memory and scheduler tools if supabase client is available
   if (input.supabase) {
-    builtInTools.save_knowledge = createSaveKnowledgeTool(input.supabase, input.orgId);
+    const memoryTools = createMemoryTools(input.supabase, input.orgId);
+    Object.assign(builtInTools, memoryTools);
     const scheduleTools = createScheduleTools(input.supabase, input.orgId, input.userId);
     Object.assign(builtInTools, scheduleTools);
     const skillTools = createSkillTools(input.supabase, input.orgId);

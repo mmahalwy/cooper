@@ -5,7 +5,34 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { addKnowledge } from './knowledge';
+import { addKnowledge, getKnowledgeForOrg } from './knowledge';
+
+/**
+ * Create memory tools — save and list knowledge.
+ */
+export function createMemoryTools(supabase: SupabaseClient, orgId: string) {
+  return {
+    save_knowledge: createSaveKnowledgeTool(supabase, orgId),
+    list_knowledge: tool({
+      description: `List all knowledge and facts Cooper has learned about the user and their organization. Use this when the user asks "what do you know about me/us", "what knowledge do you have", or wants to see stored memories.`,
+      inputSchema: z.object({}),
+      execute: async () => {
+        const facts = await getKnowledgeForOrg(supabase, orgId);
+        if (facts.length === 0) {
+          return {
+            facts: [],
+            message: "I haven't learned any specific facts about you or your organization yet. As we work together, I'll pick up important details automatically.",
+          };
+        }
+        return {
+          facts: facts.map(f => ({ content: f.content, source: f.source, learnedAt: f.created_at })),
+          count: facts.length,
+          message: `I know ${facts.length} thing(s) about your organization.`,
+        };
+      },
+    }),
+  };
+}
 
 /**
  * Create a save_knowledge tool bound to a specific org.

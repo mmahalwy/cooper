@@ -12,7 +12,7 @@ import { extractAndSaveMemories } from '@/modules/memory/extractor';
 import { summarizeAndStoreThread } from '@/modules/memory/thread-summary';
 import { selectModel } from '@/modules/agent/model-router';
 import { trackUsage } from '@/modules/observability/usage';
-import { createSaveKnowledgeTool } from '@/modules/memory/tools';
+import { createMemoryTools } from '@/modules/memory/tools';
 import { createScheduleTools } from '@/modules/scheduler/tools';
 import { createSkillTools } from '@/modules/skills/tools';
 import { createOrchestrationTools } from '@/modules/orchestration/tools';
@@ -66,7 +66,7 @@ async function buildTools(
 ): Promise<Record<string, any>> {
   const builtInTools: Record<string, any> = {};
 
-  builtInTools.save_knowledge = createSaveKnowledgeTool(supabase, orgId);
+  Object.assign(builtInTools, createMemoryTools(supabase, orgId));
   Object.assign(builtInTools, createScheduleTools(supabase, orgId, userId));
   Object.assign(builtInTools, createSkillTools(supabase, orgId));
   Object.assign(builtInTools, createOrchestrationTools(supabase, orgId));
