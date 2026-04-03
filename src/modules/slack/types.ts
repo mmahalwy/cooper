@@ -10,7 +10,12 @@ export interface SlackEventEnvelope {
 }
 
 // Union of events we handle
-export type SlackEvent = AppMentionEvent | MessageImEvent | ReactionAddedEvent | MessageChangedEvent;
+export type SlackEvent =
+  | AppMentionEvent
+  | MessageImEvent
+  | MessageChannelEvent
+  | ReactionAddedEvent
+  | MessageChangedEvent;
 
 export interface AppMentionEvent {
   type: 'app_mention';
@@ -60,9 +65,37 @@ export interface MessageChangedEvent {
   event_ts: string;
 }
 
+export interface SlackFile {
+  id: string;
+  name: string;
+  mimetype: string;
+  url_private: string;
+  url_private_download: string;
+  size: number;
+}
+
 export interface MessageImEvent {
   type: 'message';
   channel_type: 'im';
+  user: string;
+  text: string;
+  ts: string;
+  channel: string;
+  thread_ts?: string;
+  team?: string;
+  subtype?: string;
+  bot_id?: string;
+  bot_profile?: unknown;
+  files?: SlackFile[];
+}
+
+/**
+ * A plain (non-DM) channel message — used for opt-in channel monitoring.
+ * channel_type will be 'channel', 'group', or 'mpim' (never 'im').
+ */
+export interface MessageChannelEvent {
+  type: 'message';
+  channel_type: 'channel' | 'group' | 'mpim';
   user: string;
   text: string;
   ts: string;
