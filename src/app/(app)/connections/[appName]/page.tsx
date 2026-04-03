@@ -18,7 +18,7 @@ export default async function ConnectionDetailPage({ params }: { params: Promise
   // Find the connection record for this app
   const { data: connection } = await supabase
     .from('connections')
-    .select('id, config')
+    .select('id, config, scope')
     .eq('org_id', dbUser.org_id)
     .eq('provider', appName)
     .eq('status', 'active')
@@ -40,6 +40,7 @@ export default async function ConnectionDetailPage({ params }: { params: Promise
       description={integration?.description || ''}
       tools={tools}
       savedPermissions={savedPermissions}
+      scope={connection?.scope || 'shared'}
     />
   );
 }

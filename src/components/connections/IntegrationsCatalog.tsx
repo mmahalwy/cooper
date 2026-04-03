@@ -15,6 +15,7 @@ import {
 } from '@/app/actions';
 import type { Connection } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { Card } from '@/components/ui/card';
 
 const CATEGORIES = [
   { id: 'all', label: 'All' },
@@ -31,9 +32,10 @@ const CATEGORIES = [
 interface IntegrationsCatalogProps {
   initialConnections?: Connection[];
   integrations: Integration[];
+  userId: string;
 }
 
-export function IntegrationsCatalog({ initialConnections = [], integrations }: IntegrationsCatalogProps) {
+export function IntegrationsCatalog({ initialConnections = [], integrations, userId }: IntegrationsCatalogProps) {
   const [connections, setConnections] = useState<Connection[]>(initialConnections);
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('q') || '');
@@ -70,6 +72,16 @@ export function IntegrationsCatalog({ initialConnections = [], integrations }: I
     });
     return ids;
   }, [connections, integrations]);
+
+  const yourConnections = useMemo(() =>
+    connections.filter(c => c.user_id === userId),
+    [connections, userId]
+  );
+
+  const teamConnections = useMemo(() =>
+    connections.filter(c => c.user_id !== userId && c.scope === 'shared'),
+    [connections, userId]
+  );
 
   const filtered = useMemo(() => {
     const activeCat = CATEGORIES.find(c => c.id === category);
@@ -147,6 +159,62 @@ export function IntegrationsCatalog({ initialConnections = [], integrations }: I
           <Switch checked={showConnectedOnly} onCheckedChange={(v) => { setShowConnectedOnly(v); updateURL(search, category, v); }} />
         </div>
       </div>
+
+      {/* Your Connections */}
+      {yourConnections.length > 0 && (
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Your Connections</h3>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3 mb-6">
+            {yourConnections.map((conn) => {
+              const integration = integrations.find(i => i.composioApp === conn.provider || i.id === conn.provider);
+              return (
+                <Card key={conn.id} className="flex items-center gap-3 p-3 border-border/50">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted/50 overflow-hidden">
+                    {integration?.logo ? (
+                      <img src={integration.logo} alt="" className="size-5 object-contain" />
+                    ) : (
+                      <span className="text-xs font-semibold text-muted-foreground">{conn.name[0]}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{integration?.name || conn.name}</p>
+                    <span className="text-[10px] text-muted-foreground">
+                      {conn.scope === 'personal' ? '🔒 Personal' : '🌐 Shared'}
+                    </span>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Team Connections */}
+      {teamConnections.length > 0 && (
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">Team Connections</h3>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3 mb-6">
+            {teamConnections.map((conn) => {
+              const integration = integrations.find(i => i.composioApp === conn.provider || i.id === conn.provider);
+              return (
+                <Card key={conn.id} className="flex items-center gap-3 p-3 border-border/50 opacity-80">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted/50 overflow-hidden">
+                    {integration?.logo ? (
+                      <img src={integration.logo} alt="" className="size-5 object-contain" />
+                    ) : (
+                      <span className="text-xs font-semibold text-muted-foreground">{conn.name[0]}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{integration?.name || conn.name}</p>
+                    <span className="text-[10px] text-muted-foreground">🌐 Shared</span>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         {filtered.map((integration) => (

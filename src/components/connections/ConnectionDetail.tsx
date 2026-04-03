@@ -26,16 +26,18 @@ interface ConnectionDetailProps {
   description: string;
   tools: ConnectionTool[];
   savedPermissions: Record<string, ToolPermission>;
+  scope: string;
 }
 
 function isReadTool(name: string) {
   return /GET|LIST|SEARCH|QUERY|RETRIEVE|FETCH/.test(name);
 }
 
-export function ConnectionDetail({ appName, connectionId, displayName, description, tools, savedPermissions }: ConnectionDetailProps) {
+export function ConnectionDetail({ appName, connectionId, displayName, description, tools, savedPermissions, scope }: ConnectionDetailProps) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [enabled, setEnabled] = useState(true);
+  const [savedScope, setSavedScope] = useState<string>(scope);
 
   // Initialize from saved permissions, falling back to defaults
   const [permissions, setPermissions] = useState<Record<string, ToolPermission>>(() => {
@@ -116,6 +118,36 @@ export function ConnectionDetail({ appName, connectionId, displayName, descripti
         <Switch checked={enabled} onCheckedChange={setEnabled} />
       </div>
       <p className="text-xs text-muted-foreground mb-6">All team members can use this integration</p>
+
+      {connectionId && (
+        <>
+          <Separator className="mb-6" />
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <p className="font-medium text-sm">Sharing</p>
+              <p className="text-xs text-muted-foreground">
+                {savedScope === 'personal' ? 'Only you and Cooper can use this' : 'Everyone on the team can use this'}
+              </p>
+            </div>
+            <Select
+              value={savedScope}
+              onValueChange={async (v) => {
+                const { updateConnectionScopeAction } = await import('@/app/actions');
+                await updateConnectionScopeAction(connectionId, v as 'personal' | 'shared');
+                setSavedScope(v as 'personal' | 'shared');
+              }}
+            >
+              <SelectTrigger className="w-[140px] text-xs h-8">
+                {savedScope === 'personal' ? '🔒 Personal' : '🌐 Shared'}
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="personal">🔒 Personal</SelectItem>
+                <SelectItem value="shared">🌐 Shared</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
 
       <Separator className="mb-6" />
 

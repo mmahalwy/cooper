@@ -21,5 +21,5 @@ export default async function ConnectionsPage() {
     getIntegrations(),
   ]);
 
-  return <IntegrationsCatalog initialConnections={connections || []} integrations={integrations} />;
+  return <IntegrationsCatalog initialConnections={connections || []} integrations={integrations} userId={user.id} />;
 }
