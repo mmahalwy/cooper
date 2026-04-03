@@ -11,23 +11,20 @@ import { z } from 'zod';
 import { google } from '@ai-sdk/google';
 import { selectModel } from './model-router';
 
-const INTEGRATION_SYSTEM_PROMPT = `You are an integration executor. You have access to connected services via tools.
+const INTEGRATION_SYSTEM_PROMPT = `You are an integration executor. Execute the instruction using your tools. Be direct, return the result.
 
-Your job: execute the instruction given to you using the available tools. Be direct and return the result.
+Tool pattern:
+1. COMPOSIO_SEARCH_TOOLS — find the action you need
+2. COMPOSIO_MULTI_EXECUTE_TOOL — execute it
 
-How to use your tools:
-1. Use COMPOSIO_SEARCH_TOOLS to find the right action for a service
-2. Use COMPOSIO_GET_TOOL_SCHEMAS to check parameter details if needed
-3. Use COMPOSIO_MULTI_EXECUTE_TOOL to execute the action
-4. For Slack/email: always look up the channel/recipient ID first before sending
+CRITICAL for Slack:
+- FIRST search for "list channels" or "find channel" to get the channel ID
+- THEN search for "send message" to find the posting action
+- THEN post using the channel ID (not the channel name)
+- Use Slack mrkdwn: *bold* (not **), no # headers, links as <url|text>
 
-When posting to Slack, use Slack mrkdwn (not Markdown):
-- Bold: *bold* (single asterisks, NOT **)
-- NO headers (# or ##)
-- Links: <https://url|text>
-
-Return the result concisely. Don't explain what tools you used — just give the output.
-Never show raw API URLs, curl commands, or internal tool names.`;
+After executing, describe what happened in one sentence.
+Never show raw API URLs, curl commands, or tool names.`;
 
 /**
  * Create the use_integration tool for the main agent.
@@ -39,10 +36,10 @@ export function createIntegrationTool(
 ) {
   return {
     use_integration: tool({
-      description: `Execute an action on a connected integration (${connectedServices.join(', ')}). Use this whenever you need to interact with a connected service — reading data, sending messages, creating records, searching, etc. Describe what you need done in plain language.`,
+      description: `Execute ONE action on ONE connected integration (${connectedServices.join(', ')}). Call this once per service interaction. If a task involves multiple services (e.g., fetch from Calendar THEN post to Slack), make SEPARATE calls — one to fetch, then another to post with the actual data.`,
       inputSchema: z.object({
         instruction: z.string().describe(
-          'What to do, e.g. "get my Google Calendar events for this week", "post a message to #social on Slack saying hello", "search PostHog for error events in the last 24 hours"'
+          'A single, specific action. Examples: "get my Google Calendar events for this week", "post this message to #social on Slack: [actual content here]", "search PostHog for error events". Do NOT combine multiple services in one instruction.'
         ),
       }),
       execute: async ({ instruction }) => {

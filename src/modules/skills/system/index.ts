@@ -106,8 +106,8 @@ export async function loadSystemSkills(): Promise<SystemSkill[]> {
   }
 }
 
-const SKILL_MATCH_THRESHOLD = 0.45;
-const MAX_ACTIVATED_SKILLS = 2;
+const SKILL_MATCH_THRESHOLD = 0.65;
+const MAX_ACTIVATED_SKILLS = 1;
 
 /**
  * Build skills prompt with auto-activated skills based on semantic similarity.
@@ -158,13 +158,8 @@ export async function buildSkillsPrompt(userMessage?: string): Promise<string> {
     }
   }
 
-  if (available.length > 0) {
-    prompt += '\n\n## Other Available Skills\n';
-    prompt += 'These skills are available if the conversation shifts to these topics:\n';
-    for (const skill of available) {
-      prompt += `- **${skill.name}**: ${skill.description}\n`;
-    }
-  }
+  // Don't list all available skills — with 50+ skills, the descriptions
+  // alone cost ~2K tokens. Skills activate automatically via embedding match.
 
   return prompt;
 }
