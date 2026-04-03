@@ -32,6 +32,7 @@ import {
   SearchIcon,
   XIcon,
   SettingsIcon,
+  HashIcon,
 } from 'lucide-react';
 import { searchThreadsAction } from '@/app/actions';
 import { Input } from '@/components/ui/input';
@@ -174,7 +175,7 @@ function AppSidebar() {
                           isActive={params?.threadId === thread.id}
                           onClick={() => router.push(`/chat/${thread.id}`)}
                         >
-                          <MessageSquareIcon />
+                          {thread.source === 'slack' ? <HashIcon /> : <MessageSquareIcon />}
                           <span className="truncate">{thread.title || 'Untitled'}</span>
                         </SidebarMenuButton>
                       </SidebarMenuItem>

@@ -21,6 +21,7 @@ export interface Thread {
   user_id: string;
   title: string | null;
   scheduled_task_id: string | null;
+  source: 'web' | 'slack' | 'scheduler' | 'api';
   created_at: string;
   updated_at: string;
 }

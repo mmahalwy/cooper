@@ -74,6 +74,7 @@ export async function findOrCreateThreadMapping(
       org_id: orgId,
       user_id: userId,
       title: 'Slack conversation',
+      source: 'slack',
     })
     .select('id')
     .single();
