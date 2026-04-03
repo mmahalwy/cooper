@@ -1,4 +1,5 @@
-import { streamText, stepCountIs, convertToModelMessages } from 'ai';
+import { streamText, stepCountIs, convertToModelMessages, wrapLanguageModel } from 'ai';
+import { devToolsMiddleware } from '@ai-sdk/devtools';
 import { selectModel } from './model-router';
 import { manageContextWindow } from './context-manager';
 import type { AgentInput } from './types';
@@ -306,8 +307,13 @@ export async function createAgentStream(input: AgentInput) {
 
   const statusTracker = new StatusTracker();
 
+  // Wrap model with devtools middleware in development
+  const model = process.env.NODE_ENV === 'development'
+    ? wrapLanguageModel({ model: modelSelection.model, middleware: devToolsMiddleware() })
+    : modelSelection.model;
+
   const result = streamText({
-    model: modelSelection.model,
+    model,
     system: systemPrompt,
     messages: modelMessages,
     tools: allTools,

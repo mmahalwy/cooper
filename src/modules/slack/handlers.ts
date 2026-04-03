@@ -242,7 +242,13 @@ async function processEvent(
 
     const memoryContext = cleanUserText.trim()
       ? await retrieveContext(supabase, installation.org_id, resolvedUser.userId, cleanUserText)
-      : { knowledge: [], matchedSkills: [], threadSummaries: [] };
+      : {
+          knowledge: [],
+          orgKnowledge: [],
+          userKnowledge: [],
+          matchedSkills: [],
+          threadSummaries: [],
+        };
 
     // 7a. Context window compression: summarize old messages when thread is long
     let finalMessages = messages;

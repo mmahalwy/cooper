@@ -114,7 +114,13 @@ export async function POST(req: Request) {
 
   const memoryContext = userText.trim()
     ? await retrieveContext(supabase, dbUser.org_id, user.id, userText)
-    : { knowledge: [], matchedSkills: [], threadSummaries: [] };
+    : {
+        knowledge: [],
+        orgKnowledge: [],
+        userKnowledge: [],
+        matchedSkills: [],
+        threadSummaries: [],
+      };
 
   const requestedModel = modelOverride && modelOverride !== 'auto'
     ? modelOverride
