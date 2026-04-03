@@ -1,7 +1,7 @@
 import { generateText, stepCountIs } from 'ai';
 import type { WebClient } from '@slack/web-api';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AppMentionEvent, MessageImEvent, ReactionAddedEvent, SlackInstallation } from './types';
+import type { AppMentionEvent, MessageImEvent, MessageChangedEvent, ReactionAddedEvent, SlackInstallation } from './types';
 import { addKnowledge } from '@/modules/memory/knowledge';
 import { resolveSlackUser } from './users';
 import { findOrCreateThreadMapping, getSlackThreadHistory } from './threads';
@@ -146,6 +146,11 @@ function splitMessage(text: string): string[] {
   return chunks;
 }
 
+interface ProcessEventOptions {
+  /** When set, skip thread creation and use this existing Cooper thread ID directly. */
+  existingThreadId?: string;
+}
+
 async function processEvent(
   ctx: HandlerContext,
   slackUserId: string,
@@ -153,7 +158,8 @@ async function processEvent(
   channel: string,
   messageTs: string,
   threadTs: string | undefined,
-  userText: string
+  userText: string,
+  options?: ProcessEventOptions
 ): Promise<void> {
   const { supabase, slackClient, installation } = ctx;
 
@@ -178,14 +184,24 @@ async function processEvent(
     // If thread_ts exists, reply in that thread.
     const replyThreadTs = threadTs || messageTs;
 
-    // 4. Find or create Cooper thread mapping
-    const { threadId, isNew } = await findOrCreateThreadMapping(
-      supabase,
-      channel,
-      replyThreadTs,
-      installation.org_id,
-      resolvedUser.userId
-    );
+    // 4. Find or create Cooper thread mapping.
+    // When an existingThreadId is provided (e.g. for message edits), skip the
+    // DB lookup / creation and reuse that thread directly.
+    let threadId: string;
+    let isNew: boolean;
+
+    if (options?.existingThreadId) {
+      threadId = options.existingThreadId;
+      isNew = false;
+    } else {
+      ({ threadId, isNew } = await findOrCreateThreadMapping(
+        supabase,
+        channel,
+        replyThreadTs,
+        installation.org_id,
+        resolvedUser.userId
+      ));
+    }
 
     // First DM: threadTs is undefined (no existing thread) and this is a brand-new mapping
     const isFirstDm = isNew && threadTs === undefined;
@@ -412,6 +428,65 @@ export async function handleDirectMessage(
     event.ts,
     event.thread_ts,
     event.text
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Message edit handler
+// ---------------------------------------------------------------------------
+
+export async function handleMessageChanged(
+  ctx: HandlerContext,
+  event: MessageChangedEvent
+): Promise<void> {
+  const { supabase, slackClient, installation } = ctx;
+  const channel = event.channel;
+  const editedMessageTs = event.message.ts;
+  const newText = event.message.text || '';
+  const slackUserId = event.message.user;
+
+  // Don't re-process if text is identical
+  if (newText === event.previous_message?.text) return;
+
+  // Find if this message has a corresponding thread in Cooper
+  const { data: threadMapping } = await supabase
+    .from('slack_thread_mappings')
+    .select('thread_id')
+    .eq('slack_channel_id', channel)
+    .eq('slack_thread_ts', editedMessageTs)
+    .single();
+
+  if (!threadMapping) return; // No conversation started from this message — ignore
+
+  // Clean the edited message text (remove bot mention)
+  const cleanText = newText
+    .replace(/<@[A-Z0-9]+>/g, '')
+    .trim();
+
+  if (!cleanText) return;
+
+  // Post a brief acknowledgment in the thread
+  try {
+    await slackClient.chat.postMessage({
+      channel,
+      thread_ts: editedMessageTs,
+      text: `_I see you updated that — let me re-read..._`,
+      unfurl_links: false,
+    });
+  } catch (err) {
+    console.error('[slack] handleMessageChanged: failed to post acknowledgment:', err);
+  }
+
+  // Route through normal processing, re-using the existing thread
+  await processEvent(
+    ctx,
+    slackUserId,
+    installation.team_id,
+    channel,
+    event.event_ts,  // use event_ts as the "message ts" for reactions
+    editedMessageTs, // thread_ts — reply stays in original thread
+    cleanText,
+    { existingThreadId: threadMapping.thread_id }
   );
 }
 
