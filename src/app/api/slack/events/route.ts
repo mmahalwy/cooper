@@ -3,11 +3,13 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { verifySlackRequest } from '@/modules/slack/verify';
 import { getInstallationByTeamId } from '@/modules/slack/installations';
 import { getSlackClient } from '@/modules/slack/client';
-import { handleAppMention, handleDirectMessage, handleReactionAdded, handleMessageChanged } from '@/modules/slack/handlers';
+import { handleAppMention, handleDirectMessage, handleReactionAdded, handleMessageChanged, handleChannelMessage } from '@/modules/slack/handlers';
+import { checkRateLimit } from '@/modules/agent/rate-limiter';
 import type {
   SlackEventEnvelope,
   AppMentionEvent,
   MessageImEvent,
+  MessageChannelEvent,
   ReactionAddedEvent,
   MessageChangedEvent,
 } from '@/modules/slack/types';
@@ -111,6 +113,17 @@ export async function POST(request: Request) {
         if (changedEvent.message?.user && !changedEvent.message?.bot_id) {
           await handleMessageChanged(ctx, changedEvent);
         }
+      }
+
+      // Opt-in channel message monitoring: non-DM channel messages.
+      // Only handle plain messages (no subtype) from human users in non-IM channels.
+      if (
+        event.type === 'message' &&
+        !(event as MessageChannelEvent).subtype &&
+        !(event as MessageChannelEvent).bot_id &&
+        (event as MessageChannelEvent).channel_type !== 'im'
+      ) {
+        await handleChannelMessage(ctx, event as MessageChannelEvent);
       }
     } catch (err) {
       console.error('[slack] Event processing error:', err);
