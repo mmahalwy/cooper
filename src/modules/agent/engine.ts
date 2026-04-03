@@ -236,6 +236,7 @@ export async function createAgentStream(input: AgentInput) {
 
   const modelSelection = selectModel(userText, input.connectedServices || [], {
     forceModel: input.modelOverride && input.modelOverride !== 'auto' ? input.modelOverride : undefined,
+    orgModelPreference: input.orgModelPreference,
   });
   console.log(`[agent] Model: ${modelSelection.modelId} (${modelSelection.tier})`);
 

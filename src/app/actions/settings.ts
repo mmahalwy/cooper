@@ -27,7 +27,7 @@ export async function updateProfileAction(updates: { name?: string; timezone?: s
   return { success: true };
 }
 
-export async function updateOrgAction(updates: { name?: string }) {
+export async function updateOrgAction(updates: { name?: string; model_preference?: string }) {
   const { supabase, orgId } = await getAuthContext();
 
   const { error } = await supabase
