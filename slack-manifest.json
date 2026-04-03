@@ -43,7 +43,8 @@
             "request_url": "https://28d8-2601-645-c680-6db0-3019-228b-f5ed-cff1.ngrok-free.app/api/slack/events",
             "bot_events": [
                 "app_mention",
-                "message.im"
+                "message.im",
+                "reaction_added"
             ]
         },
         "org_deploy_enabled": false,

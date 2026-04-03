@@ -3,11 +3,12 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { verifySlackRequest } from '@/modules/slack/verify';
 import { getInstallationByTeamId } from '@/modules/slack/installations';
 import { getSlackClient } from '@/modules/slack/client';
-import { handleAppMention, handleDirectMessage } from '@/modules/slack/handlers';
+import { handleAppMention, handleDirectMessage, handleReactionAdded } from '@/modules/slack/handlers';
 import type {
   SlackEventEnvelope,
   AppMentionEvent,
   MessageImEvent,
+  ReactionAddedEvent,
 } from '@/modules/slack/types';
 
 export const maxDuration = 300;
@@ -96,6 +97,10 @@ export async function POST(request: Request) {
         !(event as MessageImEvent).bot_id
       ) {
         await handleDirectMessage(ctx, event as MessageImEvent);
+      }
+
+      if (event.type === 'reaction_added') {
+        await handleReactionAdded(ctx, event as ReactionAddedEvent);
       }
     } catch (err) {
       console.error('[slack] Event processing error:', err);

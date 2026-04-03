@@ -1,7 +1,8 @@
 import { generateText, stepCountIs } from 'ai';
 import type { WebClient } from '@slack/web-api';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AppMentionEvent, MessageImEvent, SlackInstallation } from './types';
+import type { AppMentionEvent, MessageImEvent, ReactionAddedEvent, SlackInstallation } from './types';
+import { addKnowledge } from '@/modules/memory/knowledge';
 import { resolveSlackUser } from './users';
 import { findOrCreateThreadMapping, getSlackThreadHistory } from './threads';
 import { markdownToSlack } from './format';
@@ -396,4 +397,168 @@ export async function handleDirectMessage(
     event.thread_ts,
     event.text
   );
+}
+
+// ---------------------------------------------------------------------------
+// Reaction-based commands
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch the text of a Slack message by channel + ts.
+ * Returns empty string if the message can't be fetched.
+ */
+async function fetchMessageText(
+  slackClient: WebClient,
+  channel: string,
+  ts: string
+): Promise<string> {
+  try {
+    const result = await slackClient.conversations.history({
+      channel,
+      latest: ts,
+      oldest: ts,
+      limit: 1,
+      inclusive: true,
+    });
+    return result.messages?.[0]?.text || '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Handle reaction_added events and route to the matching command:
+ *
+ * 📌 pushpin                  → save message as a knowledge/memory item
+ * 🔁 arrows_counterclockwise  → re-run the task from the reacted-to message
+ * ✅ white_check_mark         → mark the task as done (no-op acknowledgement)
+ * ❓ question                 → ask Cooper to explain the message
+ */
+export async function handleReactionAdded(
+  ctx: HandlerContext,
+  event: ReactionAddedEvent
+): Promise<void> {
+  const { supabase, slackClient, installation } = ctx;
+  const { reaction, item, user: slackUserId } = event;
+
+  // Only handle message reactions
+  if (item.type !== 'message') return;
+
+  // Ignore reactions on events we don't care about (fast path)
+  const HANDLED_REACTIONS = new Set([
+    'pushpin',
+    'arrows_counterclockwise',
+    'white_check_mark',
+    'question',
+  ]);
+  if (!HANDLED_REACTIONS.has(reaction)) return;
+
+  // Ignore Cooper's own reactions
+  try {
+    const botInfo = await slackClient.auth.test();
+    if (slackUserId === botInfo.user_id) return;
+  } catch {
+    return;
+  }
+
+  // Fetch the message that was reacted to
+  const originalText = await fetchMessageText(slackClient, item.channel, item.ts);
+  if (!originalText) return;
+
+  // Resolve the reacting user → org
+  const { data: userMapping } = await supabase
+    .from('slack_user_mappings')
+    .select('org_id, user_id')
+    .eq('slack_user_id', slackUserId)
+    .eq('slack_team_id', installation.team_id)
+    .single();
+
+  switch (reaction) {
+    // -----------------------------------------------------------------------
+    // 📌  Save as memory
+    // -----------------------------------------------------------------------
+    case 'pushpin': {
+      if (!userMapping) return;
+
+      const saved = await addKnowledge(
+        supabase,
+        userMapping.org_id,
+        originalText,
+        'user'
+      );
+
+      if (saved) {
+        await addReaction(slackClient, item.channel, item.ts, 'white_check_mark');
+        await slackClient.chat.postMessage({
+          channel: item.channel,
+          thread_ts: item.ts,
+          text: '📌 Got it — saved to memory. I\'ll remember this going forward.',
+          unfurl_links: false,
+        });
+      }
+      break;
+    }
+
+    // -----------------------------------------------------------------------
+    // 🔁  Re-run the task
+    // -----------------------------------------------------------------------
+    case 'arrows_counterclockwise': {
+      // Post the original message as a new @Cooper mention so it flows through
+      // the normal event pipeline with full context.
+      const botInfo = await slackClient.auth.test();
+      await slackClient.chat.postMessage({
+        channel: item.channel,
+        thread_ts: item.ts,
+        text: `<@${botInfo.user_id}> ${originalText}`,
+        unfurl_links: false,
+      });
+      break;
+    }
+
+    // -----------------------------------------------------------------------
+    // ✅  Acknowledge / mark done (no-op — just confirm receipt)
+    // -----------------------------------------------------------------------
+    case 'white_check_mark': {
+      // Nothing to do — the user's own ✅ reaction is the visual confirmation.
+      // We intentionally don't double-react or post to avoid noise.
+      break;
+    }
+
+    // -----------------------------------------------------------------------
+    // ❓  Explain this message
+    // -----------------------------------------------------------------------
+    case 'question': {
+      if (!userMapping) return;
+
+      // Show thinking indicator
+      await addReaction(slackClient, item.channel, item.ts, 'thinking_face');
+
+      try {
+        const { generateText: aiGenerateText } = await import('ai');
+        const { selectModel } = await import('@/modules/agent/model-router');
+
+        const modelSelection = selectModel(originalText, []);
+        const result = await aiGenerateText({
+          model: modelSelection.model,
+          prompt: `A user reacted with ❓ to the following Slack message. Explain it clearly and concisely — what it means, what context is implied, and any action it suggests. Write in plain Slack-friendly text (no markdown headers).\n\nMessage:\n${originalText}`,
+        });
+
+        await removeReaction(slackClient, item.channel, item.ts, 'thinking_face');
+        await slackClient.chat.postMessage({
+          channel: item.channel,
+          thread_ts: item.ts,
+          text: result.text,
+          unfurl_links: false,
+        });
+      } catch (err) {
+        console.error('[slack] reaction:question — AI call failed:', err);
+        await removeReaction(slackClient, item.channel, item.ts, 'thinking_face');
+        await addReaction(slackClient, item.channel, item.ts, 'x');
+      }
+      break;
+    }
+
+    default:
+      break;
+  }
 }
