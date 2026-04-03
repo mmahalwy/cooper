@@ -86,10 +86,24 @@ export function ConnectionDetail({ appName, connectionId, displayName, descripti
       </p>
 
       <div className="flex justify-end mb-6">
-        <Button variant="outline" size="sm" className="text-destructive">
-          <UnplugIcon className="size-4 mr-2" />
-          Disconnect
-        </Button>
+        {connectionId ? (
+          <Button variant="outline" size="sm" className="text-destructive">
+            <UnplugIcon className="size-4 mr-2" />
+            Disconnect
+          </Button>
+        ) : (
+          <Button size="sm" onClick={async () => {
+            const resp = await fetch('/api/connections/initiate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ appName }),
+            });
+            const data = await resp.json();
+            if (data.redirectUrl) window.open(data.redirectUrl, '_blank');
+          }}>
+            Connect {displayName}
+          </Button>
+        )}
       </div>
 
       <Separator className="mb-6" />

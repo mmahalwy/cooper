@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useMemo, useTransition, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -35,12 +35,23 @@ interface IntegrationsCatalogProps {
 
 export function IntegrationsCatalog({ initialConnections = [], integrations }: IntegrationsCatalogProps) {
   const [connections, setConnections] = useState<Connection[]>(initialConnections);
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('all');
-  const [showConnectedOnly, setShowConnectedOnly] = useState(false);
+  const searchParams = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('q') || '');
+  const [category, setCategory] = useState(searchParams.get('category') || 'all');
+  const [showConnectedOnly, setShowConnectedOnly] = useState(searchParams.get('connected') === 'true');
   const [mcpModalOpened, setMcpModalOpened] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  // Sync filters to URL
+  const updateURL = useCallback((q: string, cat: string, connected: boolean) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (cat !== 'all') params.set('category', cat);
+    if (connected) params.set('connected', 'true');
+    const qs = params.toString();
+    window.history.replaceState(null, '', `/connections${qs ? `?${qs}` : ''}`);
+  }, []);
 
   useEffect(() => {
     startTransition(async () => {
@@ -109,7 +120,7 @@ export function IntegrationsCatalog({ initialConnections = [], integrations }: I
         <Input
           placeholder={`Search from ${integrations.length} integrations...`}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); updateURL(e.target.value, category, showConnectedOnly); }}
           className="pl-10"
         />
       </div>
@@ -119,7 +130,7 @@ export function IntegrationsCatalog({ initialConnections = [], integrations }: I
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setCategory(cat.id)}
+              onClick={() => { setCategory(cat.id); updateURL(search, cat.id, showConnectedOnly); }}
               className={cn(
                 'shrink-0 rounded-full border px-3 py-1 text-xs transition-colors',
                 category === cat.id
@@ -133,7 +144,7 @@ export function IntegrationsCatalog({ initialConnections = [], integrations }: I
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-muted-foreground">Connected only</span>
-          <Switch checked={showConnectedOnly} onCheckedChange={setShowConnectedOnly} />
+          <Switch checked={showConnectedOnly} onCheckedChange={(v) => { setShowConnectedOnly(v); updateURL(search, category, v); }} />
         </div>
       </div>
 
