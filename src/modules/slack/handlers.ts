@@ -211,6 +211,7 @@ async function processEvent(
     );
 
     // 9. Generate response
+    const requestStartTime = Date.now();
     const modelSelection = selectModel(cleanUserText, connectedServices);
     console.log(
       `[slack] Generating response with ${modelSelection.modelId} for thread ${threadId}`
@@ -284,7 +285,7 @@ async function processEvent(
           modelProvider: modelSelection.provider,
           promptTokens: totalUsage.inputTokens || 0,
           completionTokens: totalUsage.outputTokens || 0,
-          latencyMs: undefined,
+          latencyMs: Date.now() - requestStartTime,
           source: 'slack',
         });
       }

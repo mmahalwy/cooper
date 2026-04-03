@@ -10,7 +10,7 @@ import type {
   MessageImEvent,
 } from '@/modules/slack/types';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   const rawBody = await request.text();

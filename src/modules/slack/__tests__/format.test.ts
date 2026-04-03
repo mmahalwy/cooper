@@ -34,4 +34,29 @@ describe('markdownToSlack', () => {
   it('should return empty string for empty input', () => {
     expect(markdownToSlack('')).toBe('');
   });
+
+  it('should convert ~~strikethrough~~ to ~strikethrough~', () => {
+    expect(markdownToSlack('This is ~~deleted~~ text')).toBe('This is ~deleted~ text');
+  });
+
+  it('should not convert strikethrough inside code blocks', () => {
+    expect(markdownToSlack('`~~not struck~~`')).toBe('`~~not struck~~`');
+  });
+
+  it('should remove horizontal rule lines (---)', () => {
+    expect(markdownToSlack('Above\n---\nBelow')).toBe('Above\n\nBelow');
+  });
+
+  it('should remove longer horizontal rules (----)', () => {
+    expect(markdownToSlack('Above\n----\nBelow')).toBe('Above\n\nBelow');
+  });
+
+  it('should collapse 3+ consecutive newlines to max 2', () => {
+    expect(markdownToSlack('A\n\n\nB')).toBe('A\n\nB');
+    expect(markdownToSlack('A\n\n\n\n\nB')).toBe('A\n\nB');
+  });
+
+  it('should handle combined conversions (strikethrough + bold)', () => {
+    expect(markdownToSlack('**bold** and ~~struck~~')).toBe('*bold* and ~struck~');
+  });
 });
