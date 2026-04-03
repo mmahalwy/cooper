@@ -6,6 +6,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { saveNote, readNote, listNotes, deleteNote, saveFile, readFile, listFiles } from './db';
+import { createTodoTools } from './todos';
 
 export function createWorkspaceTools(
   supabase: SupabaseClient,
@@ -159,6 +160,7 @@ If a file with the same name already exists in the same scope, it is overwritten
       },
     }),
 
+<<<<<<< HEAD
     read_workspace_file: tool({
       description: `Read the content of a saved workspace file by filename. Use after list_workspace_files to inspect a specific file's full content.`,
       inputSchema: z.object({
@@ -184,5 +186,6 @@ If a file with the same name already exists in the same scope, it is overwritten
         }
       },
     }),
+    ...createTodoTools(supabase, orgId, threadId),
   };
 }
