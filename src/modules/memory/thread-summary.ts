@@ -11,7 +11,8 @@ import { embeddingProvider } from './embeddings';
 export async function summarizeAndStoreThread(
   supabase: SupabaseClient,
   threadId: string,
-  orgId: string
+  orgId: string,
+  userId?: string,
 ): Promise<void> {
   try {
     // Fetch all messages in the thread
@@ -64,6 +65,7 @@ export async function summarizeAndStoreThread(
         .from('thread_summaries')
         .update({
           summary,
+          user_id: userId || null,
           message_count: messages.length,
           embedding,
           updated_at: new Date().toISOString(),
@@ -76,6 +78,7 @@ export async function summarizeAndStoreThread(
         .insert({
           thread_id: threadId,
           org_id: orgId,
+          user_id: userId || null,
           summary,
           message_count: messages.length,
           embedding,

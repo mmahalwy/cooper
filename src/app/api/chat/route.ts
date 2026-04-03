@@ -264,7 +264,7 @@ export async function POST(req: Request) {
       });
 
       // Background: summarize thread for cross-thread recall
-      summarizeAndStoreThread(sb, activeThreadId, dbUser.org_id).catch(
+      summarizeAndStoreThread(sb, activeThreadId, dbUser.org_id, user.id).catch(
         (err) => {
           console.error('[chat] Thread summarization failed:', err);
         }
