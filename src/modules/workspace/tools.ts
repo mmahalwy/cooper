@@ -160,7 +160,6 @@ If a file with the same name already exists in the same scope, it is overwritten
       },
     }),
 
-<<<<<<< HEAD
     read_workspace_file: tool({
       description: `Read the content of a saved workspace file by filename. Use after list_workspace_files to inspect a specific file's full content.`,
       inputSchema: z.object({
