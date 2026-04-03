@@ -21,7 +21,9 @@ export function ConnectionList() {
   }
 
   useEffect(() => {
-    loadConnections();
+    queueMicrotask(() => {
+      void loadConnections();
+    });
   }, []);
 
   const handleAdd = async (connection: {

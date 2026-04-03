@@ -138,7 +138,7 @@ export async function executeScheduledTask(
         if (step.toolCalls?.length) {
           const toolSummary = step.toolCalls.map((tc: any) => {
             const resultEntry = step.toolResults?.find((tr: any) => tr.toolCallId === tc.toolCallId);
-            const output = resultEntry?.result;
+            const output = resultEntry?.output;
             const outputPreview = typeof output === 'string'
               ? output.slice(0, 500)
               : JSON.stringify(output)?.slice(0, 500) || '';

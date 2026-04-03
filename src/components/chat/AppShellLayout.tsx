@@ -38,7 +38,7 @@ import { searchThreadsAction } from '@/app/actions';
 import { Input } from '@/components/ui/input';
 import { useRouter, useParams } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Thread } from '@/lib/types';
 
@@ -48,7 +48,6 @@ function AppSidebar() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ id: string; title: string; snippet?: string }> | null>(null);
-  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -80,19 +79,21 @@ function AppSidebar() {
 
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setSearchResults(null);
       return;
     }
 
     const timeout = setTimeout(async () => {
-      setSearching(true);
       const results = await searchThreadsAction(searchQuery);
       setSearchResults(results);
-      setSearching(false);
     }, 300);
 
     return () => clearTimeout(timeout);
   }, [searchQuery]);
+
+  const visibleSearchResults = useMemo(
+    () => (searchQuery.trim() ? searchResults : null),
+    [searchQuery, searchResults]
+  );
 
   return (
     <Sidebar>
@@ -140,13 +141,13 @@ function AppSidebar() {
             </div>
             <ScrollArea className="max-h-[calc(100vh-380px)]">
               <SidebarMenu>
-                {searchResults !== null ? (
+                {visibleSearchResults !== null ? (
                   // Search results
                   <>
-                    {searchResults.length === 0 && (
+                    {visibleSearchResults.length === 0 && (
                       <p className="px-2 py-1 text-xs text-muted-foreground">No results</p>
                     )}
-                    {searchResults.map((result) => (
+                    {visibleSearchResults.map((result) => (
                       <SidebarMenuItem key={result.id}>
                         <SidebarMenuButton
                           isActive={params?.threadId === result.id}

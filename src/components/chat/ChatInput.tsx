@@ -19,7 +19,6 @@ import {
   ModelSelectorLogo,
   ModelSelectorLogoGroup,
   ModelSelectorName,
-  ModelSelectorTrigger,
 } from '@/components/ai-elements/model-selector';
 import type { PromptInputMessage } from '@/components/ai-elements/prompt-input';
 import {
@@ -42,6 +41,13 @@ import { CheckIcon, GlobeIcon, Loader2Icon } from 'lucide-react';
 
 const models = [
   {
+    chef: 'Auto',
+    chefSlug: 'google',
+    id: 'auto',
+    name: 'Auto',
+    providers: ['google', 'openai', 'anthropic'],
+  },
+  {
     chef: 'Google',
     chefSlug: 'google',
     id: 'gemini-flash',
@@ -58,7 +64,7 @@ const models = [
 ];
 
 interface ChatInputProps {
-  onSend: (message: { text: string; files?: FileUIPart[] }) => void;
+  onSend: (message: { text: string; files?: FileUIPart[]; modelOverride?: string }) => void;
   onStop?: () => void;
   disabled?: boolean;
   isStreaming?: boolean;
@@ -152,7 +158,7 @@ function PromptInputAttachmentsDisplay() {
 }
 
 export function ChatInput({ onSend, onStop, disabled, isStreaming, status }: ChatInputProps) {
-  const [model, setModel] = useState(models[0].id);
+  const [model, setModel] = useState('auto');
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -181,14 +187,15 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming, status }: Cha
         onSend({
           text: message.text?.trim() || '',
           files: successfulUploads.length > 0 ? successfulUploads : undefined,
+          modelOverride: model,
         });
       } finally {
         setUploading(false);
       }
     } else {
-      onSend({ text: message.text.trim() });
+      onSend({ text: message.text.trim(), modelOverride: model });
     }
-  }, [onSend]);
+  }, [model, onSend]);
 
   const chatStatus = (status || 'ready') as 'submitted' | 'streaming' | 'ready' | 'error';
 
@@ -216,6 +223,32 @@ export function ChatInput({ onSend, onStop, disabled, isStreaming, status }: Cha
                     <span>Uploading…</span>
                   </div>
                 )}
+                <PromptInputButton
+                  disabled={Boolean(disabled) || uploading}
+                  onClick={() => setModelSelectorOpen(true)}
+                  variant="ghost"
+                >
+                  <GlobeIcon className="size-4" />
+                  <span>{selectedModelData?.name || 'Auto'}</span>
+                </PromptInputButton>
+                <ModelSelector onOpenChange={setModelSelectorOpen} open={modelSelectorOpen}>
+                  <ModelSelectorContent className="sm:max-w-[420px]" title="Choose model">
+                    <ModelSelectorInput placeholder="Search models..." />
+                    <ModelSelectorList>
+                      <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+                      <ModelSelectorGroup heading="Available models">
+                        {models.map((m) => (
+                          <ModelItem
+                            key={m.id}
+                            m={m}
+                            onSelect={handleModelSelect}
+                            selectedModel={model}
+                          />
+                        ))}
+                      </ModelSelectorGroup>
+                    </ModelSelectorList>
+                  </ModelSelectorContent>
+                </ModelSelector>
               </PromptInputTools>
               <PromptInputSubmit status={uploading ? 'submitted' : chatStatus} />
             </PromptInputFooter>

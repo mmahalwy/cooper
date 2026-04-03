@@ -10,6 +10,7 @@ import { generateText, tool, stepCountIs } from 'ai';
 import { z } from 'zod';
 import { google } from '@ai-sdk/google';
 import { selectModel } from './model-router';
+import { getToolStatus } from './status';
 
 const INTEGRATION_SYSTEM_PROMPT = `You are an integration executor. Execute the instruction using your tools. Be direct, return the result.
 
@@ -32,7 +33,13 @@ Never show raw API URLs, curl commands, or tool names.`;
  */
 export function createIntegrationTool(
   composioTools: Record<string, any>,
-  connectedServices: string[]
+  connectedServices: string[],
+  onStatusUpdate?: (status: {
+    message: string;
+    source: 'agent' | 'integration';
+    step?: number;
+    toolName?: string;
+  }) => void,
 ) {
   return {
     use_integration: tool({
@@ -45,6 +52,10 @@ export function createIntegrationTool(
       execute: async ({ instruction }) => {
         try {
           console.log(`[integration-subagent] Executing: "${instruction.slice(0, 100)}"`);
+          onStatusUpdate?.({
+            message: 'Starting integration task...',
+            source: 'integration',
+          });
 
           const modelSelection = selectModel(instruction, connectedServices);
 
@@ -57,6 +68,21 @@ export function createIntegrationTool(
             providerOptions: modelSelection.provider === 'google' ? {
               google: { thinkingConfig: { thinkingBudget: 512 } },
             } : undefined,
+            onStepFinish: ({ stepNumber, toolCalls }) => {
+              if (!toolCalls || toolCalls.length === 0) return;
+
+              for (const toolCall of toolCalls) {
+                const input = typeof toolCall.input === 'object' && toolCall.input !== null
+                  ? toolCall.input as Record<string, unknown>
+                  : undefined;
+                onStatusUpdate?.({
+                  message: getToolStatus(toolCall.toolName, input),
+                  source: 'integration',
+                  step: stepNumber + 1,
+                  toolName: toolCall.toolName,
+                });
+              }
+            },
           });
 
           // Log all steps for debugging
@@ -83,15 +109,23 @@ export function createIntegrationTool(
               }
               if (step.toolResults?.length) {
                 const lastResult = step.toolResults[step.toolResults.length - 1];
-                const resultVal = (lastResult as any)?.result;
+                // Try multiple paths — AI SDK result shape varies
+                const raw = lastResult as any;
+                const resultVal = raw?.result ?? raw?.output ?? raw;
+                console.log(`[integration-subagent] Tool result keys: ${Object.keys(raw || {}).join(', ')}`);
                 output = typeof resultVal === 'string'
                   ? resultVal
-                  : JSON.stringify(resultVal)?.slice(0, 1000) || '';
-                if (output) break;
+                  : JSON.stringify(resultVal)?.slice(0, 2000) || '';
+                if (output && output !== '{}' && output !== 'undefined') break;
+                output = ''; // reset if empty
               }
             }
           }
-          if (!output) output = 'Done (no text output)';
+          // Last resort: concatenate all step texts
+          if (!output) {
+            output = steps.map(s => s.text?.trim()).filter(Boolean).join('\n\n');
+          }
+          if (!output) output = 'The integration completed but returned no readable output.';
 
           const toolsUsed = result.steps
             ?.flatMap(s => s.toolCalls?.map(tc => tc.toolName) || [])

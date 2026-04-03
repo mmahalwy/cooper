@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -26,29 +26,27 @@ function getSystemTheme(): 'light' | 'dark' {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('system');
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
-
-  useEffect(() => {
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'system';
     const saved = localStorage.getItem('cooper-theme') as Theme | null;
-    if (saved) setThemeState(saved);
-  }, []);
+    return saved || 'system';
+  });
+  const resolvedTheme = useMemo<'light' | 'dark'>(
+    () => (theme === 'system' ? getSystemTheme() : theme),
+    [theme]
+  );
 
   useEffect(() => {
-    const resolved = theme === 'system' ? getSystemTheme() : theme;
-    setResolvedTheme(resolved);
-    document.documentElement.classList.toggle('dark', resolved === 'dark');
+    document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
     localStorage.setItem('cooper-theme', theme);
-  }, [theme]);
+  }, [resolvedTheme, theme]);
 
   // Listen for system theme changes
   useEffect(() => {
     if (theme !== 'system') return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = () => {
-      const resolved = getSystemTheme();
-      setResolvedTheme(resolved);
-      document.documentElement.classList.toggle('dark', resolved === 'dark');
+      document.documentElement.classList.toggle('dark', getSystemTheme() === 'dark');
     };
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);

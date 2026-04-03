@@ -5,36 +5,51 @@ import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalRespons
 import { ChatMessages } from '@/components/chat/ChatMessages';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { EmptyState } from '@/components/chat/EmptyState';
-import { useRef } from 'react';
-import type { ChatMessage } from '@/lib/chat-types';
-import { suggestionsPartSchema } from '@/lib/chat-types';
+import { useMemo, useState } from 'react';
+import type { ChatMessage, SuggestionData, StatusData } from '@/lib/chat-types';
+import { suggestionsPartSchema, statusPartSchema } from '@/lib/chat-types';
 
 export default function ChatPage() {
-  const threadIdRef = useRef<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [modelOverride, setModelOverride] = useState<string>('auto');
+  const [suggestions, setSuggestions] = useState<SuggestionData[]>([]);
+  const [streamStatus, setStreamStatus] = useState<StatusData | null>(null);
+
+  const transport = useMemo(() => new DefaultChatTransport({
+    api: '/api/chat',
+    fetch: async (url, options) => {
+      if (threadId && options?.body) {
+        try {
+          const body = JSON.parse(options.body as string);
+          body.threadId = threadId;
+          if (modelOverride && modelOverride !== 'auto') {
+            body.modelOverride = modelOverride;
+          }
+          options = { ...options, body: JSON.stringify(body) };
+        } catch { /* body isn't JSON, skip */ }
+      }
+
+      const response = await fetch(url, options);
+      const tid = response.headers.get('X-Thread-Id');
+      if (tid && !threadId) {
+        setThreadId(tid);
+        window.history.replaceState(null, '', `/chat/${tid}`);
+      }
+      return response;
+    },
+  }), [modelOverride, threadId]);
 
   const { messages, sendMessage, stop, status, addToolApprovalResponse } = useChat<ChatMessage>({
-    dataPartSchemas: { suggestions: suggestionsPartSchema },
-    transport: new DefaultChatTransport({
-      api: '/api/chat',
-      fetch: async (url, options) => {
-        // Inject threadId into the request body for follow-up messages
-        if (threadIdRef.current && options?.body) {
-          try {
-            const body = JSON.parse(options.body as string);
-            body.threadId = threadIdRef.current;
-            options = { ...options, body: JSON.stringify(body) };
-          } catch { /* body isn't JSON, skip */ }
-        }
-
-        const response = await fetch(url, options);
-        const tid = response.headers.get('X-Thread-Id');
-        if (tid && !threadIdRef.current) {
-          threadIdRef.current = tid;
-          window.history.replaceState(null, '', `/chat/${tid}`);
-        }
-        return response;
-      },
-    }),
+    dataPartSchemas: { suggestions: suggestionsPartSchema, status: statusPartSchema },
+    transport,
+    onData: (part) => {
+      if (part.type === 'data-suggestions') {
+        setSuggestions(part.data);
+      }
+      if (part.type === 'data-status') {
+        setStreamStatus(part.data);
+      }
+    },
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
 
@@ -44,12 +59,22 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen flex-col">
       {hasMessages ? (
-        <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} onSuggestionClick={(prompt) => sendMessage({ text: prompt })} />
+        <ChatMessages messages={messages} suggestions={suggestions} liveStatus={streamStatus} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} onSuggestionClick={(prompt) => sendMessage({ text: prompt })} />
       ) : (
         <EmptyState onSuggestionClick={(prompt) => sendMessage({ text: prompt })} />
       )}
       <ChatInput
-        onSend={({ text, files }) => sendMessage({ text, files })}
+        onSend={({ text, files, modelOverride }) => {
+          setSuggestions([]);
+          setStreamStatus(null);
+          setModelOverride(modelOverride || 'auto');
+          return sendMessage(
+            { text, files },
+            modelOverride && modelOverride !== 'auto'
+              ? { body: { modelOverride } }
+              : undefined
+          );
+        }}
         onStop={stop}
         disabled={isStreaming}
         isStreaming={isStreaming}

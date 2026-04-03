@@ -13,6 +13,12 @@ export interface AgentInput {
   supabase?: SupabaseClient;
   connectedServices?: string[];
   timezone?: string;
+  onStatusUpdate?: (status: {
+    message: string;
+    source: 'agent' | 'integration';
+    step?: number;
+    toolName?: string;
+  }) => void;
 }
 
 export interface AgentMessage {

@@ -112,7 +112,7 @@ export function SettingsView() {
                 <label className="text-xs text-muted-foreground flex items-center gap-1">
                   <GlobeIcon className="size-3" /> Timezone
                 </label>
-                <Select value={timezone} onValueChange={setTimezone}>
+                <Select value={timezone} onValueChange={(value) => setTimezone(value || 'America/Los_Angeles')}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -128,7 +128,7 @@ export function SettingsView() {
                 <label className="text-xs text-muted-foreground flex items-center gap-1">
                   <CpuIcon className="size-3" /> Default Model
                 </label>
-                <Select value={model} onValueChange={setModel}>
+                <Select value={model} onValueChange={(value) => setModel(value || 'auto')}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>

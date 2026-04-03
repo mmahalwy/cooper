@@ -228,7 +228,11 @@ export async function createAgentStream(input: AgentInput) {
   // when actually needed.
   const composioTools = input.tools || {};
   if (Object.keys(composioTools).length > 0 && input.connectedServices?.length) {
-    const integrationTool = createIntegrationTool(composioTools, input.connectedServices);
+    const integrationTool = createIntegrationTool(
+      composioTools,
+      input.connectedServices,
+      input.onStatusUpdate,
+    );
     Object.assign(builtInTools, integrationTool);
   }
 
@@ -238,7 +242,9 @@ export async function createAgentStream(input: AgentInput) {
   const lastUserMsg = input.uiMessages.filter(m => m.role === 'user').pop();
   const userText = lastUserMsg?.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
 
-  const modelSelection = selectModel(userText, input.connectedServices || []);
+  const modelSelection = selectModel(userText, input.connectedServices || [], {
+    forceModel: input.modelOverride && input.modelOverride !== 'auto' ? input.modelOverride : undefined,
+  });
   console.log(`[agent] Model: ${modelSelection.modelId} (${modelSelection.tier})`);
 
   let systemPrompt = await buildSystemPrompt(input.memoryContext, input.timezone, userText);
@@ -314,7 +320,7 @@ export async function createAgentStream(input: AgentInput) {
       // Log the FULL error — not just the classified message
       console.error(`[agent] Stream error (full):`, error);
       if (error && typeof error === 'object') {
-        const err = error as any;
+        const err = error as Record<string, unknown>;
         if (err.cause) console.error(`[agent] Stream error cause:`, err.cause);
         if (err.responseBody) console.error(`[agent] Response body:`, err.responseBody);
         if (err.statusCode) console.error(`[agent] Status code:`, err.statusCode);
@@ -327,12 +333,23 @@ export async function createAgentStream(input: AgentInput) {
       if (toolCalls && toolCalls.length > 0) {
         for (const tc of toolCalls) {
           statusTracker.recordToolCall(tc.toolName);
-          const status = getToolStatus(tc.toolName, tc.args as Record<string, any>);
+          const status = getToolStatus(
+            tc.toolName,
+            typeof tc.input === 'object' && tc.input !== null
+              ? tc.input as Record<string, unknown>
+              : undefined
+          );
           console.log(`[agent] Step ${statusTracker.getStepCount()}: ${status}`);
+          input.onStatusUpdate?.({
+            message: status,
+            source: 'agent',
+            step: statusTracker.getStepCount(),
+            toolName: tc.toolName,
+          });
         }
       }
     },
   });
 
-  return result;
+  return { result, modelSelection };
 }

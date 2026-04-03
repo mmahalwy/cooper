@@ -163,7 +163,7 @@ export const InlineCitationCarouselIndex = ({
       return;
     }
 
-    syncState();
+    queueMicrotask(syncState);
 
     api.on("select", syncState);
 

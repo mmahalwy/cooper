@@ -48,7 +48,7 @@ Return a brief summary of what you are waiting for.`,
             'Short category of the action, e.g. "send_email", "delete_record", "post_message"'
           ),
         context: z
-          .record(z.unknown())
+          .record(z.string(), z.unknown())
           .optional()
           .describe('Additional structured context to store with the pending action (e.g. email body, record ID)'),
       }),

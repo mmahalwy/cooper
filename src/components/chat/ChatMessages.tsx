@@ -44,7 +44,7 @@ import {
 import { CopyMessageButton } from './CopyMessageButton';
 import { PlanView as DBPlanView } from './PlanView';
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
-import type { SuggestionData } from '@/lib/chat-types';
+import type { SuggestionData, StatusData } from '@/lib/chat-types';
 
 function formatToolName(raw: string): string {
   // Map internal tool names to friendly labels
@@ -201,22 +201,43 @@ const planStepStatusIcon: Record<string, React.ReactNode> = {
   skipped: <CircleDashedIcon className="size-3.5 text-muted-foreground line-through" />,
 };
 
+function normalizePlanStatus(status?: string): 'pending' | 'active' | 'complete' | 'failed' | 'skipped' {
+  switch (status) {
+    case 'done':
+    case 'complete':
+    case 'completed':
+      return 'complete';
+    case 'running':
+    case 'active':
+    case 'executing':
+      return 'active';
+    case 'failed':
+      return 'failed';
+    case 'skipped':
+      return 'skipped';
+    default:
+      return 'pending';
+  }
+}
 
 function PlanView({ input, output, stepUpdates }: { input: any; output: any; stepUpdates: Map<string, { status: string; note?: string }> }) {
-  if (!input?.goal || !input?.steps) return null;
+  if (!input?.title || !input?.steps) return null;
 
   const steps = (output?.steps || input.steps) as Array<{
     id: string;
-    action: string;
-    tool?: string;
-    dependsOn?: string[];
+    description: string;
+    tool_hint?: string | null;
     status?: string;
   }>;
 
   // Merge live step updates from update_plan_step calls
   const mergedSteps = steps.map((step) => {
     const update = stepUpdates.get(step.id);
-    return { ...step, status: update?.status || step.status || 'pending', note: update?.note };
+    return {
+      ...step,
+      status: normalizePlanStatus(update?.status || step.status),
+      note: update?.note,
+    };
   });
 
   const completedCount = mergedSteps.filter((s) => s.status === 'complete').length;
@@ -227,7 +248,7 @@ function PlanView({ input, output, stepUpdates }: { input: any; output: any; ste
       <div className="flex items-start gap-2">
         <TargetIcon className="size-4 mt-0.5 text-primary shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium">{input.goal}</p>
+          <p className="text-sm font-medium">{input.title}</p>
           <div className="flex items-center gap-2 mt-1">
             {input.estimatedTime && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -254,8 +275,8 @@ function PlanView({ input, output, stepUpdates }: { input: any; output: any; ste
           >
             <span className="mt-0.5 shrink-0">{planStepStatusIcon[step.status] || planStepStatusIcon.pending}</span>
             <div className="flex-1 min-w-0">
-              <span>{step.action}</span>
-              {step.tool && <span className="ml-1.5 text-xs text-muted-foreground">({step.tool})</span>}
+              <span>{step.description}</span>
+              {step.tool_hint && <span className="ml-1.5 text-xs text-muted-foreground">({step.tool_hint})</span>}
               {step.note && <p className="text-xs text-muted-foreground mt-0.5">{step.note}</p>}
             </div>
           </div>
@@ -454,15 +475,18 @@ interface ChatMessagesProps {
   status?: string;
   addToolApprovalResponse?: (response: { id: string; approved: boolean }) => void;
   onSuggestionClick?: (prompt: string) => void;
+  suggestions?: SuggestionData[];
+  liveStatus?: StatusData | null;
 }
 
-export function ChatMessages({ messages, isStreaming, status, addToolApprovalResponse, onSuggestionClick }: ChatMessagesProps) {
+export function ChatMessages({ messages, isStreaming, status, addToolApprovalResponse, onSuggestionClick, suggestions, liveStatus }: ChatMessagesProps) {
   // Derive the active tool name from the last assistant message's parts
   const lastMessage = messages[messages.length - 1];
   const currentTool =
-    isStreaming && lastMessage?.role === 'assistant'
+    liveStatus?.message ||
+    (isStreaming && lastMessage?.role === 'assistant'
       ? getActiveToolName(lastMessage.parts)
-      : undefined;
+      : undefined);
 
   return (
     <Conversation className="flex-1">
@@ -501,17 +525,21 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
         })}
 
         {!isStreaming && onSuggestionClick && (() => {
-          const lastMsg = messages[messages.length - 1];
-          if (lastMsg?.role !== 'assistant') return null;
-          const suggestionPart = lastMsg.parts.find(
-            (p): p is { type: 'data-suggestions'; data: SuggestionData[] } =>
-              p.type === 'data-suggestions'
-          );
-          if (!suggestionPart?.data?.length) return null;
+          const derivedSuggestions = suggestions && suggestions.length > 0
+            ? suggestions
+            : [...messages]
+              .reverse()
+              .find((message) => message.role === 'assistant')
+              ?.parts.find(
+                (p): p is { type: 'data-suggestions'; data: SuggestionData[] } =>
+                  p.type === 'data-suggestions'
+              )?.data;
+
+          if (!derivedSuggestions?.length) return null;
           return (
             <div className="mx-auto max-w-3xl px-4 pb-2 pt-1">
               <Suggestions>
-                {suggestionPart.data.map((s, i) => (
+                {derivedSuggestions.map((s, i) => (
                   <Suggestion key={i} suggestion={s.prompt} onClick={onSuggestionClick}>
                     {s.text}
                   </Suggestion>
@@ -521,14 +549,14 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
           );
         })()}
 
-        {status === 'submitted' && (
+        {isStreaming && (
           <Message from="assistant">
             <div className="flex items-start gap-3">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <BotIcon className="size-4" />
               </div>
               <MessageContent>
-                <StreamingStatus status={status} currentTool={currentTool} />
+                <StreamingStatus status={status || 'streaming'} currentTool={currentTool} />
               </MessageContent>
             </div>
           </Message>

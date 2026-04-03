@@ -3,7 +3,7 @@ import type { LanguageModel } from 'ai';
 
 export type ModelTier = 'simple' | 'medium' | 'complex';
 
-interface ModelSelection {
+export interface ModelSelection {
   model: LanguageModel;
   modelId: string;
   provider: string;
@@ -16,7 +16,7 @@ const SIMPLE_PATTERNS = /^(hi|hello|hey|thanks|ok|yes|no|what can you|are you co
 export function selectModel(
   message: string,
   connectedServices: string[],
-  options?: { previousStepFailed?: boolean; forceProvider?: string }
+  options?: { previousStepFailed?: boolean; forceProvider?: string; forceModel?: string }
 ): ModelSelection {
   // Lazy-load providers only when API keys are available
   const getAnthropic = () => {
@@ -27,6 +27,15 @@ export function selectModel(
     const { openai } = require('@ai-sdk/openai');
     return openai;
   };
+
+  switch (options?.forceModel) {
+    case 'gemini-flash':
+    case 'gemini-2.5-flash':
+      return { model: google('gemini-2.5-flash'), modelId: 'gemini-2.5-flash', provider: 'google', tier: 'simple' };
+    case 'gemini-pro':
+    case 'gemini-2.5-pro':
+      return { model: google('gemini-2.5-pro'), modelId: 'gemini-2.5-pro', provider: 'google', tier: 'complex' };
+  }
 
   // If a provider is forced
   if (options?.forceProvider === 'anthropic' && process.env.ANTHROPIC_API_KEY) {

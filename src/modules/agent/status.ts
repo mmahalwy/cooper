@@ -26,11 +26,44 @@ const TOOL_STATUS_MAP: Record<string, string> = {
   'google_search': 'Searching Google...',
 };
 
+type ToolArgs = Record<string, unknown>;
+
+function extractIntegrationService(args?: ToolArgs): string | null {
+  const instruction = typeof args?.instruction === 'string' ? args.instruction : '';
+  if (!instruction) return null;
+
+  const lower = instruction.toLowerCase();
+  const services = [
+    'github',
+    'slack',
+    'google calendar',
+    'calendar',
+    'gmail',
+    'notion',
+    'linear',
+    'jira',
+    'posthog',
+  ];
+
+  const match = services.find((service) => lower.includes(service));
+  if (!match) return null;
+
+  return match
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 /**
  * Get a human-friendly status message for a tool call.
  * Tries to be specific based on tool inputs when possible.
  */
-export function getToolStatus(toolName: string, args?: Record<string, any>): string {
+export function getToolStatus(toolName: string, args?: ToolArgs): string {
+  if (toolName === 'use_integration') {
+    const service = extractIntegrationService(args);
+    return service ? `Working with ${service}...` : 'Working with an integration...';
+  }
+
   // For Composio multi-execute, try to extract the specific action
   if (toolName === 'COMPOSIO_MULTI_EXECUTE_TOOL' && args?.tools) {
     const actions = (args.tools as Array<{ tool_slug?: string }>)

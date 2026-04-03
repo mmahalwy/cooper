@@ -144,7 +144,14 @@ describe('buildSlackSystemPrompt', () => {
     const memory = {
       ...baseMemory,
       matchedSkills: [
-        { name: 'Deploy checker', description: 'Checks deploy status' },
+        {
+          id: 'skill-1',
+          name: 'Deploy checker',
+          description: 'Checks deploy status',
+          trigger: 'deploy',
+          steps: [],
+          tools: [],
+        },
       ],
     };
     const result = await buildSlackSystemPrompt(

@@ -19,6 +19,55 @@ const suggestionsSchema = z.object({
 
 export type Suggestion = z.infer<typeof suggestionsSchema>['suggestions'][number];
 
+function dedupeSuggestions(suggestions: Suggestion[]): Suggestion[] {
+  const seen = new Set<string>();
+  return suggestions.filter((suggestion) => {
+    const key = suggestion.prompt.trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildFallbackSuggestions(
+  userMessage: string,
+  assistantResponse: string,
+  connectedServices: string[],
+): Suggestion[] {
+  if (assistantResponse.trim().length < 240) {
+    return [];
+  }
+
+  const lowerResponse = assistantResponse.toLowerCase();
+  const lowerUserMessage = userMessage.toLowerCase();
+  const hasGithubContext =
+    connectedServices.some((service) => service.toLowerCase() === 'github') ||
+    lowerResponse.includes('github') ||
+    lowerUserMessage.includes('github');
+
+  const fallback: Suggestion[] = [
+    {
+      text: 'Go deeper on the most important part',
+      type: 'expand',
+      prompt: 'Expand the most important part of your last answer and make it more concrete.',
+    },
+    {
+      text: 'Turn this into something shareable',
+      type: 'share',
+      prompt: 'Rewrite your last answer as a concise message I can share with my team.',
+    },
+    {
+      text: hasGithubContext ? 'Apply this to a repo or PR' : 'Turn this into an action plan',
+      type: hasGithubContext ? 'investigate' : 'expand',
+      prompt: hasGithubContext
+        ? 'Apply your last answer to a specific GitHub repo, issue, or pull request and tell me what to do next.'
+        : 'Turn your last answer into a short action plan with clear next steps.',
+    },
+  ];
+
+  return dedupeSuggestions(fallback).slice(0, 3);
+}
+
 /**
  * Generate follow-up suggestions after a substantive response.
  * Returns empty array for simple Q&A or when suggestions aren't appropriate.
@@ -60,9 +109,12 @@ ${connectedServices.join(', ') || 'none'}
 - Each suggestion needs a full 'prompt' field that Cooper can execute directly`,
     });
 
-    return result.object.suggestions;
+    const suggestions = dedupeSuggestions(result.object.suggestions);
+    return suggestions.length > 0
+      ? suggestions
+      : buildFallbackSuggestions(userMessage, assistantResponse, connectedServices);
   } catch (error) {
     console.error('[suggestions] Failed:', error);
-    return [];
+    return buildFallbackSuggestions(userMessage, assistantResponse, connectedServices);
   }
 }

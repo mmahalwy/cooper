@@ -10,9 +10,8 @@
  */
 
 import type { WebClient } from '@slack/web-api';
+import type { Block, KnownBlock } from '@slack/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Block = Record<string, any>;
 
 // ─── DB helpers ──────────────────────────────────────────────────────────────
 
@@ -87,7 +86,7 @@ export async function updatePendingActionMessageTs(
 
 // ─── Block builders ───────────────────────────────────────────────────────────
 
-export function buildApprovalBlocks(description: string, actionId: string): Block[] {
+export function buildApprovalBlocks(description: string, actionId: string): (Block | KnownBlock)[] {
   return [
     {
       type: 'section',
@@ -122,7 +121,7 @@ export function buildResolvedBlocks(
   description: string,
   approved: boolean,
   resolvedBy: string
-): Block[] {
+): (Block | KnownBlock)[] {
   const icon = approved ? '✅' : '❌';
   const label = approved ? 'Approved' : 'Rejected';
   return [

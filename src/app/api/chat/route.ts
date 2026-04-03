@@ -2,6 +2,7 @@ import { UIMessage, createUIMessageStream, createUIMessageStreamResponse } from 
 import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAgentStream } from '@/modules/agent/engine';
+import { getConnectionsForUser } from '@/modules/connections/db';
 import { getToolsForUser } from '@/modules/connections/registry';
 import { retrieveContext } from '@/modules/memory/retriever';
 import { extractAndSaveMemories } from '@/modules/memory/extractor';
@@ -14,9 +15,16 @@ import { evaluateAndLearnSkill } from '@/modules/skills/learner';
 import { evaluateSkillPerformance } from '@/modules/skills/improver';
 import { trackMatchedSkills } from '@/modules/skills/tracker';
 import { logActivity } from '@/modules/observability/activity';
-import type { ChatMessage } from '@/lib/chat-types';
+import type { ChatMessage, SuggestionData, StatusData } from '@/lib/chat-types';
 
 export const maxDuration = 60;
+
+function extractText(parts: UIMessage['parts'] | undefined): string {
+  return parts
+    ?.filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+    .map((part) => part.text)
+    .join('') || '';
+}
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -31,7 +39,7 @@ export async function POST(req: Request) {
   // Get the user's org
   const { data: dbUser, error: dbError } = await supabase
     .from('users')
-    .select('org_id, timezone')
+    .select('org_id, timezone, model_preference')
     .eq('id', user.id)
     .single();
 
@@ -40,9 +48,10 @@ export async function POST(req: Request) {
     return new Response('User not found', { status: 404 });
   }
 
-  const { messages, threadId } = (await req.json()) as {
+  const { messages, threadId, modelOverride } = (await req.json()) as {
     messages: UIMessage[];
     threadId?: string;
+    modelOverride?: string;
   };
 
   // Create or reuse thread
@@ -51,11 +60,7 @@ export async function POST(req: Request) {
   if (!activeThreadId || activeThreadId === 'new') {
     const lastUserMessage = messages[messages.length - 1];
     const title =
-      lastUserMessage?.parts
-        ?.filter((p) => p.type === 'text')
-        .map((p) => (p as { type: 'text'; text: string }).text)
-        .join('')
-        .slice(0, 100) || 'New conversation';
+      extractText(lastUserMessage?.parts).slice(0, 100) || 'New conversation';
 
     const { data: thread } = await supabase
       .from('threads')
@@ -76,11 +81,7 @@ export async function POST(req: Request) {
   // Save the latest user message
   const lastUserMessage = messages[messages.length - 1];
   if (lastUserMessage && lastUserMessage.role === 'user') {
-    const content =
-      lastUserMessage.parts
-        ?.filter((p) => p.type === 'text')
-        .map((p) => (p as { type: 'text'; text: string }).text)
-        .join('') || '';
+    const content = extractText(lastUserMessage.parts);
 
     const { error: msgError } = await supabase.from('messages').insert({
       thread_id: activeThreadId,
@@ -103,39 +104,39 @@ export async function POST(req: Request) {
   const tools = await getToolsForUser(supabase, dbUser.org_id, user.id);
   console.log(`[chat] Loaded ${Object.keys(tools).length} connection tools:`, Object.keys(tools).slice(0, 10));
 
-  // Get connected service names for the system prompt
-  const { data: activeConnections } = await supabase
-    .from('connections')
-    .select('name')
-    .eq('org_id', dbUser.org_id)
-    .eq('status', 'active');
-  const connectedServices = (activeConnections || []).map((c: any) => c.name);
+  // Use the same visibility rules for the prompt that we use for tool loading.
+  const visibleConnections = await getConnectionsForUser(supabase, dbUser.org_id, user.id);
+  const connectedServices = [...new Set(visibleConnections.map((connection) => connection.name))];
 
   // Retrieve memory context
   const lastMsg = messages[messages.length - 1];
-  const userText = lastMsg?.parts
-    ?.filter((p) => p.type === 'text')
-    .map((p) => (p as { type: 'text'; text: string }).text)
-    .join('') || '';
+  const userText = extractText(lastMsg?.parts);
 
   const memoryContext = userText.trim()
     ? await retrieveContext(supabase, dbUser.org_id, user.id, userText)
     : { knowledge: [], matchedSkills: [], threadSummaries: [] };
 
-  const result = await createAgentStream({
-    ...agentInput,
-    tools,
-    memoryContext,
-    supabase,
-    connectedServices,
-    timezone: dbUser.timezone || 'America/Los_Angeles',
+  const requestedModel = modelOverride && modelOverride !== 'auto'
+    ? modelOverride
+    : dbUser.model_preference && dbUser.model_preference !== 'auto'
+      ? dbUser.model_preference
+      : undefined;
+
+  let resolveAgentRun: ((value: Awaited<ReturnType<typeof createAgentStream>>) => void) | null = null;
+  let rejectAgentRun: ((reason?: unknown) => void) | null = null;
+  const agentRunReady = new Promise<Awaited<ReturnType<typeof createAgentStream>>>((resolve, reject) => {
+    resolveAgentRun = resolve;
+    rejectAgentRun = reject;
   });
 
   // Use Next.js after() to run background work after response is sent.
   // This keeps the serverless function alive until all work completes.
-  const modelUsed = 'gemini-2.5-flash';
+  let streamedAssistantMessage: ChatMessage | null = null;
+  let streamedSuggestions: SuggestionData[] = [];
   after(async () => {
     try {
+      const agentRun = await agentRunReady;
+      const { result, modelSelection } = agentRun;
       const fullText = await result.text;
       console.log(`[chat] after() running. threadId=${activeThreadId}, textLength=${fullText?.length || 0}`);
       if (!activeThreadId) return;
@@ -146,7 +147,7 @@ export async function POST(req: Request) {
       const sb = await createServerClient();
 
       // Collect tool calls from steps
-      let toolCallSummary: string[] = [];
+      const toolCallSummary: string[] = [];
       try {
         const steps = await result.steps;
         for (const step of steps) {
@@ -156,12 +157,15 @@ export async function POST(req: Request) {
         }
       } catch { /* steps may not be available */ }
 
-      // Build a complete content that includes tool call context
-      let content = fullText || '';
-      if (toolCallSummary.length > 0 && content) {
-        // Prepend a note about what tools were used (hidden from display but preserved for history)
-        content = content;
-      }
+      const persistedParts = streamedAssistantMessage
+        ? [
+            ...streamedAssistantMessage.parts,
+            ...(streamedSuggestions.length > 0
+              ? [{ type: 'data-suggestions' as const, data: streamedSuggestions }]
+              : []),
+          ]
+        : undefined;
+      const content = fullText || extractText(streamedAssistantMessage?.parts);
 
       if (content) {
         await sb.from('messages').insert({
@@ -169,7 +173,12 @@ export async function POST(req: Request) {
           role: 'assistant',
           content,
           tool_calls: toolCallSummary.length > 0 ? toolCallSummary : null,
-          metadata: { model: modelUsed, toolsUsed: toolCallSummary },
+          metadata: {
+            model: modelSelection.modelId,
+            provider: modelSelection.provider,
+            toolsUsed: toolCallSummary,
+            parts: persistedParts,
+          },
         });
       }
       await sb
@@ -192,8 +201,8 @@ export async function POST(req: Request) {
             orgId: dbUser.org_id,
             userId: user.id,
             threadId: activeThreadId,
-            modelId: modelUsed,
-            modelProvider: 'google',
+            modelId: modelSelection.modelId,
+            modelProvider: modelSelection.provider,
             promptTokens: totalUsage.inputTokens || 0,
             completionTokens: totalUsage.outputTokens || 0,
             latencyMs: Date.now() - requestStartTime,
@@ -222,8 +231,10 @@ export async function POST(req: Request) {
               await sb.from('messages')
                 .update({
                   metadata: {
-                    model: modelUsed,
+                    model: modelSelection.modelId,
+                    provider: modelSelection.provider,
                     toolsUsed: toolCallSummary,
+                    parts: persistedParts,
                     reflection: {
                       quality: reflection.quality,
                       issues: reflection.issues,
@@ -304,18 +315,22 @@ export async function POST(req: Request) {
           );
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[chat] Failed to persist assistant response:', err);
-      console.error('[chat] Error name:', err?.name, 'message:', err?.message);
+      if (err && typeof err === 'object') {
+        const errorRecord = err as Record<string, unknown>;
+        console.error('[chat] Error name:', errorRecord.name, 'message:', errorRecord.message);
+      }
       // Save error to thread so the user sees feedback
       if (activeThreadId) {
         try {
           const { createClient: createServerClient } = await import('@/lib/supabase/server');
           const sb = await createServerClient();
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
           await sb.from('messages').insert({
             thread_id: activeThreadId,
             role: 'assistant',
-            content: `Sorry, I ran into an issue while processing your request. Please try again! 🔄\n\n_Error: ${err?.message || 'Unknown error'}_`,
+            content: `Sorry, I ran into an issue while processing your request. Please try again! 🔄\n\n_Error: ${errorMessage}_`,
             metadata: { error: true },
           });
         } catch { /* last resort, nothing we can do */ }
@@ -326,12 +341,40 @@ export async function POST(req: Request) {
   // Wrap the LLM stream so we can append suggestions after it finishes
   const stream = createUIMessageStream<ChatMessage>({
     execute: async ({ writer }) => {
+      const pushStatus = (status: StatusData) => {
+        writer.write({
+          type: 'data-status',
+          data: status,
+          transient: true,
+        });
+      };
+
+      const { result, modelSelection } = await createAgentStream({
+        ...agentInput,
+        modelOverride: requestedModel,
+        tools,
+        memoryContext,
+        supabase,
+        connectedServices,
+        timezone: dbUser.timezone || 'America/Los_Angeles',
+        onStatusUpdate: pushStatus,
+      });
+      resolveAgentRun?.({ result, modelSelection });
+
       // Merge the LLM stream first
-      writer.merge(result.toUIMessageStream({ sendReasoning: true }));
+      writer.merge(
+        result.toUIMessageStream<ChatMessage>({
+          originalMessages: messages as ChatMessage[],
+          sendReasoning: true,
+          onFinish: ({ responseMessage }) => {
+            streamedAssistantMessage = responseMessage;
+          },
+        })
+      );
 
       // Wait for the full text so we can generate suggestions
       const fullText = await result.text;
-      let toolCallSummary: string[] = [];
+      const toolCallSummary: string[] = [];
       try {
         const steps = await result.steps;
         for (const step of steps) {
@@ -341,8 +384,10 @@ export async function POST(req: Request) {
         }
       } catch { /* steps may not be available */ }
 
-      // Generate and write suggestions into the stream
-      if (toolCallSummary.length > 0 && fullText) {
+      // Generate and write suggestions into the stream.
+      // Suggestions should not depend on tool use alone; substantive direct answers
+      // can still have useful follow-up actions.
+      if (fullText) {
         try {
           const suggestions = await generateSuggestions(
             userText,
@@ -351,6 +396,7 @@ export async function POST(req: Request) {
             connectedServices,
           );
           if (suggestions.length > 0) {
+            streamedSuggestions = suggestions;
             console.log(`[suggestions] Generated ${suggestions.length} follow-ups:`, suggestions.map(s => s.text));
             writer.write({
               type: 'data-suggestions',
@@ -361,6 +407,10 @@ export async function POST(req: Request) {
           console.error('[suggestions] Failed:', err);
         }
       }
+    },
+    onError: (error) => {
+      rejectAgentRun?.(error);
+      return error instanceof Error ? error.message : 'Unknown stream error';
     },
   });
 
