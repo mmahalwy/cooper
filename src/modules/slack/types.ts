@@ -10,7 +10,7 @@ export interface SlackEventEnvelope {
 }
 
 // Union of events we handle
-export type SlackEvent = AppMentionEvent | MessageImEvent | ReactionAddedEvent;
+export type SlackEvent = AppMentionEvent | MessageImEvent | ReactionAddedEvent | AppHomeOpenedEvent;
 
 export interface AppMentionEvent {
   type: 'app_mention';
@@ -34,6 +34,15 @@ export interface ReactionAddedEvent {
     ts: string;
   };
   item_user: string;
+  event_ts: string;
+}
+
+export interface AppHomeOpenedEvent {
+  type: 'app_home_opened';
+  user: string;
+  channel: string;
+  tab: 'home' | 'messages';
+  view?: { id: string; type: string };
   event_ts: string;
 }
 
