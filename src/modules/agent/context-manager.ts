@@ -23,6 +23,19 @@ interface ManagedContext {
   originalCount: number;
 }
 
+/** CoreMessage shape used by the Slack handler */
+export interface CoreMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface ManagedCoreContext {
+  conversationSummary: string | null;
+  recentMessages: CoreMessage[];
+  wasSummarized: boolean;
+  originalCount: number;
+}
+
 /**
  * Manage the context window by summarizing old messages
  * and keeping recent ones in full.
@@ -74,6 +87,63 @@ export async function manageContextWindow(
     };
   } catch (error) {
     console.error('[context] Summarization failed, using full messages:', error);
+    return {
+      conversationSummary: null,
+      recentMessages: messages,
+      wasSummarized: false,
+      originalCount: messages.length,
+    };
+  }
+}
+
+/**
+ * Slack-specific context window management.
+ *
+ * The Slack handler builds messages as plain `CoreMessage[]` (role + content string),
+ * not the richer `UIMessage[]` used by the web app. This variant handles that shape
+ * directly so we don't need to adapt between the two types.
+ */
+export async function manageSlackContextWindow(
+  messages: CoreMessage[],
+): Promise<ManagedCoreContext> {
+  if (messages.length <= SUMMARY_THRESHOLD) {
+    return {
+      conversationSummary: null,
+      recentMessages: messages,
+      wasSummarized: false,
+      originalCount: messages.length,
+    };
+  }
+
+  const splitPoint = messages.length - RECENT_MESSAGE_COUNT;
+  const oldMessages = messages.slice(0, splitPoint);
+  const recentMessages = messages.slice(splitPoint);
+
+  const conversationText = oldMessages
+    .map(msg => `${msg.role}: ${msg.content}`)
+    .join('\n')
+    .slice(0, 6000);
+
+  try {
+    const result = await generateText({
+      model: google('gemini-2.5-flash'),
+      system:
+        'Summarize this Slack conversation history concisely. Focus on: key topics discussed, decisions made, important context, and any ongoing tasks. Keep it under 500 words.',
+      prompt: conversationText,
+    });
+
+    console.log(
+      `[context] Slack: summarized ${oldMessages.length} old messages into ${result.text.length} chars, keeping ${recentMessages.length} recent`,
+    );
+
+    return {
+      conversationSummary: result.text,
+      recentMessages,
+      wasSummarized: true,
+      originalCount: messages.length,
+    };
+  } catch (error) {
+    console.error('[context] Slack summarization failed, using full messages:', error);
     return {
       conversationSummary: null,
       recentMessages: messages,

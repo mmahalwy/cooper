@@ -24,6 +24,7 @@ import { createWorkspaceTools } from '@/modules/workspace/tools';
 import { createCodeTools } from '@/modules/code/tools';
 import { createIntegrationTool } from '@/modules/agent/integration-subagent';
 import { buildSlackSystemPrompt } from './system-prompt';
+import { manageSlackContextWindow } from '@/modules/agent/context-manager';
 import { createSlackInteractiveTools } from './tools';
 import { generateThreadTitle } from '@/modules/agent/title-generator';
 
@@ -226,6 +227,21 @@ async function processEvent(
       ? await retrieveContext(supabase, installation.org_id, cleanUserText)
       : { knowledge: [], matchedSkills: [], threadSummaries: [] };
 
+    // 7a. Context window compression: summarize old messages when thread is long
+    let finalMessages = messages;
+    let conversationSummary: string | null = null;
+
+    if (messages.length > 15) {
+      const managed = await manageSlackContextWindow(messages);
+      finalMessages = managed.recentMessages;
+      conversationSummary = managed.conversationSummary;
+      if (managed.wasSummarized) {
+        console.log(
+          `[slack] Context compressed: ${managed.originalCount} → ${managed.recentMessages.length} messages`,
+        );
+      }
+    }
+
     // 8. Build tools and system prompt
     const tools = await buildTools(
       supabase,
@@ -244,7 +260,7 @@ async function processEvent(
       memoryContext,
       connectedServices,
       cleanUserText,
-      { isFirstMessage: isFirstDm }
+      { isFirstMessage: isFirstDm, conversationSummary }
     );
 
     // 9. Generate response
@@ -257,7 +273,7 @@ async function processEvent(
     const result = await generateText({
       model: modelSelection.model,
       system: systemPrompt,
-      messages,
+      messages: finalMessages,
       tools,
       stopWhen: stepCountIs(25),
     });
