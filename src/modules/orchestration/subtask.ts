@@ -27,6 +27,15 @@ export interface SubtaskResult {
   tokensUsed?: number;
 }
 
+export interface SubtaskOptions {
+  connectedServices?: string[];
+  persona?: {
+    name?: string;
+    instructions?: string;
+    tone?: string;
+  };
+}
+
 const SUBTASK_TIMEOUT_MS = 60_000; // 1 minute per subtask
 const MAX_CONCURRENT_SUBTASKS = 5;
 
@@ -46,6 +55,7 @@ async function executeSubtask(
   subtask: SubtaskDefinition,
   supabase: SupabaseClient,
   orgId: string,
+  options?: SubtaskOptions,
 ): Promise<SubtaskResult> {
   const startTime = Date.now();
 
@@ -55,9 +65,34 @@ async function executeSubtask(
       retrieveContext(supabase, orgId, subtask.prompt),
     ]);
 
-    let systemPrompt = `You are Cooper, executing a focused subtask. Be thorough but concise.`;
+    const personaName = options?.persona?.name || 'Cooper';
+
+    let systemPrompt = `You are ${personaName}, executing a focused subtask as part of a larger parallel workflow. Be thorough but concise in your output — your results will be synthesized by a coordinator.`;
+
+    if (options?.persona?.instructions) {
+      systemPrompt += `\n\n## Your Persona\n${options.persona.instructions}\nTone: ${options.persona.tone || 'professional'}.`;
+    }
+
     if (memoryContext.knowledge.length) {
       systemPrompt += `\n\nOrg context:\n${memoryContext.knowledge.map(k => `- ${k}`).join('\n')}`;
+    }
+
+    if (memoryContext.matchedSkills?.length) {
+      systemPrompt += `\n\n## Relevant Skills\n`;
+      for (const skill of memoryContext.matchedSkills) {
+        systemPrompt += `### ${skill.name}\n${skill.description}\n`;
+      }
+    }
+
+    if (memoryContext.threadSummaries?.length) {
+      systemPrompt += `\n\n## Recent Conversation Context\n`;
+      for (const thread of memoryContext.threadSummaries) {
+        systemPrompt += `- ${thread.summary}\n`;
+      }
+    }
+
+    if (options?.connectedServices?.length) {
+      systemPrompt += `\n\n## Connected Services\nYou have access to: ${options.connectedServices.join(', ')}.`;
     }
 
     const result = await withTimeout(
@@ -99,6 +134,7 @@ export async function executeSubtasks(
   subtasks: SubtaskDefinition[],
   supabase: SupabaseClient,
   orgId: string,
+  options?: SubtaskOptions,
 ): Promise<SubtaskResult[]> {
   const results: SubtaskResult[] = [];
 
@@ -108,7 +144,7 @@ export async function executeSubtasks(
     console.log(`[orchestration] Executing batch of ${batch.length} subtasks (${i + 1}-${Math.min(i + batch.length, subtasks.length)} of ${subtasks.length})`);
 
     const batchResults = await Promise.allSettled(
-      batch.map(subtask => executeSubtask(subtask, supabase, orgId))
+      batch.map(subtask => executeSubtask(subtask, supabase, orgId, options))
     );
 
     for (const result of batchResults) {
