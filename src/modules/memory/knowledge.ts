@@ -4,6 +4,7 @@ import { embeddingProvider } from './embeddings';
 export interface KnowledgeFact {
   id: string;
   org_id: string;
+  user_id?: string | null;
   content: string;
   source: 'user' | 'conversation' | 'system';
   created_at: string;
@@ -16,7 +17,7 @@ export async function getKnowledgeForOrg(
 ): Promise<KnowledgeFact[]> {
   const { data, error } = await supabase
     .from('knowledge')
-    .select('id, org_id, content, source, created_at, updated_at')
+    .select('id, org_id, user_id, content, source, created_at, updated_at')
     .eq('org_id', orgId)
     .order('created_at', { ascending: false })
     .limit(100);
@@ -33,16 +34,19 @@ export async function addKnowledge(
   supabase: SupabaseClient,
   orgId: string,
   content: string,
-  source: 'user' | 'conversation' = 'user'
+  source: 'user' | 'conversation' = 'user',
+  userId?: string,
 ): Promise<KnowledgeFact | null> {
   const embedding = await embeddingProvider.embed(content);
 
-  // Check for semantic duplicates before inserting
+  // Check for semantic duplicates before inserting.
+  // Scope duplicate check to the same user (or org-wide when no userId).
   const { data: similar } = await supabase.rpc('match_knowledge', {
     query_embedding: embedding,
     match_org_id: orgId,
     match_count: 1,
     match_threshold: 0.70,
+    match_user_id: userId || null,
   });
 
   if (similar && similar.length > 0) {
@@ -56,6 +60,7 @@ export async function addKnowledge(
       return {
         id: topMatch.id,
         org_id: orgId,
+        user_id: userId || null,
         content: topMatch.content,
         source: topMatch.source || source,
         created_at: '',
@@ -75,11 +80,12 @@ export async function addKnowledge(
     .from('knowledge')
     .insert({
       org_id: orgId,
+      user_id: userId || null,
       content,
       source,
       embedding,
     })
-    .select('id, org_id, content, source, created_at, updated_at')
+    .select('id, org_id, user_id, content, source, created_at, updated_at')
     .single();
 
   if (error) {
@@ -106,7 +112,7 @@ export async function updateKnowledge(
       updated_at: new Date().toISOString(),
     })
     .eq('id', knowledgeId)
-    .select('id, org_id, content, source, created_at, updated_at')
+    .select('id, org_id, user_id, content, source, created_at, updated_at')
     .single();
 
   if (error) {

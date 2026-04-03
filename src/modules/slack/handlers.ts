@@ -225,7 +225,7 @@ async function processEvent(
     const connectedServices = (activeConnections || []).map((c: any) => c.name);
 
     const memoryContext = cleanUserText.trim()
-      ? await retrieveContext(supabase, installation.org_id, cleanUserText)
+      ? await retrieveContext(supabase, installation.org_id, resolvedUser.userId, cleanUserText)
       : { knowledge: [], matchedSkills: [], threadSummaries: [] };
 
     // 7a. Context window compression: summarize old messages when thread is long
@@ -353,6 +353,7 @@ async function processEvent(
     extractAndSaveMemories(
       supabase,
       installation.org_id,
+      resolvedUser.userId,
       cleanUserText,
       responseText,
       memoryContext.knowledge

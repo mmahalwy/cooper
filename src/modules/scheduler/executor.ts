@@ -100,7 +100,7 @@ export async function executeScheduledTask(
       .single();
 
     const tools = await getToolsForUser(supabase, task.org_id, task.user_id, { skipApproval: true });
-    const memoryContext = await retrieveContext(supabase, task.org_id, task.prompt);
+    const memoryContext = await retrieveContext(supabase, task.org_id, task.user_id, task.prompt);
 
     let systemPrompt = SYSTEM_PROMPT;
     if (memoryContext.knowledge.length) {
