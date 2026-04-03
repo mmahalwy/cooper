@@ -62,7 +62,29 @@ export function createIntegrationTool(
             } : undefined,
           });
 
-          const output = result.text || '(No output from integration)';
+          // Get output — check text first, then fall back to last tool result
+          let output = result.text || '';
+          if (!output) {
+            // If the last step was a tool call with no text, extract tool results
+            const steps = result.steps || [];
+            for (let i = steps.length - 1; i >= 0; i--) {
+              const step = steps[i];
+              if (step.text?.trim()) {
+                output = step.text;
+                break;
+              }
+              if (step.toolResults?.length) {
+                const lastResult = step.toolResults[step.toolResults.length - 1];
+                const resultVal = (lastResult as any)?.result;
+                output = typeof resultVal === 'string'
+                  ? resultVal
+                  : JSON.stringify(resultVal)?.slice(0, 1000) || '';
+                if (output) break;
+              }
+            }
+          }
+          if (!output) output = 'Done (no text output)';
+
           const toolsUsed = result.steps
             ?.flatMap(s => s.toolCalls?.map(tc => tc.toolName) || [])
             .filter(Boolean) || [];
