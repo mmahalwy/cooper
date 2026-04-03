@@ -21,19 +21,12 @@ export default function ChatPage() {
         console.log('[chat] X-Thread-Id from response:', tid);
         if (tid && !threadIdRef.current) {
           threadIdRef.current = tid;
-          // Update URL immediately when we get the thread ID, not on finish
-          window.history.replaceState(null, '', `/chat/${tid}`);
+          router.replace(`/chat/${tid}`);
         }
         return response;
       },
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
-    onFinish: () => {
-      if (threadIdRef.current) {
-        // Update URL without triggering a full page navigation/remount
-        window.history.replaceState(null, '', `/chat/${threadIdRef.current}`);
-      }
-    },
   });
 
   const isStreaming = status === 'streaming' || status === 'submitted';
