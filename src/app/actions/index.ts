@@ -14,6 +14,7 @@ export {
   deleteConnectionAction,
   syncConnectionsAction,
   getConnectionToolsAction,
+  updateConnectionScopeAction,
 } from './connections';
 export type { ConnectionTool } from './connections';
 export { getPersonaAction, updatePersonaAction } from './persona';

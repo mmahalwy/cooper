@@ -22,9 +22,13 @@ export async function createConnectionAction(connection: {
   type: 'mcp' | 'platform';
   config: Record<string, unknown>;
 }) {
-  const { supabase, orgId } = await getAuthContext();
+  const { supabase, user, orgId } = await getAuthContext();
+  const { getDefaultScope } = await import('@/modules/connections/scopes');
   const result = await createConnection(supabase, {
     org_id: orgId,
+    user_id: user.id,
+    scope: getDefaultScope(connection.provider),
+    composio_entity_id: user.id,
     ...connection,
   });
   if (!result) return { error: 'Failed to create connection' };
@@ -70,13 +74,15 @@ export async function deleteConnectionAction(id: string) {
 }
 
 export async function syncConnectionsAction() {
-  const { supabase, orgId } = await getAuthContext();
+  const { supabase, user, orgId } = await getAuthContext();
   const apiKey = process.env.COMPOSIO_API_KEY;
   if (!apiKey) return { error: 'Composio not configured' };
 
-  const resp = await fetch('https://backend.composio.dev/api/v1/connectedAccounts?showActiveOnly=true', {
-    headers: { 'x-api-key': apiKey },
-  });
+  // Fetch active accounts for THIS user's Composio entity
+  const resp = await fetch(
+    `https://backend.composio.dev/api/v1/connectedAccounts?showActiveOnly=true&user_uuid=${user.id}`,
+    { headers: { 'x-api-key': apiKey } }
+  );
   const data = await resp.json();
   const activeApps = [...new Set(
     ((data.items || []) as any[])
@@ -84,15 +90,25 @@ export async function syncConnectionsAction() {
       .map((c) => c.appName)
   )];
 
+  // Check existing connections for THIS user
   const { data: existing } = await supabase
-    .from('connections').select('provider').eq('org_id', orgId).eq('type', 'platform');
+    .from('connections')
+    .select('provider')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .eq('type', 'platform');
   const existingProviders = new Set((existing || []).map((c: any) => c.provider));
+
+  const { getDefaultScope } = await import('@/modules/connections/scopes');
 
   let synced = 0;
   for (const appName of activeApps) {
     if (existingProviders.has(appName)) continue;
     await supabase.from('connections').insert({
       org_id: orgId,
+      user_id: user.id,
+      scope: getDefaultScope(appName),
+      composio_entity_id: user.id,
       type: 'platform',
       name: appName,
       provider: appName,
@@ -106,36 +122,19 @@ export async function syncConnectionsAction() {
     clearComposioCache();
   }
 
-  // Resolve top actions for each connected app
-  const { fetchActionsForApp } = await import('@/modules/connections/platform/action-resolver');
-
-  for (const appName of activeApps) {
-    try {
-      const actions = await fetchActionsForApp(appName);
-      if (actions.length > 0) {
-        const { data: conn } = await supabase
-          .from('connections')
-          .select('id, config')
-          .eq('org_id', orgId)
-          .eq('provider', appName)
-          .single();
-
-        if (conn) {
-          const config = (conn.config || {}) as Record<string, any>;
-          await supabase
-            .from('connections')
-            .update({ config: { ...config, resolvedActions: actions } })
-            .eq('id', conn.id);
-          console.log(`[sync] Resolved ${actions.length} actions for ${appName}`);
-        }
-      }
-    } catch (err) {
-      console.error(`[sync] Failed to resolve actions for ${appName}:`, err);
-    }
-  }
-
   revalidatePath('/connections');
   return { success: true, synced };
+}
+
+export async function updateConnectionScopeAction(
+  connectionId: string,
+  scope: 'personal' | 'shared'
+) {
+  const { supabase } = await getAuthContext();
+  const { updateConnectionScope } = await import('@/modules/connections/db');
+  await updateConnectionScope(supabase, connectionId, scope);
+  revalidatePath('/connections');
+  return { success: true };
 }
 
 export async function getConnectionToolsAction(appName: string): Promise<ConnectionTool[]> {
