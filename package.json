@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "devtools": "pnpm dlx @ai-sdk/devtools",
     "cron": "bash -c 'set -a; source .env.local; set +a; while true; do curl -s -H \"Authorization: Bearer $CRON_SECRET\" http://localhost:3000/api/cron/dispatch; echo; sleep 60; done'"
   },
   "dependencies": {
