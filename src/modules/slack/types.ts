@@ -10,6 +10,15 @@ export interface SlackEventEnvelope {
 // Union of events we handle
 export type SlackEvent = AppMentionEvent | MessageImEvent;
 
+export interface SlackFile {
+  id: string;
+  name: string;
+  mimetype: string;
+  size: number;
+  url_private_download?: string;
+  permalink?: string;
+}
+
 export interface AppMentionEvent {
   type: 'app_mention';
   user: string;
@@ -20,6 +29,7 @@ export interface AppMentionEvent {
   team?: string;
   bot_id?: string;
   bot_profile?: unknown;
+  files?: SlackFile[];
 }
 
 export interface MessageImEvent {
@@ -34,6 +44,7 @@ export interface MessageImEvent {
   subtype?: string;
   bot_id?: string;
   bot_profile?: unknown;
+  files?: SlackFile[];
 }
 
 // DB row types
