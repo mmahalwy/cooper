@@ -10,6 +10,7 @@ export type ActivityAction =
   | 'memory_stored'
   | 'skill_created'
   | 'thread_created'
+  | 'agent_response'
   | 'error';
 
 export async function logActivity(
