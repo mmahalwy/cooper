@@ -19,7 +19,7 @@ import { createOrchestrationTools } from '@/modules/orchestration/tools';
 import { createUsageTools } from '@/modules/observability/tools';
 import { createSandboxTools } from '@/modules/sandbox/tools';
 import { createPlanningTools } from '@/modules/agent/planner';
-import { createDeepWorkTools } from '@/modules/agent/deep-work-tools';
+import { createBackgroundTools } from '@/modules/agent/background-tools';
 import { createWorkspaceTools } from '@/modules/workspace/tools';
 import { createCodeTools } from '@/modules/code/tools';
 import { createIntegrationTool } from '@/modules/agent/integration-subagent';
@@ -73,7 +73,7 @@ async function buildTools(
   Object.assign(builtInTools, createUsageTools(supabase, orgId));
   Object.assign(builtInTools, createWorkspaceTools(supabase, orgId, threadId));
   Object.assign(builtInTools, createPlanningTools(supabase, orgId, threadId));
-  Object.assign(builtInTools, createDeepWorkTools(supabase, orgId, userId, threadId));
+  Object.assign(builtInTools, createBackgroundTools(supabase, orgId, userId, threadId, connectedServices));
 
   if (process.env.E2B_API_KEY) {
     Object.assign(builtInTools, createSandboxTools(orgId, threadId));
