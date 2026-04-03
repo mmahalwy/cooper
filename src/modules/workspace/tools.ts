@@ -6,6 +6,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { saveNote, readNote, listNotes, deleteNote, saveFile, listFiles } from './db';
+import { createTodoTools } from './todos';
 
 export function createWorkspaceTools(
   supabase: SupabaseClient,
@@ -158,5 +159,7 @@ If a file with the same name already exists in the same scope, it is overwritten
         }
       },
     }),
+
+    ...createTodoTools(supabase, orgId, threadId),
   };
 }
