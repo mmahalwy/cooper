@@ -12,6 +12,7 @@ import type {
   MessageChannelEvent,
   ReactionAddedEvent,
   MessageChangedEvent,
+  MessageChannelEvent,
 } from '@/modules/slack/types';
 
 export const maxDuration = 300;
@@ -82,6 +83,27 @@ export async function POST(request: Request) {
       const installation = await getInstallationByTeamId(supabase, teamId);
       if (!installation) {
         console.error('[slack] No installation found for team:', teamId);
+        return;
+      }
+
+      // Rate limit check — sliding window per org. Slack always needs a 200
+      // (already sent above), so we post an ephemeral message and bail out.
+      const rateLimitResult = await checkRateLimit(supabase, installation.org_id);
+      if (!rateLimitResult.allowed) {
+        console.warn('[slack] Rate limit exceeded for org:', installation.org_id);
+        const slackClientForLimit = getSlackClient(installation.bot_token);
+        const event = payload.event;
+        // Determine channel + user from the triggering event so we can send
+        // an ephemeral message back to the right person.
+        const channel = (event as { channel?: string }).channel;
+        const userId = (event as { user?: string }).user;
+        if (channel && userId) {
+          await slackClientForLimit.chat.postEphemeral({
+            channel,
+            user: userId,
+            text: '⚡ Cooper is getting a lot of requests right now — try again in a moment.',
+          }).catch((err) => console.error('[slack] Failed to post rate-limit ephemeral:', err));
+        }
         return;
       }
 
