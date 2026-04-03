@@ -43,6 +43,8 @@ import {
 } from '@/components/ai-elements/confirmation';
 import { CopyMessageButton } from './CopyMessageButton';
 import { PlanView as DBPlanView } from './PlanView';
+import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
+import type { SuggestionData } from '@/lib/chat-types';
 
 function formatToolName(raw: string): string {
   // Map internal tool names to friendly labels
@@ -451,9 +453,10 @@ interface ChatMessagesProps {
   isStreaming?: boolean;
   status?: string;
   addToolApprovalResponse?: (response: { id: string; approved: boolean }) => void;
+  onSuggestionClick?: (prompt: string) => void;
 }
 
-export function ChatMessages({ messages, isStreaming, status, addToolApprovalResponse }: ChatMessagesProps) {
+export function ChatMessages({ messages, isStreaming, status, addToolApprovalResponse, onSuggestionClick }: ChatMessagesProps) {
   // Derive the active tool name from the last assistant message's parts
   const lastMessage = messages[messages.length - 1];
   const currentTool =
@@ -496,6 +499,27 @@ export function ChatMessages({ messages, isStreaming, status, addToolApprovalRes
             </Message>
           );
         })}
+
+        {!isStreaming && onSuggestionClick && (() => {
+          const lastMsg = messages[messages.length - 1];
+          if (lastMsg?.role !== 'assistant') return null;
+          const suggestionPart = lastMsg.parts.find(
+            (p): p is { type: 'data-suggestions'; data: SuggestionData[] } =>
+              p.type === 'data-suggestions'
+          );
+          if (!suggestionPart?.data?.length) return null;
+          return (
+            <div className="mx-auto max-w-3xl px-4 pb-2 pt-1">
+              <Suggestions>
+                {suggestionPart.data.map((s, i) => (
+                  <Suggestion key={i} suggestion={s.prompt} onClick={onSuggestionClick}>
+                    {s.text}
+                  </Suggestion>
+                ))}
+              </Suggestions>
+            </div>
+          );
+        })()}
 
         {status === 'submitted' && (
           <Message from="assistant">

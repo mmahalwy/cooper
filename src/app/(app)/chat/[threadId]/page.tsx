@@ -8,6 +8,8 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Message } from '@/lib/types';
+import type { ChatMessage } from '@/lib/chat-types';
+import { suggestionsPartSchema } from '@/lib/chat-types';
 
 type LoadedMessage = {
   id: string;
@@ -68,7 +70,8 @@ function ChatThread({
   threadId: string;
   initialMessages: LoadedMessage[];
 }) {
-  const { messages, sendMessage, stop, status, addToolApprovalResponse } = useChat({
+  const { messages, sendMessage, stop, status, addToolApprovalResponse } = useChat<ChatMessage>({
+    dataPartSchemas: { suggestions: suggestionsPartSchema },
     transport: new DefaultChatTransport({
       api: '/api/chat',
       body: { threadId },
@@ -81,7 +84,7 @@ function ChatThread({
 
   return (
     <div className="flex h-screen flex-col">
-      <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} />
+      <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} onSuggestionClick={(prompt) => sendMessage({ text: prompt })} />
       <ChatInput
         onSend={({ text, files }) => sendMessage({ text, files })}
         onStop={stop}

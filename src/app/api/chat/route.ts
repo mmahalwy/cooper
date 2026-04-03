@@ -82,11 +82,14 @@ export async function POST(req: Request) {
         .map((p) => (p as { type: 'text'; text: string }).text)
         .join('') || '';
 
-    await supabase.from('messages').insert({
+    const { error: msgError } = await supabase.from('messages').insert({
       thread_id: activeThreadId,
       role: 'user',
       content,
     });
+    console.log(`[chat] Saved user message to ${activeThreadId}: ${content.slice(0, 50)}... error=${msgError?.message || 'none'}`);
+  } else {
+    console.log(`[chat] No user message to save. Last message role: ${lastUserMessage?.role}`);
   }
 
   const agentInput = {
@@ -134,6 +137,7 @@ export async function POST(req: Request) {
   after(async () => {
     try {
       const fullText = await result.text;
+      console.log(`[chat] after() running. threadId=${activeThreadId}, textLength=${fullText?.length || 0}`);
       if (!activeThreadId) return;
 
       const { createClient: createServerClient } = await import(

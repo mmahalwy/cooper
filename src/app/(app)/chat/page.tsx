@@ -37,7 +37,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen flex-col">
       {hasMessages ? (
-        <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} />
+        <ChatMessages messages={messages} isStreaming={isStreaming} status={status} addToolApprovalResponse={addToolApprovalResponse} onSuggestionClick={(prompt) => sendMessage({ text: prompt })} />
       ) : (
         <EmptyState onSuggestionClick={(prompt) => sendMessage({ text: prompt })} />
       )}
