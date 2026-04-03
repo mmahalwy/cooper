@@ -52,7 +52,7 @@ export async function resolveSlackUser(
         slack_team_id: slackTeamId,
         user_id: existingUser.id,
         org_id: existingUser.org_id,
-      }).catch(() => {}); // ignore if mapping already exists
+      }); // ignore errors — mapping may already exist
 
       console.log(`[slack] Mapped Slack user ${slackUserId} (${email}) to existing user ${existingUser.id}`);
       return { userId: existingUser.id, orgId: existingUser.org_id };
