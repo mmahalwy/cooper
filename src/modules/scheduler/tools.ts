@@ -37,8 +37,9 @@ Think of it as writing a detailed runbook that someone could follow with zero co
         prompt: z.string().describe('Comprehensive, self-contained runbook for the AI agent. 200-500 words minimum.'),
         humanReadable: z.string().describe('Human-readable schedule, e.g., "Every Tuesday at 12:00 PM UTC"'),
         endsAt: z.string().optional().describe('ISO 8601 datetime when this schedule should stop running. Omit for indefinite schedules. Example: "2026-03-31T01:00:00Z" for 15 minutes from now.'),
+        slack_channel: z.string().optional().describe('Slack channel ID or name to post results to (e.g., #general, C1234567). If provided, results will be posted there when the task completes.'),
       }),
-      execute: async ({ name, cron, prompt, humanReadable, endsAt }) => {
+      execute: async ({ name, cron, prompt, humanReadable, endsAt, slack_channel }) => {
         try {
           if (isSubMinuteCron(cron)) {
             return {
@@ -56,6 +57,9 @@ Think of it as writing a detailed runbook that someone could follow with zero co
             prompt,
             next_run_at: nextRunAt,
             ends_at: endsAt,
+            channel_config: slack_channel
+              ? { channel: 'slack', destination: slack_channel }
+              : { channel: 'web' },
           });
 
           if (!task) return { created: false, error: 'Failed to create scheduled task' };
