@@ -11,7 +11,7 @@ import { createOrchestrationTools } from '@/modules/orchestration/tools';
 import { createUsageTools } from '@/modules/observability/tools';
 import { createSandboxTools } from '@/modules/sandbox/tools';
 import { createPlanningTools } from './planner';
-import { createDeepWorkTools } from './deep-work-tools';
+import { createBackgroundTools } from './background-tools';
 import { createWorkspaceTools } from '@/modules/workspace/tools';
 import { createCodeTools } from '@/modules/code/tools';
 import { createIntegrationTool } from './integration-subagent';
@@ -76,14 +76,10 @@ Keep suggestions:
 - **Brief** — One sentence each, as a bulleted list at the end
 - Don't suggest follow-ups for simple questions, greetings, or when the user is clearly done
 
-## Deep Work
-For substantial tasks that require multiple steps of research, analysis, and synthesis:
-1. Use start_deep_work to create a tracked work session
-2. Execute each step methodically, using code execution for computation
-3. Call report_deep_work_progress after each milestone
-4. Compile a final comprehensive result
-
-This shows the user you're working methodically and lets them track progress. Use deep work for tasks like "analyze our data and create a report", "research X and give me a summary", or "build me a plan for Y".
+## Background Tasks
+For complex tasks with 3+ steps or involving multiple integrations, use start_background_task.
+You'll respond immediately to the user, and post progress updates to the conversation as each step finishes.
+Don't try to do multi-step integration work inline — send it to background.
 
 ## Code Execution — YOUR PRIMARY TOOL 🔧
 You are a CODE-FIRST assistant. When a task involves ANY of these, WRITE CODE instead of trying to do it manually:
@@ -203,8 +199,8 @@ export async function createAgentStream(input: AgentInput) {
     if (input.threadId) {
       const planningTools = createPlanningTools(input.supabase, input.orgId, input.threadId);
       Object.assign(builtInTools, planningTools);
-      const deepWorkTools = createDeepWorkTools(input.supabase, input.orgId, input.userId, input.threadId);
-      Object.assign(builtInTools, deepWorkTools);
+      const backgroundTools = createBackgroundTools(input.supabase, input.orgId, input.userId, input.threadId, input.connectedServices || []);
+      Object.assign(builtInTools, backgroundTools);
     }
   }
 
