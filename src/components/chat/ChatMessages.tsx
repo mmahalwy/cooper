@@ -403,9 +403,13 @@ function AssistantParts({ parts, role, isStreaming, isLastMessage, addToolApprov
 
   }
 
-  // Render parts that aren't tool-related
+  // Render the final response text — only text AFTER the last tool call
+  const lastToolIdx = parts.reduce((acc: number, p: any, idx: number) =>
+    (p.type?.startsWith('tool-') || p.type === 'dynamic-tool') ? idx : acc, -1);
+
   parts.forEach((part, i) => {
-    if (hasTools && i !== lastTextIdx) return; // already handled in chain-of-thought
+    // When tools are present, only render text parts that come after ALL tool calls
+    if (hasTools && (i <= lastToolIdx || part.type === 'reasoning')) return;
 
     if (part.type === 'text' && part.text) {
       elements.push(
