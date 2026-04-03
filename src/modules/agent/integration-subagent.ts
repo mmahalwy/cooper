@@ -59,11 +59,22 @@ export function createIntegrationTool(
             } : undefined,
           });
 
+          // Log all steps for debugging
+          const steps = result.steps || [];
+          for (let i = 0; i < steps.length; i++) {
+            const step = steps[i];
+            const calls = step.toolCalls?.map((tc: any) => tc.toolName) || [];
+            const results = step.toolResults?.map((tr: any) => {
+              const val = (tr as any)?.result;
+              const str = typeof val === 'string' ? val : JSON.stringify(val);
+              return `${tr.toolName}: ${(str || '').slice(0, 200)}`;
+            }) || [];
+            console.log(`[integration-subagent] Step ${i}: tools=[${calls.join(', ')}] text="${(step.text || '').slice(0, 100)}" results=[${results.join(' | ')}]`);
+          }
+
           // Get output — check text first, then fall back to last tool result
           let output = result.text || '';
           if (!output) {
-            // If the last step was a tool call with no text, extract tool results
-            const steps = result.steps || [];
             for (let i = steps.length - 1; i >= 0; i--) {
               const step = steps[i];
               if (step.text?.trim()) {
