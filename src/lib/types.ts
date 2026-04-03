@@ -39,6 +39,9 @@ export interface Message {
 export interface Connection {
   id: string;
   org_id: string;
+  user_id: string | null;
+  scope: 'personal' | 'shared';
+  composio_entity_id: string | null;
   type: 'mcp' | 'custom' | 'platform';
   name: string;
   provider: string;
