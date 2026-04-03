@@ -17,14 +17,30 @@ export async function getGitHubToken(orgId: string): Promise<string | null> {
     const githubAccount = (data.items || []).find(
       (item: any) => item.appName === 'github' && item.status === 'ACTIVE'
     );
-    if (!githubAccount?.id) return null;
+    if (!githubAccount?.id) {
+      console.error('[code/github] No active GitHub account found in Composio');
+      return null;
+    }
+
+    console.log(`[code/github] Found GitHub account: ${githubAccount.id}, fetching token...`);
 
     const tokenResp = await fetch(
       `https://backend.composio.dev/api/v1/connectedAccounts/${githubAccount.id}`,
       { headers: { 'x-api-key': apiKey } }
     );
     const tokenData = await tokenResp.json();
-    return tokenData?.connectionParams?.access_token || null;
+
+    // Try multiple paths — Composio stores tokens differently per auth scheme
+    const token = tokenData?.connectionParams?.access_token
+      || tokenData?.connectionParams?.token
+      || tokenData?.connectionParams?.headers?.Authorization?.replace('Bearer ', '')
+      || null;
+
+    if (!token) {
+      console.error('[code/github] Token not found in connectionParams. Keys:', Object.keys(tokenData?.connectionParams || {}));
+    }
+
+    return token;
   } catch (error) {
     console.error('[code/github] Failed to get GitHub token:', error);
     return null;
