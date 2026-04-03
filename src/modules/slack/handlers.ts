@@ -24,6 +24,7 @@ import { createWorkspaceTools } from '@/modules/workspace/tools';
 import { createCodeTools } from '@/modules/code/tools';
 import { createIntegrationTool } from '@/modules/agent/integration-subagent';
 import { buildSlackSystemPrompt } from './system-prompt';
+import { createSlackTools } from './agent-tools';
 
 interface HandlerContext {
   supabase: SupabaseClient;
@@ -62,7 +63,9 @@ async function buildTools(
   orgId: string,
   userId: string,
   threadId: string,
-  connectedServices: string[]
+  connectedServices: string[],
+  slackClient: WebClient,
+  installation: SlackInstallation
 ): Promise<Record<string, any>> {
   const builtInTools: Record<string, any> = {};
 
@@ -74,6 +77,7 @@ async function buildTools(
   Object.assign(builtInTools, createWorkspaceTools(supabase, orgId, threadId));
   Object.assign(builtInTools, createPlanningTools(supabase, orgId, threadId));
   Object.assign(builtInTools, createBackgroundTools(supabase, orgId, userId, threadId, connectedServices));
+  Object.assign(builtInTools, createSlackTools(slackClient, installation, supabase));
 
   if (process.env.E2B_API_KEY) {
     Object.assign(builtInTools, createSandboxTools(orgId, threadId));
@@ -121,7 +125,8 @@ async function processEvent(
   channel: string,
   messageTs: string,
   threadTs: string | undefined,
-  userText: string
+  userText: string,
+  eventFiles?: Array<{ name: string; mimetype: string; size: number; url_private_download?: string }>
 ): Promise<void> {
   const { supabase, slackClient, installation } = ctx;
 
@@ -155,6 +160,32 @@ async function processEvent(
       resolvedUser.userId
     );
 
+    // 4b. Download and save any files attached to the message
+    let mutableUserText = userText;
+    if (eventFiles && eventFiles.length > 0) {
+      for (const file of eventFiles) {
+        if (file.url_private_download && file.size < 10 * 1024 * 1024) {
+          try {
+            const response = await fetch(file.url_private_download, {
+              headers: { Authorization: `Bearer ${installation.bot_token}` },
+            });
+            const buffer = await response.arrayBuffer();
+            await supabase.from('workspace_files').insert({
+              org_id: installation.org_id,
+              thread_id: threadId,
+              filename: file.name,
+              content: Buffer.from(buffer).toString('base64'),
+              mime_type: file.mimetype,
+              size: file.size,
+            });
+            mutableUserText += `\n[User attached file: ${file.name} (${file.mimetype}, ${file.size} bytes) — saved to workspace]`;
+          } catch (err) {
+            console.error(`[slack] Failed to download file ${file.name}:`, err);
+          }
+        }
+      }
+    }
+
     // 5. Build conversation context from Slack thread history
     let messages;
     if (threadTs) {
@@ -165,14 +196,14 @@ async function processEvent(
         installation.bot_user_id
       );
     } else {
-      const cleanText = userText
+      const cleanText = mutableUserText
         .replace(new RegExp(`<@${installation.bot_user_id}>`, 'g'), '')
         .trim();
       messages = [{ role: 'user' as const, content: cleanText }];
     }
 
     // 6. Save user message to DB
-    const cleanUserText = userText
+    const cleanUserText = mutableUserText
       .replace(new RegExp(`<@${installation.bot_user_id}>`, 'g'), '')
       .trim();
     await supabase.from('messages').insert({
@@ -199,7 +230,9 @@ async function processEvent(
       installation.org_id,
       resolvedUser.userId,
       threadId,
-      connectedServices
+      connectedServices,
+      slackClient,
+      installation
     );
 
     const systemPrompt = await buildSlackSystemPrompt(
@@ -336,7 +369,8 @@ export async function handleAppMention(
     event.channel,
     event.ts,
     event.thread_ts,
-    event.text
+    event.text,
+    event.files
   );
 }
 
@@ -353,6 +387,7 @@ export async function handleDirectMessage(
     event.channel,
     event.ts,
     event.thread_ts,
-    event.text
+    event.text,
+    event.files
   );
 }
