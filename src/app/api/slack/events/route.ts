@@ -45,6 +45,34 @@ export async function POST(request: Request) {
   after(async () => {
     try {
       const supabase = createServiceClient();
+
+      // Deduplicate events — Slack retries delivery if it doesn't get a 200
+      // within 3 seconds, which causes duplicate responses since AI processing
+      // always takes longer than 3s.
+      const eventId = payload.event_id;
+      if (eventId) {
+        const { data: existing } = await supabase
+          .from('slack_processed_events')
+          .select('event_id')
+          .eq('event_id', eventId)
+          .single();
+
+        if (existing) {
+          console.log('[slack] Duplicate event, skipping:', eventId);
+          return;
+        }
+
+        const { error: insertError } = await supabase
+          .from('slack_processed_events')
+          .insert({ event_id: eventId, processed_at: new Date().toISOString() });
+
+        if (insertError) {
+          // Another instance beat us to it (unique constraint violation) — skip
+          console.log('[slack] Event already claimed by another instance, skipping:', eventId);
+          return;
+        }
+      }
+
       const teamId = payload.team_id;
 
       const installation = await getInstallationByTeamId(supabase, teamId);
