@@ -12,20 +12,15 @@ import { google } from '@ai-sdk/google';
 import { selectModel } from './model-router';
 import { getToolStatus } from './status';
 
-const INTEGRATION_SYSTEM_PROMPT = `You are an integration executor. Execute the instruction using your tools. Be direct, return the result.
+const INTEGRATION_SYSTEM_PROMPT = `You are an integration executor. Execute the instruction and return the ACTUAL DATA.
 
 Tool pattern:
 1. COMPOSIO_SEARCH_TOOLS — find the action you need
 2. COMPOSIO_MULTI_EXECUTE_TOOL — execute it
 
-CRITICAL for Slack:
-- FIRST search for "list channels" or "find channel" to get the channel ID
-- THEN search for "send message" to find the posting action
-- THEN post using the channel ID (not the channel name)
-- Use Slack mrkdwn: *bold* (not **), no # headers, links as <url|text>
+CRITICAL: After executing a tool, include the ACTUAL DATA in your response. DO NOT just say "successfully retrieved" or "listed the files". Return the real content — file contents, list of items, search results, etc. The caller needs the data, not a confirmation message.
 
-After executing, describe what happened in one sentence.
-Never show raw API URLs, curl commands, or tool names.`;
+For Slack: search for channel ID first, then send using the ID (not name). Use mrkdwn: *bold*, no # headers.`;
 
 /**
  * Create the use_integration tool for the main agent.
@@ -101,24 +96,32 @@ export function createIntegrationTool(
           }
 
           // Get output: prefer result.text, then last tool output, then concatenated texts
-          let output = result.text || '';
+          // Check if result.text is a vague summary vs actual content
+          const isVagueSummary = (text: string) =>
+            /^(I have |The .* (was|were|has been) (successfully|retrieved|listed|fetched|completed)|Done|Successfully)/i.test(text.trim());
+
+          let output = result.text && !isVagueSummary(result.text) ? result.text : '';
+
           if (!output) {
-            // Walk backwards through steps to find the last meaningful output
+            // Walk backwards through steps to find actual data from tool outputs
             for (let i = steps.length - 1; i >= 0; i--) {
               const step = steps[i];
-              if (step.text?.trim()) {
-                output = step.text;
-                break;
-              }
+              // Prefer tool output data over model text summaries
               if (step.toolResults?.length) {
-                // AI SDK uses .output on tool results
                 const lastResult = step.toolResults[step.toolResults.length - 1] as any;
                 const val = lastResult?.output;
                 if (val != null) {
-                  output = typeof val === 'string' ? val : JSON.stringify(val, null, 2);
-                  if (output && output !== '{}' && output !== 'null') break;
-                  output = '';
+                  const raw = typeof val === 'string' ? val : JSON.stringify(val);
+                  // Only use if it has actual content (not just metadata)
+                  if (raw && raw.length > 50 && raw !== '{}' && raw !== 'null') {
+                    output = raw.slice(0, 3000); // cap size
+                    break;
+                  }
                 }
+              }
+              if (step.text?.trim() && !isVagueSummary(step.text)) {
+                output = step.text;
+                break;
               }
             }
           }
