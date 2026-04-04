@@ -9,7 +9,7 @@
 ## Composio for All Integrations
 - Always use Composio for connecting to and interacting with third-party services (GitHub, Slack, Google Calendar, etc.).
 - Do NOT build custom OAuth token extraction, direct API clients, or separate auth flows. Composio handles auth, token refresh, and API calls.
-- The `use_integration` tool is the standard way Cooper interacts with connected services — it delegates to Composio under the hood.
+- Prefer direct, pre-bound Composio action tools in the main agent turn rather than generic integration wrappers.
 - Only build custom integration code if Composio explicitly cannot handle a specific use case.
 
 ## Arrow Functions
@@ -22,6 +22,10 @@
 - The threadId MUST be injected into the fetch body by intercepting the `fetch` call and parsing/modifying the JSON body. See `src/app/(app)/chat/page.tsx` for the pattern.
 - DO NOT remove or "simplify" the fetch body injection — without it, every follow-up message creates a new thread instead of continuing the conversation.
 - If you change anything about how chat messages are sent or threads are created, verify that multi-message conversations persist to the SAME thread.
+
+## Async/Await Only
+- Always use `async`/`await` for asynchronous code. Do NOT use `.then()`/`.catch()` chains.
+- Do NOT use raw Promise constructors (`new Promise(...)`) unless wrapping a callback-based API that has no async alternative.
 
 ## Avoid useEffect
 - Do NOT use `useEffect` for data fetching. Use React Server Components, server actions, or React Suspense with async components instead.
