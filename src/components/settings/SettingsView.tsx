@@ -36,6 +36,13 @@ const MODELS = [
   { id: 'gemini-pro', label: 'Gemini 2.5 Pro' },
 ];
 
+const ORG_MODELS = [
+  { id: 'auto', label: 'Auto (recommended)' },
+  { id: 'anthropic', label: 'Claude (Anthropic)' },
+  { id: 'openai', label: 'GPT-4o (OpenAI)' },
+  { id: 'gemini', label: 'Gemini (Google)' },
+];
+
 export function SettingsView() {
   const [profile, setProfile] = useState<any>(null);
   const [org, setOrg] = useState<any>(null);
@@ -43,6 +50,7 @@ export function SettingsView() {
   const [timezone, setTimezone] = useState('America/Los_Angeles');
   const [model, setModel] = useState('auto');
   const [orgName, setOrgName] = useState('');
+  const [orgModel, setOrgModel] = useState('auto');
   const [saved, setSaved] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -58,6 +66,7 @@ export function SettingsView() {
       if (data.org) {
         setOrg(data.org);
         setOrgName(data.org.name || '');
+        setOrgModel(data.org.model_preference || 'auto');
       }
     });
   }, []);
@@ -76,7 +85,7 @@ export function SettingsView() {
 
   async function saveOrg() {
     startTransition(async () => {
-      await updateOrgAction({ name: orgName });
+      await updateOrgAction({ name: orgName, model_preference: orgModel });
       showSaved('org');
     });
   }
@@ -170,6 +179,25 @@ export function SettingsView() {
                 placeholder="Your organization"
                 className="mt-1"
               />
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground flex items-center gap-1">
+                <CpuIcon className="size-3" /> Model
+              </label>
+              <p className="text-xs text-muted-foreground/70 mt-0.5 mb-1">
+                Lock all workspace members to a specific AI provider.
+              </p>
+              <Select value={orgModel} onValueChange={(value) => setOrgModel(value || 'auto')}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORG_MODELS.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex items-center justify-end gap-2">

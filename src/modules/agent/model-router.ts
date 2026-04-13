@@ -16,7 +16,7 @@ const SIMPLE_PATTERNS = /^(hi|hello|hey|thanks|ok|yes|no|what can you|are you co
 export function selectModel(
   message: string,
   connectedServices: string[],
-  options?: { previousStepFailed?: boolean; forceProvider?: string; forceModel?: string }
+  options?: { previousStepFailed?: boolean; forceProvider?: string; forceModel?: string; orgModelPreference?: string }
 ): ModelSelection {
   // Lazy-load providers only when API keys are available
   const getAnthropic = () => {
@@ -37,12 +37,19 @@ export function selectModel(
       return { model: google('gemini-2.5-pro'), modelId: 'gemini-2.5-pro', provider: 'google', tier: 'complex' };
   }
 
+  // If org has a model preference (and no explicit forceProvider override), treat it like forceProvider
+  const effectiveProvider = options?.forceProvider ||
+    (options?.orgModelPreference && options.orgModelPreference !== 'auto' ? options.orgModelPreference : undefined);
+
   // If a provider is forced
-  if (options?.forceProvider === 'anthropic' && process.env.ANTHROPIC_API_KEY) {
+  if (effectiveProvider === 'anthropic' && process.env.ANTHROPIC_API_KEY) {
     return { model: getAnthropic()('claude-sonnet-4-20250514'), modelId: 'claude-sonnet-4-20250514', provider: 'anthropic', tier: 'complex' };
   }
-  if (options?.forceProvider === 'openai' && process.env.OPENAI_API_KEY) {
+  if (effectiveProvider === 'openai' && process.env.OPENAI_API_KEY) {
     return { model: getOpenAI()('gpt-4o'), modelId: 'gpt-4o', provider: 'openai', tier: 'medium' };
+  }
+  if (effectiveProvider === 'gemini') {
+    return { model: google('gemini-2.5-pro'), modelId: 'gemini-2.5-pro', provider: 'google', tier: 'complex' };
   }
 
   // Escalate if previous step failed

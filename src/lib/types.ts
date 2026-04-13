@@ -2,6 +2,7 @@ export interface Organization {
   id: string;
   name: string;
   slug: string;
+  model_preference: string;
   created_at: string;
 }
 

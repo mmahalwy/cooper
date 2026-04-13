@@ -48,6 +48,13 @@ export async function POST(req: Request) {
     return new Response('User not found', { status: 404 });
   }
 
+  // Get org-level model preference
+  const { data: dbOrg } = await supabase
+    .from('organizations')
+    .select('model_preference')
+    .eq('id', dbUser.org_id)
+    .single();
+
   const { messages, threadId, modelOverride } = (await req.json()) as {
     messages: UIMessage[];
     threadId?: string;
@@ -358,6 +365,7 @@ export async function POST(req: Request) {
       const { result, modelSelection } = await createAgentStream({
         ...agentInput,
         modelOverride: requestedModel,
+        orgModelPreference: dbOrg?.model_preference && dbOrg.model_preference !== 'auto' ? dbOrg.model_preference : undefined,
         tools,
         memoryContext,
         supabase,

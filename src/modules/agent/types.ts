@@ -8,6 +8,7 @@ export interface AgentInput {
   userId: string;
   uiMessages: UIMessage[];
   modelOverride?: string;
+  orgModelPreference?: string;
   tools?: Record<string, any>;
   memoryContext?: MemoryContext;
   supabase?: SupabaseClient;
